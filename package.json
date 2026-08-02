@@ -4,6 +4,6 @@
   "private": true,
   "description": "NUTRETIUM — tienda online (Netlify Functions + Redsys)",
   "dependencies": {
-    "@netlify/blobs": "^8.1.0"
+    "@netlify/blobs": "^10.7.11"
   }
 }

@@ -1,0 +1,9 @@
+{
+  "name": "nutretium-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NUTRETIUM — tienda online (Netlify Functions + Redsys)",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}

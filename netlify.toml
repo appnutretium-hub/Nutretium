@@ -1,0 +1,27 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+  # Excluye del sitio publicado los originales pesados y los informes internos.
+  # Solo afecta a la copia que Netlify despliega; tus archivos locales NO se tocan.
+  command = "rm -rf 'sources/amix_fotos_categoria_nombre_pvp_FINAL_WEB/02_originales_renombradas_max_calidad' 'sources/amix_fotos_categoria_nombre_pvp_FINAL_WEB/03_informes_control'"
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["netlify/functions/**"]
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[redirects]]
+  from = "/pago-ok"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/pago-ko"
+  to = "/index.html"
+  status = 200

@@ -1,0 +1,11 @@
+AMIX - carpeta final fotos categoria + nombre + PVP
+
+Contenido:
+- 01_webp_ligeras_para_web: 160 fotos en WEBP listas para subir a web, organizadas por categoria.
+- 02_originales_renombradas_max_calidad: las mismas fotos en formato original renombrado, para respaldo o retoque.
+- 03_informes_control/productos_con_imagen_renombrada.csv: control de cada archivo generado.
+- 03_informes_control/productos_sin_imagen_clara.csv: referencias de tarifa sin foto fiable en el catalogo de imagenes.
+- 03_informes_control/tarifa_pvp_parseada_completa.csv: tarifa completa extraida.
+
+Criterio:
+He priorizado precision. No he inventado fotos para productos que no aparecen claros en el catalogo de imagenes. Si varias tallas comparten una unica foto de familia, la imagen se duplica con el PVP de cada SKU.

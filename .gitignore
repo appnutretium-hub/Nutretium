@@ -1,0 +1,16 @@
+# Dependencias
+node_modules/
+
+# Variables de entorno (nunca subir claves)
+.env
+.env.*
+!.env.example
+
+# Originales pesados e informes internos del catálogo:
+# NO se publican en la web (se conservan solo en tu equipo).
+sources/amix_fotos_categoria_nombre_pvp_FINAL_WEB/02_originales_renombradas_max_calidad/
+sources/amix_fotos_categoria_nombre_pvp_FINAL_WEB/03_informes_control/
+
+# Sistema
+.DS_Store
+Thumbs.db

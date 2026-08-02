@@ -1,0 +1,2060 @@
+﻿<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NUTRETIUM | Nutrición Deportiva Premium</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              gold: '#D4AF37',
+              goldlight: '#F0D060',
+              golddark: '#A07820',
+              dark: '#0a0a0a',
+              card: '#111111',
+              border: '#2a2200',
+              muted: '#8a7a50',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          screens: {
+            'xs': '480px',
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Base ── */
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { background-color: #0a0a0a; color: #f0f0f0; min-width: 320px; }
+
+    /* ── Cart Sidebar ── */
+    .cart-sidebar { transform: translateX(100%); transition: transform 0.35s cubic-bezier(0.4,0,0.2,1); }
+    .cart-sidebar.open { transform: translateX(0); }
+    .overlay { opacity: 0; pointer-events: none; transition: opacity 0.35s ease; }
+    .overlay.open { opacity: 1; pointer-events: all; }
+
+    /* ── Product Cards ── */
+    .product-card:hover .add-to-cart-btn { background-color: #D4AF37; color: #0a0a0a; }
+    /* Touch: show hover state on tap */
+    @media (hover: none) {
+      .product-card:active .add-to-cart-btn { background-color: #D4AF37; color: #0a0a0a; }
+    }
+
+    /* ── Category Cards ── */
+    .category-card { transition: border-color 0.2s, transform 0.2s; }
+    .category-card:hover { border-color: #D4AF37; transform: translateY(-4px); }
+    @media (hover: none) { .category-card:active { border-color: #D4AF37; } }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #111111; }
+    ::-webkit-scrollbar-thumb { background: #3a2e00; border-radius: 3px; }
+
+    /* ── Typography effects ── */
+    .gold-text { text-shadow: 0 0 24px rgba(212,175,55,0.55); }
+    .hero-bg { background: linear-gradient(135deg, #0a0a0a 0%, #0f0e00 50%, #0a0a0a 100%); }
+
+    /* ── Redsys button ── */
+    .btn-redsys {
+      background: linear-gradient(135deg, #c8102e 0%, #a00d24 100%);
+      transition: filter 0.2s, transform 0.1s;
+    }
+    .btn-redsys:hover:not(:disabled) { filter: brightness(1.15); transform: translateY(-1px); }
+    .btn-redsys:active:not(:disabled) { transform: translateY(0); }
+
+    /* ── Spinner ── */
+    .spinner {
+      border: 3px solid rgba(255,255,255,0.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      width: 18px; height: 18px;
+      animation: spin 0.7s linear infinite;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast — safe on small screens ── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #D4AF37;
+      color: #0a0a0a;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.875rem;
+      z-index: 9999;
+      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+      white-space: nowrap;
+      max-width: calc(100vw - 32px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── Mobile menu ── */
+    .mobile-menu { display: none; }
+    .mobile-menu.open { display: block; }
+
+    /* ── Modals ── */
+    .modal-backdrop { opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
+    .modal-backdrop.open { opacity: 1; pointer-events: all; }
+    .modal-box {
+      transform: scale(0.95) translateY(16px);
+      transition: transform 0.25s ease, opacity 0.25s ease;
+      opacity: 0;
+    }
+    .modal-backdrop.open .modal-box { transform: scale(1) translateY(0); opacity: 1; }
+
+    /* ── Star rating ── */
+    .star-btn { cursor: pointer; transition: color 0.1s; }
+    /* Bigger tap target on touch ── */
+    @media (hover: none) { .star-btn { padding: 4px; } }
+
+    /* ── Filter buttons ── */
+    .filter-btn.active { background: #D4AF37; color: #0a0a0a; border-color: #D4AF37; }
+
+    /* ── Profile dropdown ── */
+    .profile-dropdown { display: none; }
+    .profile-dropdown.open { display: block; }
+
+    /* ── Filter bar scroll on mobile ── */
+    .filter-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding-bottom: 4px;
+    }
+    .filter-scroll::-webkit-scrollbar { display: none; }
+
+    /* ── Inputs — prevent iOS zoom (min font-size 16px) ── */
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+    @media (min-width: 640px) {
+      input, select, textarea { font-size: 0.875rem !important; }
+    }
+
+    /* ── Category grid: force 3 cols on very small screens ── */
+    @media (max-width: 479px) {
+      .category-grid { grid-template-columns: repeat(3, 1fr) !important; }
+      .category-card { padding: 12px 8px; }
+      .category-card span:first-child { font-size: 1.75rem; }
+      .category-card span:last-child { font-size: 0.7rem; }
+    }
+
+    /* ── Hero title scaling ── */
+    @media (max-width: 479px) {
+      .hero-title { font-size: clamp(2.25rem, 10vw, 4rem) !important; }
+    }
+
+    /* ── Product grid: single col on very small ── */
+    @media (max-width: 479px) {
+      .product-grid { grid-template-columns: repeat(1, 1fr) !important; }
+    }
+
+    /* ── Cart sidebar full width on mobile ── */
+    @media (max-width: 479px) {
+      .cart-sidebar { max-width: 100% !important; }
+    }
+
+    /* ── Touch-friendly tap targets ── */
+    @media (hover: none) {
+      .nav-link { min-height: 44px; display: flex; align-items: center; }
+      .filter-btn { min-height: 40px; }
+    }
+
+    /* ── Stats bar wrapping ── */
+    @media (max-width: 479px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    }
+
+    /* ── Modal scroll safety ── */
+    .modal-scroll {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      max-height: calc(100dvh - 48px);
+    }
+    @supports not (height: 100dvh) {
+      .modal-scroll { max-height: calc(100vh - 48px); }
+    }
+
+    /* ── About section responsive ── */
+    @media (max-width: 767px) {
+      .about-certs { grid-template-columns: repeat(4, 1fr) !important; gap: 8px !important; }
+      .about-certs .cert-card { padding: 12px 8px; }
+      .about-certs .cert-card p:first-child { font-size: 1.5rem; }
+    }
+
+    /* ── Navbar search ── */
+    .nav-search-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .nav-search-input {
+      width: 0;
+      opacity: 0;
+      pointer-events: none;
+      padding: 0;
+      transition: width 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+      background: #111111;
+      border: 1px solid #2a2200;
+      border-radius: 10px;
+      color: #f0f0f0;
+      font-size: 14px;
+      outline: none;
+      height: 36px;
+    }
+    .nav-search-input::placeholder { color: #8a7a50; }
+    .nav-search-input.open {
+      width: min(220px, calc(100vw - 220px));
+      opacity: 1;
+      pointer-events: all;
+      padding: 0 12px 0 36px;
+    }
+    .nav-search-input:focus { border-color: #D4AF37; }
+    .nav-search-icon {
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #8a7a50;
+      border-radius: 10px;
+      transition: color 0.2s, background 0.2s;
+      flex-shrink: 0;
+      z-index: 1;
+    }
+    .nav-search-icon:hover,
+    .nav-search-icon.active { color: #D4AF37; background: rgba(212,175,55,0.08); }
+    /* On mobile, search expands to full width below navbar */
+    @media (max-width: 640px) {
+      .nav-search-input.open {
+        width: min(160px, calc(100vw - 180px));
+      }
+    }
+
+    /* ── Mega menu ── */
+    .mega-panel {
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(8px);
+      transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+    }
+    .mega:hover .mega-panel,
+    .mega:focus-within .mega-panel {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+    .mega-link {
+      display: block;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #cbb88a;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .mega-link:hover { background: rgba(212,175,55,0.1); color: #fff; }
+
+    /* ── Mobile accordion ── */
+    .mobile-acc-panel { display: none; }
+    .mobile-acc.open .mobile-acc-panel { display: block; }
+    .mobile-acc.open .mobile-acc-chevron { transform: rotate(180deg); }
+
+    /* ── Advanced search filters panel ── */
+    .adv-filters { display: none; }
+    .adv-filters.open { display: block; }
+    .adv-chip {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid #2a2200;
+      background: #0a0a0a;
+      color: #8a7a50;
+      transition: all 0.15s;
+    }
+    .adv-chip:hover { border-color: #D4AF37; color: #fff; }
+    .adv-chip.active { background: #D4AF37; color: #0a0a0a; border-color: #D4AF37; }
+
+    /* ── Floating chat ── */
+    .chat-pop { transform: scale(0.9) translateY(12px); opacity: 0; pointer-events: none; transform-origin: bottom right; transition: transform 0.25s ease, opacity 0.25s ease; }
+    .chat-pop.open { transform: scale(1) translateY(0); opacity: 1; pointer-events: all; }
+
+    /* ── Horizontal product carousel ── */
+    .h-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; scroll-snap-type: x mandatory; }
+    .h-scroll::-webkit-scrollbar { display: none; }
+    .h-scroll > * { scroll-snap-align: start; }
+
+    /* ── Test options ── */
+    .test-opt {
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 10px 8px;
+      border-radius: 10px;
+      border: 1px solid #2a2200;
+      background: #0a0a0a;
+      color: #cbb88a;
+      transition: all 0.15s;
+    }
+    .test-opt:hover { border-color: #D4AF37; color: #fff; }
+    .test-opt.active { background: #D4AF37; color: #0a0a0a; border-color: #D4AF37; }
+
+    /* ── Radio playing pulse ── */
+    @keyframes radioPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(212,175,55,0.5); } 50% { box-shadow: 0 0 0 10px rgba(212,175,55,0); } }
+    #radioPulse.playing { animation: radioPulse 1.5s infinite; }
+
+    /* ── Contadores animados (stats) ── */
+    @keyframes statBump { 0% { transform: scale(1); } 30% { transform: scale(1.28); } 100% { transform: scale(1); } }
+    .stat-num.bump { animation: statBump 0.55s cubic-bezier(0.34,1.56,0.64,1); }
+    .stat-plus {
+      position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+      color: #D4AF37; font-weight: 900; font-size: 0.9rem; pointer-events: none;
+      animation: floatUp 1.1s ease forwards; z-index: 5;
+    }
+    @keyframes floatUp { 0% { opacity: 1; transform: translate(-50%,0); } 100% { opacity: 0; transform: translate(-50%,-30px); } }
+
+    /* ── Scroll reveal ── */
+    .reveal { opacity: 0; transform: translateY(26px); transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.16,1,0.3,1); will-change: opacity, transform; }
+    .reveal.in { opacity: 1; transform: none; }
+
+    /* ── Entrada de tarjetas (grids / carruseles) ── */
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+
+    /* ── Lift al pasar el ratón ── */
+    .product-card { transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s; }
+    .product-card:hover { transform: translateY(-6px); box-shadow: 0 18px 40px -20px rgba(212,175,55,0.35); }
+    .pay-badge:hover { border-color: #D4AF37; transform: translateY(-2px); transition: transform 0.15s, border-color 0.15s; }
+
+    /* ── Respeta a quien prefiere menos movimiento ── */
+    @media (prefers-reduced-motion: reduce) {
+      .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+      .stat-num.bump { animation: none; }
+      .product-card:hover { transform: none; }
+      #radioPulse.playing { animation: none; }
+    }
+
+    /* ── Payment badges ── */
+    .pay-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #0a0a0a;
+      border: 1px solid #2a2200;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #e8e8e8;
+    }
+  </style>
+</head>
+<body class="font-sans antialiased">
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- OVERLAY -->
+  <div id="overlay" class="overlay fixed inset-0 bg-black/70 z-40" onclick="closeCart()"></div>
+
+  <!-- ══════════════════════════════════════════
+       CART SIDEBAR
+  ══════════════════════════════════════════ -->
+  <aside
+    id="cartSidebar"
+    class="cart-sidebar fixed top-0 right-0 h-full w-full max-w-md bg-brand-card z-50 flex flex-col shadow-2xl border-l border-brand-border"
+    aria-label="Carrito de compra"
+  >
+    <div class="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-brand-border">
+      <h2 class="text-lg sm:text-xl font-bold tracking-wide">Tu Carrito</h2>
+      <button
+        onclick="closeCart()"
+        class="text-brand-muted hover:text-white transition-colors text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5"
+        aria-label="Cerrar carrito"
+      >&times;</button>
+    </div>
+
+    <div id="cartItems" class="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-3">
+      <p id="emptyCartMsg" class="text-brand-muted text-center mt-12">Tu carrito está vacío.</p>
+    </div>
+
+    <div class="px-4 sm:px-6 py-4 sm:py-5 border-t border-brand-border space-y-4">
+      <div class="flex justify-between items-center">
+        <span class="text-brand-muted font-semibold">Total</span>
+        <span id="cartTotal" class="text-white text-2xl font-black">€0.00</span>
+      </div>
+      <button
+        id="redsysBtn"
+        onclick="initiateRedsysPayment()"
+        class="btn-redsys w-full py-4 rounded-xl text-white font-bold text-base flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled
+        aria-label="Pagar con Redsys"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+        <span id="redsysBtnText">Pagar con Redsys</span>
+      </button>
+      <p class="text-xs text-brand-muted text-center">Pago 100% seguro · Cifrado SSL · Redsys</p>
+    </div>
+  </aside>
+
+  <!-- HIDDEN REDSYS FORM -->
+  <form id="redsysForm" method="POST" style="display:none;">
+    <input type="hidden" name="Ds_SignatureVersion" id="rf_signatureVersion" />
+    <input type="hidden" name="Ds_MerchantParameters" id="rf_merchantParameters" />
+    <input type="hidden" name="Ds_Signature" id="rf_signature" />
+  </form>
+
+  <!-- ══════════════════════════════════════════
+       TOP PROMO BANNER (CINTA DE ANUNCIOS)
+  ══════════════════════════════════════════ -->
+  <div class="bg-gradient-to-r from-brand-golddark via-brand-gold to-brand-golddark text-black">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-center gap-2 text-center">
+      <p class="text-xs sm:text-sm font-bold tracking-wide">
+        🚚 Envío a península gratis a partir de 50€
+        <span class="hidden xs:inline mx-2 opacity-50">|</span>
+        <br class="xs:hidden"/>
+        🎁 10% de descuento en tu primer pedido
+        <button onclick="openModal('registerModal')" class="underline font-black hover:text-white transition-colors">¡Regístrate ahora!</button>
+      </p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       TOP INFO BAR
+  ══════════════════════════════════════════ -->
+  <div class="bg-brand-card border-b border-brand-border hidden sm:block">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-9 flex items-center justify-between">
+      <!-- Left: small tagline -->
+      <p class="text-xs text-brand-muted">Envío express 48h · Devolución gratuita 30 días</p>
+      <!-- Right: hours + phone -->
+      <div class="flex items-center gap-5 text-xs text-brand-muted">
+        <span class="flex items-center gap-1.5">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-brand-gold flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span>Lun – Sáb &nbsp;09:00 – 21:00</span>
+        </span>
+        <a href="tel:+34633653517" class="flex items-center gap-1.5 hover:text-brand-gold transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-brand-gold flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+          </svg>
+          <span>633 653 517</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       NAVBAR
+  ══════════════════════════════════════════ -->
+  <nav class="sticky top-0 z-30 bg-brand-dark/95 backdrop-blur border-b border-brand-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+
+      <!-- Logo -->
+      <a href="#" class="flex items-center gap-2 flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded-lg" aria-label="NUTRETIUM inicio">
+        <span class="text-brand-gold font-black text-xl sm:text-2xl tracking-tighter gold-text">NUTRE<span class="text-white">TIUM</span></span>
+      </a>
+
+      <!-- Prominent search bar (desktop) — right next to the logo -->
+      <div class="hidden lg:flex flex-1 max-w-2xl mx-3 relative" id="navSearchWrapDesktop">
+        <div class="relative w-full flex items-center bg-brand-card border border-brand-border rounded-xl focus-within:border-brand-gold transition-colors">
+          <svg class="absolute left-3.5 w-5 h-5 text-brand-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/></svg>
+          <input
+            id="navSearchInput"
+            type="search"
+            placeholder="Busca proteínas, creatina, packs, marcas..."
+            oninput="applyFiltersFromNav()"
+            onkeydown="handleNavSearchKey(event)"
+            autocomplete="off"
+            aria-label="Buscar productos"
+            class="w-full bg-transparent text-white placeholder-brand-muted pl-11 pr-32 py-3 text-sm rounded-xl focus:outline-none"
+          />
+          <button
+            onclick="toggleAdvFilters()"
+            id="advFilterBtn"
+            class="absolute right-1.5 flex items-center gap-1.5 bg-brand-gold text-black text-xs font-bold px-3 py-2 rounded-lg hover:bg-brand-goldlight transition-colors"
+            aria-expanded="false"
+            aria-controls="advFilters"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L14 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 018 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
+            Filtros
+          </button>
+
+          <!-- Advanced filters panel -->
+          <div id="advFilters" class="adv-filters absolute left-0 top-full mt-2 w-full bg-brand-card border border-brand-border rounded-xl shadow-2xl p-4 z-50">
+            <!-- Precio -->
+            <div class="mb-4">
+              <p class="text-xs font-bold text-brand-muted uppercase tracking-wider mb-2">Precio</p>
+              <div class="flex flex-wrap gap-2">
+                <button onclick="setPriceFilter(this,0,20)" class="adv-chip">Menos de 20€</button>
+                <button onclick="setPriceFilter(this,20,40)" class="adv-chip">20€ – 40€</button>
+                <button onclick="setPriceFilter(this,40,9999)" class="adv-chip">Más de 40€</button>
+              </div>
+            </div>
+            <!-- Marca -->
+            <div class="mb-4">
+              <p class="text-xs font-bold text-brand-muted uppercase tracking-wider mb-2">Marca</p>
+              <div class="flex flex-wrap gap-2">
+                <button onclick="setBrandFilter(this,'Amix')" class="adv-chip">Amix</button>
+              </div>
+            </div>
+            <!-- Ofertas + Packs -->
+            <div class="flex flex-wrap gap-2 mb-4">
+              <button onclick="toggleOffersFilter(this)" class="adv-chip">🏷️ Solo ofertas</button>
+              <button onclick="togglePacksFilter(this)" class="adv-chip">📦 Solo packs</button>
+            </div>
+            <div class="flex gap-2 pt-3 border-t border-brand-border">
+              <button onclick="applyAdvFilters()" class="flex-1 bg-brand-gold text-black font-bold text-sm py-2.5 rounded-lg hover:bg-brand-goldlight transition-colors">Aplicar filtros</button>
+              <button onclick="resetAdvFilters()" class="px-4 bg-brand-dark border border-brand-border text-brand-muted font-semibold text-sm py-2.5 rounded-lg hover:text-white transition-colors">Limpiar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right side -->
+      <div class="flex items-center gap-2 flex-shrink-0">
+
+        <!-- Personal Trainer quick access (desktop) -->
+        <button
+          onclick="openModal('trainerModal')"
+          class="hidden lg:inline-flex nav-link px-3 py-2 rounded-lg font-bold whitespace-nowrap transition-colors text-brand-gold border border-brand-gold/30 hover:bg-brand-gold hover:text-black text-sm"
+        >
+          💪 Trainer
+        </button>
+
+        <!-- Auth buttons (desktop) -->
+        <div id="authButtons" class="hidden lg:flex items-center gap-2">
+          <button onclick="openModal('loginModal')" class="text-sm font-semibold text-brand-muted hover:text-white px-4 py-2 rounded-lg hover:bg-white/5 transition-colors whitespace-nowrap">Iniciar sesión</button>
+          <button onclick="openModal('registerModal')" class="text-sm font-bold bg-brand-gold text-black px-4 py-2 rounded-lg hover:bg-brand-goldlight transition-colors whitespace-nowrap">Registrarse</button>
+        </div>
+
+        <!-- Profile menu (shown when logged in) -->
+        <div id="profileMenu" class="hidden relative">
+          <button
+            onclick="toggleProfileDropdown()"
+            class="flex items-center gap-2 bg-brand-card border border-brand-border hover:border-brand-gold px-3 py-2 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+            aria-haspopup="true"
+            aria-expanded="false"
+            id="profileMenuBtn"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-brand-gold flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            <span id="profileName" class="text-sm font-semibold text-white hidden sm:block">Mi cuenta</span>
+          </button>
+          <div
+            id="profileDropdown"
+            class="profile-dropdown absolute right-0 mt-2 w-48 bg-brand-card border border-brand-border rounded-xl shadow-2xl py-1 z-50"
+            role="menu"
+          >
+            <a href="#" onclick="showSection('profile')" class="block px-4 py-2.5 text-sm text-brand-muted hover:text-white hover:bg-white/5 transition-colors" role="menuitem">Mi perfil</a>
+            <a href="#" onclick="showSection('orders')"  class="block px-4 py-2.5 text-sm text-brand-muted hover:text-white hover:bg-white/5 transition-colors" role="menuitem">Mis pedidos</a>
+            <hr class="border-brand-border my-1"/>
+            <a href="#" onclick="logout()" class="block px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-white/5 transition-colors" role="menuitem">Cerrar sesión</a>
+          </div>
+        </div>
+
+        <!-- Cart button -->
+        <button
+          onclick="openCart()"
+          class="relative flex items-center gap-2 bg-brand-card border border-brand-border hover:border-brand-gold px-3 sm:px-4 py-2 rounded-lg transition-colors group focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+          aria-label="Abrir carrito"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand-muted group-hover:text-brand-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          <span class="text-sm font-semibold text-white hidden sm:block">Carrito</span>
+          <span id="cartCount" class="absolute -top-2 -right-2 bg-brand-gold text-black text-xs font-black w-5 h-5 rounded-full flex items-center justify-center hidden" aria-live="polite">0</span>
+        </button>
+
+        <!-- Hamburger (tablet + mobile) -->
+        <button
+          onclick="toggleMobileMenu()"
+          class="lg:hidden flex flex-col justify-center gap-1.5 p-2 rounded-lg hover:bg-white/5 transition-colors w-10 h-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
+          aria-label="Abrir menú"
+          aria-expanded="false"
+          id="hamburgerBtn"
+        >
+          <span class="w-5 h-0.5 bg-white block transition-all"></span>
+          <span class="w-5 h-0.5 bg-white block transition-all"></span>
+          <span class="w-5 h-0.5 bg-white block transition-all"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Prominent search bar (mobile / tablet) — always visible -->
+    <div class="lg:hidden border-t border-brand-border bg-brand-dark px-4 py-3">
+      <div class="relative flex items-center bg-brand-card border border-brand-border rounded-xl focus-within:border-brand-gold transition-colors">
+        <svg class="absolute left-3 w-4 h-4 text-brand-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/></svg>
+        <input
+          id="mobileSearchInput"
+          type="search"
+          placeholder="Buscar productos, marcas, packs..."
+          oninput="applyFiltersFromNav()"
+          onkeydown="handleNavSearchKey(event)"
+          autocomplete="off"
+          aria-label="Buscar productos"
+          class="w-full bg-transparent text-white placeholder-brand-muted pl-9 pr-20 py-2.5 text-sm rounded-xl focus:outline-none"
+        />
+        <button onclick="toggleAdvFilters()" class="absolute right-1.5 flex items-center gap-1 bg-brand-gold text-black text-xs font-bold px-2.5 py-1.5 rounded-lg">
+          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L14 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 018 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
+          Filtros
+        </button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         MEGA MENU (CATEGORÍAS DESPLEGABLES) — desktop
+    ══════════════════════════════════════════ -->
+    <div class="hidden lg:block border-t border-brand-border bg-brand-dark/95 backdrop-blur">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center gap-1">
+
+        <!-- Nutrición deportiva -->
+        <div class="mega group relative">
+          <button class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-muted hover:text-brand-gold transition-colors">
+            Nutrición deportiva
+            <svg class="w-3.5 h-3.5 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          <div class="mega-panel absolute left-0 top-full w-60 bg-brand-card border border-brand-border rounded-b-xl shadow-2xl p-2 z-50">
+            <a onclick="filterByCategory('Proteínas')" class="mega-link" role="button" tabindex="0">🥛 Proteínas</a>
+            <a onclick="filterByCategory('Creatinas')" class="mega-link" role="button" tabindex="0">💪 Creatinas</a>
+            <a onclick="filterByCategory('Aminoácidos')" class="mega-link" role="button" tabindex="0">🧬 Aminoácidos</a>
+            <a onclick="filterByCategory('Voluminizadores')" class="mega-link" role="button" tabindex="0">🏋️ Voluminizadores</a>
+            <a onclick="filterByCategory('Carbohidratos')" class="mega-link" role="button" tabindex="0">🌾 Carbohidratos</a>
+          </div>
+        </div>
+
+        <!-- Alimentación saludable -->
+        <div class="mega group relative">
+          <button class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-muted hover:text-brand-gold transition-colors">
+            Alimentación saludable
+            <svg class="w-3.5 h-3.5 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          <div class="mega-panel absolute left-0 top-full w-60 bg-brand-card border border-brand-border rounded-b-xl shadow-2xl p-2 z-50">
+            <a onclick="filterByCategory('Barritas y snacks')" class="mega-link" role="button" tabindex="0">🍫 Barritas y snacks</a>
+            <a onclick="filterByCategory('Bebidas')" class="mega-link" role="button" tabindex="0">🥤 Bebidas</a>
+            <a onclick="filterByCategory('Sustitutivos')" class="mega-link" role="button" tabindex="0">🥣 Sustitutivos de comida</a>
+          </div>
+        </div>
+
+        <!-- Salud -->
+        <div class="mega group relative">
+          <button class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-muted hover:text-brand-gold transition-colors">
+            Salud
+            <svg class="w-3.5 h-3.5 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          <div class="mega-panel absolute left-0 top-full w-60 bg-brand-card border border-brand-border rounded-b-xl shadow-2xl p-2 z-50">
+            <a onclick="filterByCategory('Vitaminas y minerales')" class="mega-link" role="button" tabindex="0">🌿 Vitaminas y minerales</a>
+            <a onclick="filterByCategory('Péptidos')" class="mega-link" role="button" tabindex="0">🧪 Péptidos</a>
+            <a onclick="filterByCategory('Cosmética')" class="mega-link" role="button" tabindex="0">🧴 Cosmética</a>
+          </div>
+        </div>
+
+        <!-- Material deportivo -->
+        <div class="mega group relative">
+          <button class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-muted hover:text-brand-gold transition-colors">
+            Energía y rendimiento
+            <svg class="w-3.5 h-3.5 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          <div class="mega-panel absolute left-0 top-full w-64 bg-brand-card border border-brand-border rounded-b-xl shadow-2xl p-2 z-50">
+            <a onclick="filterByCategory('Energéticos')" class="mega-link" role="button" tabindex="0">⚡ Energéticos</a>
+            <a onclick="filterByCategory('Quemadores de grasa')" class="mega-link" role="button" tabindex="0">🔥 Quemadores de grasa</a>
+            <a onclick="filterByCategory('Estimulantes de crecimiento')" class="mega-link" role="button" tabindex="0">📈 Estimulantes de crecimiento</a>
+            <a onclick="filterByCategory('Unidosis')" class="mega-link" role="button" tabindex="0">💊 Unidosis</a>
+            <a onclick="filterByCategory('Bike Elite')" class="mega-link" role="button" tabindex="0">🚴 Bike Elite</a>
+          </div>
+        </div>
+
+        <!-- Objetivos -->
+        <div class="mega group relative">
+          <button class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-gold hover:text-brand-goldlight transition-colors">
+            🎯 Objetivos
+            <svg class="w-3.5 h-3.5 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          <div class="mega-panel absolute right-0 top-full w-64 bg-brand-card border border-brand-border rounded-b-xl shadow-2xl p-2 z-50">
+            <a onclick="filterByGoal('Pérdida de grasa')" class="mega-link" role="button" tabindex="0">🔥 Pérdida de grasa</a>
+            <a onclick="filterByGoal('Mayor rendimiento')" class="mega-link" role="button" tabindex="0">⚡ Mayor rendimiento</a>
+            <a onclick="filterByGoal('Recuperación')" class="mega-link" role="button" tabindex="0">🔄 Recuperación</a>
+            <a onclick="filterByGoal('Desarrollo muscular')" class="mega-link" role="button" tabindex="0">💪 Desarrollo muscular</a>
+            <a onclick="filterByGoal('Salud y bienestar')" class="mega-link" role="button" tabindex="0">🌿 Salud y bienestar</a>
+          </div>
+        </div>
+
+        <!-- Take Away — acceso destacado -->
+        <a href="#takeaway" class="flex items-center gap-1.5 ml-1 px-4 py-1.5 rounded-full bg-brand-gold text-black text-sm font-black hover:bg-brand-goldlight transition-colors whitespace-nowrap">
+          🥤 Take Away
+        </a>
+
+      </div>
+    </div>
+
+    <!-- Mobile / Tablet menu — shown below lg -->
+    <div id="mobileMenu" class="mobile-menu lg:hidden border-t border-brand-border bg-brand-dark px-4 py-3 space-y-1">
+      <!-- Mobile category accordions (categorías reales AMIX) -->
+      <div class="mobile-acc">
+        <button onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">
+          Nutrición deportiva
+          <svg class="mobile-acc-chevron w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div class="mobile-acc-panel pl-4 pb-2 space-y-1">
+          <a onclick="filterByCategory('Proteínas'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Proteínas</a>
+          <a onclick="filterByCategory('Creatinas'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Creatinas</a>
+          <a onclick="filterByCategory('Aminoácidos'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Aminoácidos</a>
+          <a onclick="filterByCategory('Voluminizadores'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Voluminizadores</a>
+          <a onclick="filterByCategory('Carbohidratos'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Carbohidratos</a>
+        </div>
+      </div>
+      <div class="mobile-acc">
+        <button onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">
+          Alimentación saludable
+          <svg class="mobile-acc-chevron w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div class="mobile-acc-panel pl-4 pb-2 space-y-1">
+          <a onclick="filterByCategory('Barritas y snacks'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Barritas y snacks</a>
+          <a onclick="filterByCategory('Bebidas'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Bebidas</a>
+          <a onclick="filterByCategory('Sustitutivos'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Sustitutivos de comida</a>
+        </div>
+      </div>
+      <div class="mobile-acc">
+        <button onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">
+          Salud
+          <svg class="mobile-acc-chevron w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div class="mobile-acc-panel pl-4 pb-2 space-y-1">
+          <a onclick="filterByCategory('Vitaminas y minerales'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Vitaminas y minerales</a>
+          <a onclick="filterByCategory('Péptidos'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Péptidos</a>
+          <a onclick="filterByCategory('Cosmética'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Cosmética</a>
+        </div>
+      </div>
+      <div class="mobile-acc">
+        <button onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">
+          Energía y rendimiento
+          <svg class="mobile-acc-chevron w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div class="mobile-acc-panel pl-4 pb-2 space-y-1">
+          <a onclick="filterByCategory('Energéticos'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Energéticos</a>
+          <a onclick="filterByCategory('Quemadores de grasa'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Quemadores de grasa</a>
+          <a onclick="filterByCategory('Estimulantes de crecimiento'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Estimulantes de crecimiento</a>
+          <a onclick="filterByCategory('Unidosis'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Unidosis</a>
+          <a onclick="filterByCategory('Bike Elite'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Bike Elite</a>
+        </div>
+      </div>
+      <div class="mobile-acc">
+        <button onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-gold hover:bg-brand-gold/10 font-bold transition-colors">
+          🎯 Objetivos
+          <svg class="mobile-acc-chevron w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div class="mobile-acc-panel pl-4 pb-2 space-y-1">
+          <a onclick="filterByGoal('Pérdida de grasa'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Pérdida de grasa</a>
+          <a onclick="filterByGoal('Mayor rendimiento'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Mayor rendimiento</a>
+          <a onclick="filterByGoal('Recuperación'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Recuperación</a>
+          <a onclick="filterByGoal('Desarrollo muscular'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Desarrollo muscular</a>
+          <a onclick="filterByGoal('Salud y bienestar'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Salud y bienestar</a>
+        </div>
+      </div>
+      <a href="#takeaway" onclick="toggleMobileMenu()" class="flex items-center gap-2 px-4 py-3 mt-1 rounded-lg bg-brand-gold text-black font-black transition-colors">🥤 Take Away</a>
+      <hr class="border-brand-border my-2"/>
+      <a href="#products"   onclick="toggleMobileMenu()" class="block px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">Productos</a>
+      <a href="#about"      onclick="toggleMobileMenu()" class="block px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">Nosotros</a>
+      <a href="#contact"    onclick="toggleMobileMenu()" class="block px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">Contacto</a>
+      <button
+        onclick="toggleMobileMenu(); openModal('trainerModal')"
+        class="w-full text-left px-4 py-3 rounded-lg font-bold text-brand-gold hover:bg-brand-gold/10 transition-colors"
+      >
+        💪 Personal Trainer
+      </button>
+      <hr class="border-brand-border my-2"/>
+      <div id="mobileAuthButtons">
+        <button onclick="toggleMobileMenu(); openModal('loginModal')" class="block w-full text-left px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">Iniciar sesión</button>
+        <button onclick="toggleMobileMenu(); openModal('registerModal')" class="block w-full text-left px-4 py-3 rounded-lg text-brand-gold font-bold transition-colors">Registrarse</button>
+      </div>
+      <!-- Mobile contact info -->
+      <hr class="border-brand-border my-2"/>
+      <div class="px-4 py-2 flex flex-col gap-2">
+        <a href="tel:+34633653517" class="flex items-center gap-2 text-xs text-brand-muted hover:text-brand-gold transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+          </svg>
+          633 653 517
+        </a>
+        <span class="flex items-center gap-2 text-xs text-brand-muted">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          Lun – Sáb &nbsp;09:00 – 21:00
+        </span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ══════════════════════════════════════════
+       HERO
+  ══════════════════════════════════════════ -->
+  <section class="hero-bg relative overflow-hidden">
+    <div class="absolute inset-0 opacity-20 pointer-events-none" aria-hidden="true" style="background-image: radial-gradient(circle at 20% 50%, #D4AF37 0%, transparent 50%), radial-gradient(circle at 80% 20%, #A07820 0%, transparent 40%);"></div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 md:py-36 relative z-10">
+      <div class="max-w-3xl">
+        <span class="inline-block bg-brand-gold/10 border border-brand-gold/30 text-brand-gold text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-5 sm:mb-6">Nueva temporada 2026</span>
+        <h1 class="hero-title text-4xl sm:text-5xl md:text-7xl font-black leading-none tracking-tighter mb-5 sm:mb-6">
+          LLEVA TU<br/>
+          <span class="text-brand-gold gold-text">RENDIMIENTO</span><br/>
+          AL LÍMITE
+        </h1>
+        <p class="text-brand-muted text-base sm:text-lg md:text-xl max-w-xl mb-8 sm:mb-10 leading-relaxed">
+          Suplementación deportiva de élite. Formulaciones avanzadas para atletas que no aceptan compromisos.
+        </p>
+        <div class="flex flex-col xs:flex-row flex-wrap gap-3 sm:gap-4">
+          <a href="#products" class="bg-brand-gold text-black font-black px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl text-sm sm:text-base hover:bg-brand-goldlight transition-all text-center">
+            Ver Productos
+          </a>
+          <a href="#categories" class="border border-brand-border text-white font-semibold px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl text-sm sm:text-base hover:border-brand-gold transition-colors text-center">
+            Explorar Categorías
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-gold/40 to-transparent" aria-hidden="true"></div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       STATS BAR
+  ══════════════════════════════════════════ -->
+  <div class="bg-brand-card border-y border-brand-border">
+    <div id="statsBar" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 stats-grid grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+      <div class="py-1">
+        <p id="statClients" class="stat-num text-xl sm:text-2xl font-black text-brand-gold" data-count-to="5000" data-prefix="+" data-format="thousands">+5.000</p>
+        <p class="text-xs text-brand-muted uppercase tracking-wider mt-1">Clientes activos</p>
+      </div>
+      <div class="py-1">
+        <p class="stat-num text-xl sm:text-2xl font-black text-brand-gold" data-count-to="100" data-suffix="%">100%</p>
+        <p class="text-xs text-brand-muted uppercase tracking-wider mt-1">Calidad certificada</p>
+      </div>
+      <div class="py-1">
+        <p class="stat-num text-xl sm:text-2xl font-black text-brand-gold" data-count-to="48" data-suffix="h">48h</p>
+        <p class="text-xs text-brand-muted uppercase tracking-wider mt-1">Envío express</p>
+      </div>
+      <div class="py-1">
+        <p class="stat-num text-xl sm:text-2xl font-black text-brand-gold" data-count-to="30" data-suffix=" días">30 días</p>
+        <p class="text-xs text-brand-muted uppercase tracking-wider mt-1">Garantía devolución</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       CATEGORIES
+  ══════════════════════════════════════════ -->
+  <section id="categories" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
+    <div class="mb-8 sm:mb-12">
+      <span class="text-brand-gold text-xs font-bold uppercase tracking-widest">Compra por categoría</span>
+      <h2 class="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mt-2">Categorías principales</h2>
+      <p class="text-brand-muted mt-2 text-sm sm:text-base">Encuentra exactamente lo que necesitas para tu entrenamiento y bienestar.</p>
+    </div>
+    <div class="category-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Proteínas')" role="button" tabindex="0" aria-label="Proteínas">
+        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🥛</span>
+        <span class="text-sm font-bold text-center">Proteínas</span>
+      </div>
+      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Aminoácidos')" role="button" tabindex="0" aria-label="Aminoácidos">
+        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🧬</span>
+        <span class="text-sm font-bold text-center">Aminoácidos</span>
+      </div>
+      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Creatinas')" role="button" tabindex="0" aria-label="Creatinas">
+        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">💪</span>
+        <span class="text-sm font-bold text-center">Creatinas</span>
+      </div>
+      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Vitaminas y minerales')" role="button" tabindex="0" aria-label="Vitaminas y minerales">
+        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🌿</span>
+        <span class="text-sm font-bold text-center">Vitaminas y minerales</span>
+      </div>
+      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Quemadores de grasa')" role="button" tabindex="0" aria-label="Quemadores de grasa">
+        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🔥</span>
+        <span class="text-sm font-bold text-center">Quemadores de grasa</span>
+      </div>
+      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Barritas y snacks')" role="button" tabindex="0" aria-label="Barritas y snacks">
+        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🍫</span>
+        <span class="text-sm font-bold text-center">Barritas y snacks</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       BANNER PRINCIPAL — REGALO / ENVÍO GRATIS
+  ══════════════════════════════════════════ -->
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
+    <div class="relative overflow-hidden rounded-3xl border border-brand-gold/40 bg-gradient-to-r from-brand-dark via-[#15120a] to-brand-dark p-8 sm:p-12">
+      <div class="absolute inset-0 opacity-25 pointer-events-none" aria-hidden="true" style="background-image: radial-gradient(circle at 85% 30%, #D4AF37 0%, transparent 45%);"></div>
+      <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <span class="inline-block bg-brand-gold/15 border border-brand-gold/30 text-brand-gold text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4">Promoción exclusiva</span>
+          <h2 class="text-2xl sm:text-3xl md:text-4xl font-black leading-tight">
+            Compras superiores a <span class="text-brand-gold gold-text">50€</span>
+          </h2>
+          <p class="text-brand-muted text-base sm:text-lg mt-2">🎁 Regalo gratis &nbsp;o&nbsp; 🚚 Envío gratis a península</p>
+        </div>
+        <a href="#products" class="flex-shrink-0 bg-brand-gold text-black font-black px-7 py-4 rounded-xl text-sm sm:text-base hover:bg-brand-goldlight transition-colors text-center">
+          Aprovechar oferta
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       BANNER SECUNDARIO — VÍDEO DEPORTIVO
+  ══════════════════════════════════════════ -->
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+    <div class="relative overflow-hidden rounded-3xl border border-brand-border aspect-video sm:aspect-[21/9] bg-black">
+      <video
+        class="w-full h-full object-cover opacity-80"
+        autoplay muted loop playsinline
+        poster="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&q=80"
+        aria-label="Vídeo deportivo NUTRETIUM"
+      >
+        <source src="https://cdn.coverr.co/videos/coverr-a-man-lifting-weights-in-a-gym-4490/1080p.mp4" type="video/mp4"/>
+      </video>
+      <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
+      <div class="absolute bottom-0 left-0 p-6 sm:p-10">
+        <span class="text-brand-gold text-xs font-bold uppercase tracking-widest">Tu mejor versión empieza hoy</span>
+        <h3 class="text-2xl sm:text-4xl font-black mt-2 max-w-lg leading-tight">Energía, fuerza y constancia en cada entrenamiento</h3>
+        <a href="#trainer" class="inline-flex items-center gap-2 mt-5 bg-brand-gold text-black font-bold px-6 py-3 rounded-xl text-sm hover:bg-brand-goldlight transition-colors">
+          Empieza tu plan
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       NOVEDADES Y OFERTAS (carrusel)
+  ══════════════════════════════════════════ -->
+  <section id="novedades" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 border-t border-brand-border">
+    <div class="mb-6 sm:mb-8 flex items-end justify-between gap-4">
+      <div>
+        <span class="text-brand-gold text-xs font-bold uppercase tracking-widest">Recién llegados</span>
+        <h2 class="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mt-1">Novedades y ofertas</h2>
+      </div>
+      <a href="#products" class="text-sm font-bold text-brand-gold hover:text-brand-goldlight transition-colors flex-shrink-0">Ver todo →</a>
+    </div>
+    <div id="novedadesGrid" class="h-scroll flex gap-4 pb-2">
+      <!-- Injected by app.js -->
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       PRODUCTOS RECOMENDADOS EN PROMOCIÓN
+  ══════════════════════════════════════════ -->
+  <section id="recomendados" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 border-t border-brand-border">
+    <div class="mb-6 sm:mb-8 flex items-end justify-between gap-4">
+      <div>
+        <span class="text-brand-gold text-xs font-bold uppercase tracking-widest">Seleccionados para ti</span>
+        <h2 class="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mt-1">Recomendados en promoción</h2>
+      </div>
+      <a href="#products" class="text-sm font-bold text-brand-gold hover:text-brand-goldlight transition-colors flex-shrink-0">Ver todo →</a>
+    </div>
+    <div id="recomendadosGrid" class="h-scroll flex gap-4 pb-2">
+      <!-- Injected by app.js -->
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       PRODUCTS
+  ══════════════════════════════════════════ -->
+  <section id="products" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 border-t border-brand-border">
+    <div class="mb-6 sm:mb-8">
+      <h2 class="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight">Productos Destacados</h2>
+      <p class="text-brand-muted mt-2 text-sm sm:text-base">Los más vendidos de nuestra tienda.</p>
+    </div>
+
+    <!-- Search + Filter bar -->
+    <div class="mb-6 sm:mb-8 flex flex-col gap-3 sm:gap-4">
+      <!-- Search -->
+      <div class="relative">
+        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
+        </svg>
+        <input
+          id="searchInput"
+          type="search"
+          placeholder="Buscar productos..."
+          oninput="applyFiltersFromNav()"
+          autocomplete="off"
+          class="w-full bg-brand-card border border-brand-border rounded-xl pl-10 pr-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"
+          aria-label="Buscar productos"
+        />
+      </div>
+      <!-- Filter chips — scrollable on mobile (categorías reales AMIX) -->
+      <div class="filter-scroll flex gap-2 pb-1">
+        <button onclick="setFilter('Todos')"                       class="filter-btn active flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Todos">Todos</button>
+        <button onclick="setFilter('Proteínas')"                   class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Proteínas">Proteínas</button>
+        <button onclick="setFilter('Aminoácidos')"                 class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Aminoácidos">Aminoácidos</button>
+        <button onclick="setFilter('Creatinas')"                   class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Creatinas">Creatinas</button>
+        <button onclick="setFilter('Vitaminas y minerales')"       class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Vitaminas y minerales">Vitaminas y minerales</button>
+        <button onclick="setFilter('Quemadores de grasa')"         class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Quemadores de grasa">Quemadores de grasa</button>
+        <button onclick="setFilter('Estimulantes de crecimiento')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Estimulantes de crecimiento">Estimulantes</button>
+        <button onclick="setFilter('Carbohidratos')"               class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Carbohidratos">Carbohidratos</button>
+        <button onclick="setFilter('Energéticos')"                 class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Energéticos">Energéticos</button>
+        <button onclick="setFilter('Barritas y snacks')"           class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Barritas y snacks">Barritas y snacks</button>
+        <button onclick="setFilter('Bebidas')"                     class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Bebidas">Bebidas</button>
+        <button onclick="setFilter('Voluminizadores')"             class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Voluminizadores">Voluminizadores</button>
+        <button onclick="setFilter('Unidosis')"                    class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Unidosis">Unidosis</button>
+        <button onclick="setFilter('Sustitutivos')"                class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Sustitutivos">Sustitutivos</button>
+        <button onclick="setFilter('Péptidos')"                    class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Péptidos">Péptidos</button>
+        <button onclick="setFilter('Cosmética')"                   class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Cosmética">Cosmética</button>
+        <button onclick="setFilter('Bike Elite')"                  class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Bike Elite">Bike Elite</button>
+      </div>
+    </div>
+
+    <div id="productGrid" class="product-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <!-- Injected by app.js -->
+    </div>
+    <p id="noResults" class="hidden text-center text-brand-muted py-16">No se encontraron productos para tu búsqueda.</p>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       ENTRENADOR PERSONAL
+  ══════════════════════════════════════════ -->
+  <section id="trainer" class="bg-brand-card border-y border-brand-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
+      <div class="text-center max-w-2xl mx-auto mb-10 sm:mb-12">
+        <span class="text-brand-gold text-xs font-bold uppercase tracking-widest">Entrenador personal</span>
+        <h2 class="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mt-2">Tu plan, hecho a tu medida</h2>
+        <p class="text-brand-muted mt-3 text-sm sm:text-base">Trabaja con profesionales certificados y consigue resultados reales con un acompañamiento 100% personalizado.</p>
+      </div>
+      <div class="grid sm:grid-cols-3 gap-4 sm:gap-6 mb-10">
+        <div class="bg-brand-dark border border-brand-border rounded-2xl p-6 text-center hover:border-brand-gold/50 transition-colors">
+          <span class="text-4xl">📋</span>
+          <h3 class="font-bold text-lg mt-4">Tablas de entrenamiento</h3>
+          <p class="text-brand-muted text-sm mt-2 leading-relaxed">Rutinas estructuradas por objetivo, nivel y material disponible.</p>
+        </div>
+        <div class="bg-brand-dark border border-brand-border rounded-2xl p-6 text-center hover:border-brand-gold/50 transition-colors">
+          <span class="text-4xl">🥗</span>
+          <h3 class="font-bold text-lg mt-4">Dietas</h3>
+          <p class="text-brand-muted text-sm mt-2 leading-relaxed">Planes nutricionales adaptados a tus metas, gustos y alergias.</p>
+        </div>
+        <div class="bg-brand-dark border border-brand-border rounded-2xl p-6 text-center hover:border-brand-gold/50 transition-colors">
+          <span class="text-4xl">🔄</span>
+          <h3 class="font-bold text-lg mt-4">Rutinas</h3>
+          <p class="text-brand-muted text-sm mt-2 leading-relaxed">Programación semanal con progresión y seguimiento continuo.</p>
+        </div>
+      </div>
+      <div class="text-center">
+        <button onclick="openModal('trainerModal')" class="inline-flex items-center gap-2 bg-brand-gold text-black font-black px-8 py-4 rounded-xl text-sm sm:text-base hover:bg-brand-goldlight transition-colors">
+          💪 Solicita tu plan personalizado
+        </button>
+        <p class="text-xs text-brand-muted mt-3">Primera evaluación gratuita · Respuesta en menos de 24 h</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       TAKE AWAY
+  ══════════════════════════════════════════ -->
+  <section id="takeaway" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 border-t border-brand-border">
+    <div class="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+      <div>
+        <span class="text-brand-gold text-xs font-bold uppercase tracking-widest">Recogida rápida</span>
+        <h2 class="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mt-2 mb-4">Zona Take Away</h2>
+        <p class="text-brand-muted leading-relaxed mb-6 text-sm sm:text-base">
+          Pide online y recoge en tienda en minutos. Batidos recién preparados, snacks proteicos y productos listos para llevar, sin esperas ni colas.
+        </p>
+        <ul class="space-y-3 mb-8">
+          <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg">✓</span> Pedido listo en 15 minutos</li>
+          <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg">✓</span> Batidos y bowls recién hechos</li>
+          <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg">✓</span> Paga online o al recoger</li>
+        </ul>
+        <button onclick="openModal('takeawayModal')" class="inline-flex items-center gap-2 bg-brand-gold text-black font-black px-7 py-3.5 rounded-xl text-sm hover:bg-brand-goldlight transition-colors">
+          🥤 Pedir para recoger
+        </button>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="bg-brand-card border border-brand-border rounded-2xl p-6 text-center">
+          <span class="text-4xl">🥤</span>
+          <p class="font-bold text-sm mt-3">Batidos proteicos</p>
+          <p class="text-brand-muted text-xs mt-1">Desde 4,50€</p>
+        </div>
+        <div class="bg-brand-card border border-brand-border rounded-2xl p-6 text-center">
+          <span class="text-4xl">🥣</span>
+          <p class="font-bold text-sm mt-3">Bowls fitness</p>
+          <p class="text-brand-muted text-xs mt-1">Desde 6,90€</p>
+        </div>
+        <div class="bg-brand-card border border-brand-border rounded-2xl p-6 text-center">
+          <span class="text-4xl">🍪</span>
+          <p class="font-bold text-sm mt-3">Snacks proteicos</p>
+          <p class="text-brand-muted text-xs mt-1">Desde 2,20€</p>
+        </div>
+        <div class="bg-brand-card border border-brand-border rounded-2xl p-6 text-center">
+          <span class="text-4xl">☕</span>
+          <p class="font-bold text-sm mt-3">Café & pre-entreno</p>
+          <p class="text-brand-muted text-xs mt-1">Desde 2,50€</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       RADIO / HILO MUSICAL DEPORTIVO
+  ══════════════════════════════════════════ -->
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-14 sm:pb-20">
+    <div class="bg-gradient-to-r from-brand-card to-brand-dark border border-brand-border rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6">
+      <div class="flex items-center gap-4 flex-1">
+        <div id="radioPulse" class="w-14 h-14 rounded-full bg-brand-gold/15 border border-brand-gold/40 flex items-center justify-center flex-shrink-0">
+          <span class="text-2xl">📻</span>
+        </div>
+        <div>
+          <p class="text-brand-gold text-xs font-bold uppercase tracking-widest">Hilo musical · en directo</p>
+          <h3 class="text-xl font-black mt-0.5">Los 40 Principales</h3>
+          <p id="radioStatus" class="text-brand-muted text-sm mt-1">Pulsa play y entrena al ritmo de los éxitos del momento.</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 w-full sm:w-auto">
+        <button onclick="toggleRadio()" id="radioBtn" class="flex items-center justify-center gap-2 bg-brand-gold text-black font-bold px-6 py-3 rounded-xl hover:bg-brand-goldlight transition-colors w-full sm:w-auto">
+          <span id="radioIcon">▶</span> <span id="radioLabel">Escuchar</span>
+        </button>
+      </div>
+      <audio id="radioAudio" preload="none">
+        <source src="https://playerservices.streamtheworld.com/api/livestream-redirect/LOS40AAC.aac" type="audio/aac"/>
+        <source src="https://playerservices.streamtheworld.com/api/livestream-redirect/LOS40.mp3" type="audio/mpeg"/>
+      </audio>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       REVIEWS
+  ══════════════════════════════════════════ -->
+  <section id="reviews" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 border-t border-brand-border">
+    <div class="mb-8 sm:mb-12 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+      <div>
+        <h2 class="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight">Lo que dicen nuestros clientes</h2>
+        <p class="text-brand-muted mt-2 text-sm sm:text-base">Opiniones verificadas de compradores reales.</p>
+      </div>
+      <button onclick="openModal('reviewModal')" class="flex-shrink-0 bg-brand-gold text-black font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-brand-goldlight transition-colors self-start sm:self-auto">
+        + Dejar reseña
+      </button>
+    </div>
+    <div id="reviewsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <!-- Injected by app.js -->
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       ABOUT / TRUST
+  ══════════════════════════════════════════ -->
+  <section id="about" class="bg-brand-card border-y border-brand-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 grid md:grid-cols-2 gap-10 sm:gap-12 items-center">
+      <div>
+        <span class="text-brand-gold text-xs font-bold uppercase tracking-widest">Por qué elegirnos</span>
+        <h2 class="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mt-3 mb-5 sm:mb-6">Ciencia al servicio<br/>del rendimiento</h2>
+        <p class="text-brand-muted leading-relaxed mb-6 sm:mb-8 text-sm sm:text-base">
+          <ul class="space-y-3">
+          <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg flex-shrink-0">✓</span> Ingredientes de grado farmacéutico</li>
+          <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg flex-shrink-0">✓</span> Sin aditivos artificiales innecesarios</li>
+          <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg flex-shrink-0">✓</span> Testado por terceros (Informed Sport)</li>
+          <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg flex-shrink-0">✓</span> Pago 100% seguro con Redsys</li>
+        </ul>
+      </div>
+      <!-- Cert cards — 2x2 on mobile/tablet, stacked 2x2 always -->
+      <div class="about-certs grid grid-cols-2 gap-3 sm:gap-4">
+        <div class="cert-card bg-brand-dark border border-brand-border rounded-2xl p-4 sm:p-6 text-center">
+          <p class="text-3xl sm:text-4xl font-black text-brand-gold mb-1 sm:mb-2">ISO</p>
+          <p class="text-xs text-brand-muted uppercase tracking-wider">Certificación 22000</p>
+        </div>
+        <div class="cert-card bg-brand-dark border border-brand-border rounded-2xl p-4 sm:p-6 text-center">
+          <p class="text-3xl sm:text-4xl font-black text-brand-gold mb-1 sm:mb-2">GMP</p>
+          <p class="text-xs text-brand-muted uppercase tracking-wider">Buenas prácticas</p>
+        </div>
+        <div class="cert-card bg-brand-dark border border-brand-border rounded-2xl p-4 sm:p-6 text-center">
+          <p class="text-3xl sm:text-4xl font-black text-brand-gold mb-1 sm:mb-2">SSL</p>
+          <p class="text-xs text-brand-muted uppercase tracking-wider">Pago cifrado</p>
+        </div>
+        <div class="cert-card bg-brand-dark border border-brand-border rounded-2xl p-4 sm:p-6 text-center">
+          <p class="text-3xl sm:text-4xl font-black text-brand-gold mb-1 sm:mb-2">30d</p>
+          <p class="text-xs text-brand-muted uppercase tracking-wider">Garantía total</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       CONTACT
+  ══════════════════════════════════════════ -->
+  <section id="contact" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 border-t border-brand-border">
+    <div class="max-w-2xl mx-auto text-center mb-10 sm:mb-12">
+      <h2 class="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight">Contáctanos</h2>
+      <p class="text-brand-muted mt-2 text-sm sm:text-base">¿Tienes alguna pregunta? Estamos aquí para ayudarte.</p>
+    </div>
+    <div class="max-w-xl mx-auto bg-brand-card border border-brand-border rounded-2xl p-5 sm:p-8 space-y-4 sm:space-y-5">
+      <div class="grid grid-cols-1 xs:grid-cols-2 gap-4 sm:gap-5">
+        <div>
+          <label for="contactName" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Nombre</label>
+          <input id="contactName" type="text" placeholder="Tu nombre" autocomplete="given-name"
+            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+        </div>
+        <div>
+          <label for="contactEmail" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Email</label>
+          <input id="contactEmail" type="email" placeholder="tu@email.com" autocomplete="email"
+            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+        </div>
+      </div>
+      <div>
+        <label for="contactSubject" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Asunto</label>
+        <input id="contactSubject" type="text" placeholder="¿En qué podemos ayudarte?"
+          class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+      </div>
+      <div>
+        <label for="contactMessage" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Mensaje</label>
+        <textarea id="contactMessage" rows="4" placeholder="Escribe tu mensaje aquí..."
+          class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors resize-none"></textarea>
+      </div>
+      <button onclick="submitContact()" class="w-full bg-brand-gold text-black font-bold py-3 rounded-xl hover:bg-brand-goldlight transition-colors text-sm sm:text-base">
+        Enviar mensaje
+      </button>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       STORE LOCATION MAP
+  ══════════════════════════════════════════ -->
+  <section id="location" class="border-t border-brand-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
+      <div class="grid lg:grid-cols-2 gap-10 items-center">
+
+        <!-- Info left -->
+        <div>
+          <span class="text-brand-gold text-xs font-bold uppercase tracking-widest">Dónde encontrarnos</span>
+          <h2 class="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mt-3 mb-6">Nuestra tienda física</h2>
+          <div class="space-y-4 text-sm text-brand-muted">
+            <div class="flex items-start gap-3">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand-gold flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+              </svg>
+              <div>
+                <p class="text-white font-semibold">Dirección</p>
+                <p class="mt-0.5">Calle la Albericia Nº1 santander, España</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand-gold flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <div>
+                <p class="text-white font-semibold">Horario</p>
+                <p class="mt-0.5">Lunes – Sábado: 09:00 – 21:00</p>
+                <p class="mt-0.5">Domingo: Cerrado</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand-gold flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+              </svg>
+              <div>
+                <p class="text-white font-semibold">Teléfono</p>
+                <a href="tel:+34633653517" class="mt-0.5 hover:text-brand-gold transition-colors block">633 653 517</a>
+              </div>
+              <br>
+              <div>
+                <p class="text-white font-semibold">Correo Electrónico</p>
+                <a href="mailto:info@nutretium.com" class="mt-0.5 hover:text-brand-gold transition-colors block">info@nutretium.com</a>
+              </div>
+            </div>
+          </div>
+          <a
+            href="https://www.google.com/maps/place/C.+Albericia,+1,+39012+Santander,+Cantabria/@43.4617772,-3.8355267,21z/data=!4m6!3m5!1s0xd4949775d72ebff:0x5f33161f0fc399e8!8m2!3d43.4617626!4d-3.8354965!16s%2Fg%2F11rg5y_s2r?entry=ttu&g_ep=EgoyMDI2MDYwMS4wIKXMDSoASAFQAw%3D%3D"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 mt-8 bg-brand-gold text-black font-bold px-6 py-3 rounded-xl hover:bg-brand-goldlight transition-colors text-sm"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            Cómo llegar
+          </a>
+        </div>
+
+        <!-- Map right -->
+        <div class="w-full h-72 sm:h-80 lg:h-96 rounded-2xl overflow-hidden border border-brand-border shadow-2xl">
+          <iframe
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d180.99646745752156!2d-3.8355266773293963!3d43.46177717239036!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xd4949775d72ebff%3A0x5f33161f0fc399e8!2sC.%20Albericia%2C%201%2C%2039012%20Santander%2C%20Cantabria!5e0!3m2!1ses-419!2ses!4v1780594799466!5m2!1ses-419!2ses"
+            width="100%"
+            height="100%"
+            style="border:0; filter: invert(90%) hue-rotate(180deg) saturate(0.7) brightness(0.85);"
+            allowfullscreen=""
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+            title="Ubicación de NUTRETIUM"
+            aria-label="Mapa de la tienda NUTRETIUM"
+          ></iframe>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       FOOTER
+  ══════════════════════════════════════════ -->
+  <footer class="bg-brand-card border-t border-brand-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+      <!-- Por qué Nutretium -->
+      <div class="mb-10 sm:mb-12 max-w-3xl">
+        <span class="text-brand-gold font-black text-xl sm:text-2xl tracking-tighter gold-text">NUTRE<span class="text-white">TIUM</span></span>
+        <h4 class="text-white font-bold text-sm uppercase tracking-wider mt-5 mb-3">Por qué Nutretium</h4>
+        <p class="text-brand-muted text-sm leading-relaxed">
+          En Nutretium creemos que cuidarte no debería ser complicado. Por eso seleccionamos cada producto con criterios de máxima calidad: ingredientes de grado farmacéutico, marcas líderes y formulaciones testadas por terceros. Detrás de cada pedido hay un equipo apasionado por el deporte y la salud, asesoramiento experto y un compromiso real con tus resultados. Calidad certificada, precios justos y envíos rápidos: esa es nuestra forma de acompañarte para que des lo mejor de ti, cada día.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10 mb-8 sm:mb-10">
+
+        <!-- Brand — full width on mobile -->
+        <div class="col-span-2 md:col-span-1">
+          <h4 class="text-white font-bold text-sm uppercase tracking-wider mb-4">Síguenos</h4>
+          <p class="text-brand-muted text-sm mb-4 leading-relaxed">Únete a nuestra comunidad y no te pierdas ninguna oferta.</p>
+          <a href="mailto:info@nutretium.com" class="text-sm text-brand-muted hover:text-brand-gold transition-colors flex items-center gap-2 mb-4">
+            <svg class="w-4 h-4 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            info@nutretium.com
+          </a>
+          <div class="flex gap-3 mt-2">
+            <a href="https://www.instagram.com/nutretium?utm_source=qr&igsh=MWNwajlxY202ajFoaQ==" target="_blank" rel="noopener noreferrer" aria-label="Instagram" class="w-9 h-9 rounded-lg bg-brand-dark border border-brand-border flex items-center justify-center text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+            </a>
+            <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Facebook" class="w-9 h-9 rounded-lg bg-brand-dark border border-brand-border flex items-center justify-center text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+            </a>
+            <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" aria-label="TikTok" class="w-9 h-9 rounded-lg bg-brand-dark border border-brand-border flex items-center justify-center text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+            </a>
+          </div>
+        </div>
+
+        <!-- Links -->
+        <div>
+          <h4 class="text-white font-bold text-sm uppercase tracking-wider mb-4">Tienda</h4>
+          <ul class="space-y-2 text-sm text-brand-muted">
+            <li><a href="#products"   class="hover:text-brand-gold transition-colors">Productos</a></li>
+            <li><a href="#categories" class="hover:text-brand-gold transition-colors">Categorías</a></li>
+            <li><a href="#about"      class="hover:text-brand-gold transition-colors">Nosotros</a></li>
+            <li><a href="#contact"    class="hover:text-brand-gold transition-colors">Contacto</a></li>
+            <li>
+              <button
+                onclick="openModal('careersModal')"
+                class="hover:text-brand-gold transition-colors text-left flex items-center gap-1.5 group"
+              >
+                <span class="text-brand-gold group-hover:scale-110 transition-transform inline-block">✦</span>
+                Trabaja con nosotros
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Enlaces de interés -->
+        <div>
+          <h4 class="text-white font-bold text-sm uppercase tracking-wider mb-4">Enlaces de interés</h4>
+          <ul class="space-y-2 text-sm text-brand-muted">
+            <li><button onclick="openInfo('afiliacion')" class="hover:text-brand-gold transition-colors text-left">Programa de afiliación y fidelización</button></li>
+            <li><button onclick="openInfo('faqs')" class="hover:text-brand-gold transition-colors text-left">Preguntas frecuentes (FAQs)</button></li>
+            <li><button onclick="openModal('trainerModal')" class="hover:text-brand-gold transition-colors text-left">Entrenador personal</button></li>
+            <li><button onclick="openModal('takeawayModal')" class="hover:text-brand-gold transition-colors text-left">Take Away</button></li>
+            <li><button onclick="openModal('careersModal')" class="hover:text-brand-gold transition-colors text-left">Trabaja con nosotros</button></li>
+          </ul>
+        </div>
+
+        <!-- Atención & devoluciones -->
+        <div>
+          <h4 class="text-white font-bold text-sm uppercase tracking-wider mb-4">Atención al cliente</h4>
+          <ul class="space-y-2 text-sm text-brand-muted leading-relaxed">
+            <li>✓ <strong class="text-white">30 días</strong> de devolución</li>
+            <li>✓ Envío de vuelta gratuito</li>
+            <li>✓ Cambios sin coste</li>
+            <li><a href="tel:+34633653517" class="hover:text-brand-gold transition-colors">📞 633 653 517</a></li>
+            <li><a href="mailto:info@nutretium.com" class="hover:text-brand-gold transition-colors">✉️ info@nutretium.com</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Métodos de pago -->
+      <div class="border-t border-brand-border pt-6 mb-6">
+        <p class="text-xs font-bold text-brand-muted uppercase tracking-wider mb-3">Métodos de pago seguros</p>
+        <div class="flex flex-wrap items-center gap-2.5">
+          <span class="pay-badge">💳 Tarjeta</span>
+          <span class="pay-badge">PayPal</span>
+          <span class="pay-badge">Bizum</span>
+          <span class="pay-badge">SeQura</span>
+          <span class="pay-badge">Klarna</span>
+          <span class="pay-badge">Apple&nbsp;Pay</span>
+          <span class="pay-badge">Google&nbsp;Pay</span>
+        </div>
+      </div>
+
+      <!-- Legal & políticas -->
+      <div class="border-t border-brand-border pt-6">
+        <div class="flex flex-wrap gap-x-5 gap-y-2 mb-4 text-xs text-brand-muted">
+          <button onclick="openInfo('envios')" class="hover:text-brand-gold transition-colors">Información de envíos</button>
+          <button onclick="openInfo('condiciones')" class="hover:text-brand-gold transition-colors">Condiciones generales</button>
+          <button onclick="openInfo('privacidad')" class="hover:text-brand-gold transition-colors">Política de privacidad</button>
+          <button onclick="openInfo('cookies')" class="hover:text-brand-gold transition-colors">Uso de cookies</button>
+          <button onclick="openInfo('aviso')" class="hover:text-brand-gold transition-colors">Aviso legal</button>
+        </div>
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-3">
+          <p class="text-brand-muted text-xs text-center sm:text-left">© 2026 NUTRETIUM S.L. · CIF B-27659754 · Todos los derechos reservados</p>
+          <p class="text-brand-muted text-xs">Pago seguro con <span class="text-brand-gold font-semibold">Redsys</span> · SSL cifrado</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ══════════════════════════════════════════
+       MODALS
+  ══════════════════════════════════════════ -->
+
+  <!-- LOGIN MODAL -->
+  <div id="loginModal" class="modal-backdrop fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
+    <div class="modal-box modal-scroll bg-brand-card border border-brand-border rounded-2xl w-full max-w-md p-6 sm:p-8 shadow-2xl">
+      <div class="flex justify-between items-center mb-6">
+        <h3 id="loginModalTitle" class="text-xl font-black">Iniciar sesión</h3>
+        <button onclick="closeModal('loginModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <label for="loginEmail" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Email</label>
+          <input id="loginEmail" type="email" placeholder="tu@email.com" autocomplete="email"
+            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+        </div>
+        <div>
+          <label for="loginPassword" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Contraseña</label>
+          <input id="loginPassword" type="password" placeholder="••••••••" autocomplete="current-password"
+            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+        </div>
+        <p id="loginError" class="text-red-400 text-xs hidden" role="alert"></p>
+        <button onclick="submitLogin()" class="w-full bg-brand-gold text-black font-bold py-3 rounded-xl hover:bg-brand-goldlight transition-colors">
+          Entrar
+        </button>
+        <p class="text-center text-sm text-brand-muted">¿No tienes cuenta?
+          <button onclick="closeModal('loginModal'); openModal('registerModal')" class="text-brand-gold hover:underline font-semibold">Regístrate</button>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- REGISTER MODAL -->
+  <div id="registerModal" class="modal-backdrop fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="registerModalTitle">
+    <div class="modal-box modal-scroll bg-brand-card border border-brand-border rounded-2xl w-full max-w-md p-6 sm:p-8 shadow-2xl">
+      <div class="flex justify-between items-center mb-6">
+        <h3 id="registerModalTitle" class="text-xl font-black">Crear cuenta</h3>
+        <button onclick="closeModal('registerModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-3 sm:gap-4">
+          <div>
+            <label for="regName" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Nombre</label>
+            <input id="regName" type="text" placeholder="Ana" autocomplete="given-name"
+              class="w-full bg-brand-dark border border-brand-border rounded-xl px-3 sm:px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+          </div>
+          <div>
+            <label for="regSurname" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Apellido</label>
+            <input id="regSurname" type="text" placeholder="García" autocomplete="family-name"
+              class="w-full bg-brand-dark border border-brand-border rounded-xl px-3 sm:px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+          </div>
+        </div>
+        <div>
+          <label for="regEmail" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Email</label>
+          <input id="regEmail" type="email" placeholder="tu@email.com" autocomplete="email"
+            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+        </div>
+        <div>
+          <label for="regPassword" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Contraseña</label>
+          <input id="regPassword" type="password" placeholder="Mínimo 8 caracteres" autocomplete="new-password"
+            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+        </div>
+        <div>
+          <label for="regPhone" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Teléfono <span class="normal-case font-normal">(opcional)</span></label>
+          <input id="regPhone" type="tel" placeholder="+34 600 000 000" autocomplete="tel"
+            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+        </div>
+        <p id="regError" class="text-red-400 text-xs hidden" role="alert"></p>
+        <button onclick="submitRegister()" class="w-full bg-brand-gold text-black font-bold py-3 rounded-xl hover:bg-brand-goldlight transition-colors">
+          Crear cuenta
+        </button>
+        <p class="text-center text-sm text-brand-muted">¿Ya tienes cuenta?
+          <button onclick="closeModal('registerModal'); openModal('loginModal')" class="text-brand-gold hover:underline font-semibold">Inicia sesión</button>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- REVIEW MODAL -->
+  <div id="reviewModal" class="modal-backdrop fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="reviewModalTitle">
+    <div class="modal-box modal-scroll bg-brand-card border border-brand-border rounded-2xl w-full max-w-md p-6 sm:p-8 shadow-2xl">
+      <div class="flex justify-between items-center mb-6">
+        <h3 id="reviewModalTitle" class="text-xl font-black">Dejar una reseña</h3>
+        <button onclick="closeModal('reviewModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <label for="reviewProduct" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Producto</label>
+          <select id="reviewProduct"
+            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-gold transition-colors">
+            <option value="">Selecciona un producto...</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Valoración</label>
+          <div id="starPicker" class="flex gap-1 sm:gap-2 text-3xl" role="radiogroup" aria-label="Valoración">
+            <span class="star-btn text-brand-border" data-val="1" onclick="setReviewStar(1)" role="radio" aria-label="1 estrella" tabindex="0">★</span>
+            <span class="star-btn text-brand-border" data-val="2" onclick="setReviewStar(2)" role="radio" aria-label="2 estrellas" tabindex="0">★</span>
+            <span class="star-btn text-brand-border" data-val="3" onclick="setReviewStar(3)" role="radio" aria-label="3 estrellas" tabindex="0">★</span>
+            <span class="star-btn text-brand-border" data-val="4" onclick="setReviewStar(4)" role="radio" aria-label="4 estrellas" tabindex="0">★</span>
+            <span class="star-btn text-brand-border" data-val="5" onclick="setReviewStar(5)" role="radio" aria-label="5 estrellas" tabindex="0">★</span>
+          </div>
+        </div>
+        <div>
+          <label for="reviewAuthor" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Tu nombre</label>
+          <input id="reviewAuthor" type="text" placeholder="Nombre visible" autocomplete="nickname"
+            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+        </div>
+        <div>
+          <label for="reviewText" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Comentario</label>
+          <textarea id="reviewText" rows="3" placeholder="Cuéntanos tu experiencia..."
+            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors resize-none"></textarea>
+        </div>
+        <p id="reviewError" class="text-red-400 text-xs hidden" role="alert"></p>
+        <button onclick="submitReview()" class="w-full bg-brand-gold text-black font-bold py-3 rounded-xl hover:bg-brand-goldlight transition-colors">
+          Publicar reseña
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUSTOMIZATION MODAL -->
+  <div id="customModal" class="modal-backdrop fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="customModalTitle">
+    <div class="modal-box bg-brand-card border border-brand-border rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden" style="max-height:calc(100dvh - 24px); display:flex; flex-direction:column;">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between px-5 sm:px-7 py-4 border-b border-brand-border flex-shrink-0">
+        <div>
+          <h3 id="customModalTitle" class="text-lg sm:text-xl font-black">Personalizar producto</h3>
+          <p id="customProductName" class="text-brand-muted text-xs sm:text-sm mt-0.5"></p>
+        </div>
+        <button onclick="closeModal('customModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5 flex-shrink-0" aria-label="Cerrar">&times;</button>
+      </div>
+
+      <!-- Body: preview + form side by side on md+, stacked on mobile -->
+      <div class="flex flex-col md:flex-row flex-1 overflow-hidden">
+
+        <!-- ── LIVE PREVIEW PANEL ── -->
+        <div class="flex-shrink-0 flex flex-col items-center justify-start bg-[#0d0d0d] border-b md:border-b-0 md:border-r border-brand-border p-4 sm:p-6 md:w-64 lg:w-72">
+          <p class="text-xs font-bold text-brand-muted uppercase tracking-widest mb-3 self-start">Vista previa</p>
+
+          <!-- SVG shirt canvas -->
+          <div class="relative w-full" style="max-width:220px;">
+            <canvas id="shirtCanvas" width="220" height="260"
+              style="width:100%; border-radius:12px; display:block;"
+              aria-label="Vista previa de la camiseta personalizada">
+            </canvas>
+          </div>
+
+          <!-- Font selector -->
+          <div class="mt-4 w-full" style="max-width:220px;">
+            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-widest mb-2">Fuente del texto</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="selectFont(this,'Impact')"       class="font-btn text-xs py-2 px-2 rounded-lg border border-brand-border text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors" data-font="Impact"       style="font-family:Impact">Impact</button>
+              <button onclick="selectFont(this,'Georgia')"      class="font-btn text-xs py-2 px-2 rounded-lg border border-brand-border text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors" data-font="Georgia"      style="font-family:Georgia">Georgia</button>
+              <button onclick="selectFont(this,'Arial Black')"  class="font-btn text-xs py-2 px-2 rounded-lg border border-brand-border text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors" data-font="Arial Black"  style="font-family:'Arial Black'">Arial Black</button>
+              <button onclick="selectFont(this,'Courier New')"  class="font-btn text-xs py-2 px-2 rounded-lg border border-brand-border text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors" data-font="Courier New"  style="font-family:'Courier New'">Courier</button>
+              <button onclick="selectFont(this,'Trebuchet MS')" class="font-btn text-xs py-2 px-2 rounded-lg border border-brand-border text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors" data-font="Trebuchet MS" style="font-family:'Trebuchet MS'">Trebuchet</button>
+              <button onclick="selectFont(this,'Palatino')"     class="font-btn text-xs py-2 px-2 rounded-lg border border-brand-border text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors" data-font="Palatino"     style="font-family:Palatino">Palatino</button>
+            </div>
+          </div>
+
+          <!-- Text size slider -->
+          <div class="mt-4 w-full" style="max-width:220px;">
+            <div class="flex justify-between items-center mb-2">
+              <label for="textSizeSlider" class="text-xs font-semibold text-brand-muted uppercase tracking-widest">Tamaño</label>
+              <span id="textSizeVal" class="text-xs font-bold text-brand-gold">24px</span>
+            </div>
+            <input id="textSizeSlider" type="range" min="12" max="48" value="24" step="2"
+              oninput="onTextSizeChange(this.value)"
+              class="w-full accent-brand-gold" aria-label="Tamaño del texto"/>
+          </div>
+
+          <!-- Text color -->
+          <div class="mt-4 w-full" style="max-width:220px;">
+            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-widest mb-2">Color del texto</label>
+            <div class="flex gap-2 flex-wrap">
+              <button onclick="selectTextColor(this,'#ffffff')" class="text-color-btn w-7 h-7 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#ffffff" aria-label="Blanco"></button>
+              <button onclick="selectTextColor(this,'#D4AF37')" class="text-color-btn w-7 h-7 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#D4AF37" aria-label="Dorado"></button>
+              <button onclick="selectTextColor(this,'#000000')" class="text-color-btn w-7 h-7 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#000000" aria-label="Negro"></button>
+              <button onclick="selectTextColor(this,'#ef4444')" class="text-color-btn w-7 h-7 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#ef4444" aria-label="Rojo"></button>
+              <button onclick="selectTextColor(this,'#3b82f6')" class="text-color-btn w-7 h-7 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#3b82f6" aria-label="Azul"></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── FORM PANEL ── -->
+        <div class="flex-1 overflow-y-auto px-5 sm:px-7 py-5 space-y-5" style="-webkit-overflow-scrolling:touch;">
+
+          <!-- Size -->
+          <div>
+            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Talla</label>
+            <div id="sizeOptions" class="flex flex-wrap gap-2">
+              <button onclick="selectSize(this,'XS')"  class="size-btn px-3 py-2 rounded-lg border border-brand-border text-sm font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">XS</button>
+              <button onclick="selectSize(this,'S')"   class="size-btn px-3 py-2 rounded-lg border border-brand-border text-sm font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">S</button>
+              <button onclick="selectSize(this,'M')"   class="size-btn px-3 py-2 rounded-lg border border-brand-border text-sm font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">M</button>
+              <button onclick="selectSize(this,'L')"   class="size-btn px-3 py-2 rounded-lg border border-brand-border text-sm font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">L</button>
+              <button onclick="selectSize(this,'XL')"  class="size-btn px-3 py-2 rounded-lg border border-brand-border text-sm font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">XL</button>
+              <button onclick="selectSize(this,'XXL')" class="size-btn px-3 py-2 rounded-lg border border-brand-border text-sm font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">XXL</button>
+            </div>
+          </div>
+
+          <!-- Shirt color -->
+          <div>
+            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Color de la camiseta</label>
+            <div class="flex flex-wrap gap-3">
+              <button onclick="selectColor(this,'#ffffff','Blanco')"  class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#ffffff" aria-label="Blanco"></button>
+              <button onclick="selectColor(this,'#111111','Negro')"   class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#111111" aria-label="Negro"></button>
+              <button onclick="selectColor(this,'#D4AF37','Dorado')"  class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#D4AF37" aria-label="Dorado"></button>
+              <button onclick="selectColor(this,'#1a1a2e','Marino')"  class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#1a1a2e" aria-label="Marino"></button>
+              <button onclick="selectColor(this,'#c8102e','Rojo')"    class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#c8102e" aria-label="Rojo"></button>
+              <button onclick="selectColor(this,'#2d6a4f','Verde')"   class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#2d6a4f" aria-label="Verde"></button>
+              <button onclick="selectColor(this,'#1d4ed8','Azul')"    class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#1d4ed8" aria-label="Azul"></button>
+              <button onclick="selectColor(this,'#6b21a8','Morado')"  class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#6b21a8" aria-label="Morado"></button>
+            </div>
+            <p id="selectedColorLabel" class="text-xs text-brand-muted mt-2" aria-live="polite"></p>
+          </div>
+
+          <!-- Custom text -->
+          <div>
+            <label for="customText" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Texto personalizado</label>
+            <input id="customText" type="text" maxlength="24" placeholder="Ej: TEAM NUTRETIUM"
+              oninput="updatePreview()"
+              class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+            <p class="text-xs text-brand-muted mt-1">Máx. 24 caracteres · se muestra en el pecho</p>
+          </div>
+
+          <!-- Logo upload -->
+          <div>
+            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Logo / imagen (PNG, JPG — máx. 2 MB)</label>
+            <label class="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-brand-border rounded-xl cursor-pointer hover:border-brand-gold transition-colors bg-brand-dark">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand-muted mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+              </svg>
+              <span id="uploadLabel" class="text-xs text-brand-muted">Haz clic para subir tu logo</span>
+              <input id="logoUpload" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="handleLogoUpload(event)" aria-label="Subir logo"/>
+            </label>
+            <div id="logoPreview" class="hidden mt-3 flex items-center gap-3">
+              <img id="logoPreviewImg" src="" alt="Vista previa del logo" class="w-12 h-12 object-contain rounded-lg border border-brand-border bg-brand-dark"/>
+              <div>
+                <p id="logoFileName" class="text-xs text-white font-semibold truncate max-w-[160px]"></p>
+                <button onclick="clearLogo()" class="text-xs text-red-400 hover:text-red-300 mt-1">Eliminar logo</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div>
+            <label for="customNotes" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Notas adicionales</label>
+            <textarea id="customNotes" rows="2" placeholder="Posición del logo, instrucciones especiales..."
+              class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors resize-none"></textarea>
+          </div>
+
+          <p id="customError" class="text-red-400 text-xs hidden" role="alert"></p>
+          <button onclick="addCustomToCart()" class="w-full bg-brand-gold text-black font-bold py-3.5 rounded-xl hover:bg-brand-goldlight transition-colors text-sm sm:text-base">
+            Añadir al carrito con personalización
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PERSONAL TRAINER MODAL -->
+  <div id="trainerModal" class="modal-backdrop fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="trainerModalTitle">
+    <div class="modal-box modal-scroll bg-brand-card border border-brand-border rounded-2xl w-full max-w-2xl shadow-2xl">
+
+      <!-- Header -->
+      <div class="flex justify-between items-start p-6 sm:p-8 pb-0">
+        <div>
+          <span class="text-brand-gold text-xs font-bold uppercase tracking-widest">Entrenamiento personalizado</span>
+          <h3 id="trainerModalTitle" class="text-2xl font-black mt-1">Contrata tu Personal Trainer</h3>
+          <p class="text-brand-muted text-sm mt-1">Alcanza tus objetivos con la guía de un profesional certificado.</p>
+        </div>
+        <button onclick="closeModal('trainerModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5 flex-shrink-0 ml-4" aria-label="Cerrar">&times;</button>
+      </div>
+
+      <!-- Service highlights -->
+      <div class="px-6 sm:px-8 pt-6 pb-2 grid grid-cols-3 gap-3">
+        <div class="bg-brand-dark border border-brand-border rounded-xl p-4 text-center">
+          <p class="text-2xl mb-2">🏋️</p>
+          <p class="text-white font-bold text-xs">Plan de entrenamiento</p>
+          <p class="text-brand-muted text-xs mt-1">100% personalizado</p>
+        </div>
+        <div class="bg-brand-dark border border-brand-border rounded-xl p-4 text-center">
+          <p class="text-2xl mb-2">🥗</p>
+          <p class="text-white font-bold text-xs">Plan nutricional</p>
+          <p class="text-brand-muted text-xs mt-1">Adaptado a tus metas</p>
+        </div>
+        <div class="bg-brand-dark border border-brand-border rounded-xl p-4 text-center">
+          <p class="text-2xl mb-2">📲</p>
+          <p class="text-white font-bold text-xs">Seguimiento continuo</p>
+          <p class="text-brand-muted text-xs mt-1">Online o presencial</p>
+        </div>
+      </div>
+
+      <!-- Form -->
+      <div class="px-6 sm:px-8 py-6 space-y-4">
+        <p class="text-xs text-brand-muted uppercase tracking-wider font-semibold">Tus datos</p>
+
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Nombre completo <span class="text-red-400">*</span></label>
+            <input id="trainerName" type="text" placeholder="Ana García"
+              class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Email <span class="text-red-400">*</span></label>
+            <input id="trainerEmail" type="email" placeholder="tu@email.com"
+              class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+          </div>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Teléfono</label>
+            <input id="trainerPhone" type="tel" placeholder="+34 600 000 000"
+              class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Edad</label>
+            <input id="trainerAge" type="number" min="14" max="99" placeholder="25"
+              class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+          </div>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Objetivo principal <span class="text-red-400">*</span></label>
+            <select id="trainerGoal"
+              class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-gold transition-colors">
+              <option value="">Selecciona tu objetivo...</option>
+              <option value="Pérdida de peso">Pérdida de peso</option>
+              <option value="Ganancia muscular">Ganancia muscular</option>
+              <option value="Rendimiento deportivo">Rendimiento deportivo</option>
+              <option value="Tonificación">Tonificación</option>
+              <option value="Salud y bienestar general">Salud y bienestar general</option>
+              <option value="Rehabilitación / lesión">Rehabilitación / lesión</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Modalidad <span class="text-red-400">*</span></label>
+            <select id="trainerMode"
+              class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-gold transition-colors">
+              <option value="">Selecciona modalidad...</option>
+              <option value="Presencial en tienda">Presencial en tienda</option>
+              <option value="Online (videollamada)">Online (videollamada)</option>
+              <option value="Híbrido (presencial + online)">Híbrido (presencial + online)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Nivel de experiencia</label>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="selectTrainerLevel(this,'Principiante')"  class="trainer-level-btn px-4 py-2 rounded-lg border border-brand-border text-xs font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">Principiante</button>
+            <button type="button" onclick="selectTrainerLevel(this,'Intermedio')"    class="trainer-level-btn px-4 py-2 rounded-lg border border-brand-border text-xs font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">Intermedio</button>
+            <button type="button" onclick="selectTrainerLevel(this,'Avanzado')"      class="trainer-level-btn px-4 py-2 rounded-lg border border-brand-border text-xs font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">Avanzado</button>
+            <button type="button" onclick="selectTrainerLevel(this,'Competidor/a')"  class="trainer-level-btn px-4 py-2 rounded-lg border border-brand-border text-xs font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">Competidor/a</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Disponibilidad horaria</label>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="toggleSchedule(this,'Mañanas')"   class="schedule-btn px-3 py-1.5 rounded-lg border border-brand-border text-xs font-semibold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">Mañanas</button>
+            <button type="button" onclick="toggleSchedule(this,'Tardes')"    class="schedule-btn px-3 py-1.5 rounded-lg border border-brand-border text-xs font-semibold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">Tardes</button>
+            <button type="button" onclick="toggleSchedule(this,'Noches')"    class="schedule-btn px-3 py-1.5 rounded-lg border border-brand-border text-xs font-semibold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">Noches</button>
+            <button type="button" onclick="toggleSchedule(this,'Fines de semana')" class="schedule-btn px-3 py-1.5 rounded-lg border border-brand-border text-xs font-semibold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">Fines de semana</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Información adicional o lesiones previas</label>
+          <textarea id="trainerNotes" rows="3"
+            placeholder="Cuéntanos cualquier detalle relevante: lesiones, condiciones médicas, equipamiento disponible..."
+            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors resize-none"></textarea>
+        </div>
+
+        <p id="trainerError" class="text-red-400 text-xs hidden"></p>
+
+        <button
+          onclick="submitTrainerRequest()"
+          class="w-full bg-brand-gold text-black font-bold py-3.5 rounded-xl hover:bg-brand-goldlight transition-colors flex items-center justify-center gap-2 text-sm"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.269 20.876L5.999 12zm0 0h7.5"/>
+          </svg>
+          Solicitar mi Personal Trainer
+        </button>
+        <p class="text-xs text-brand-muted text-center">Te contactaremos en menos de 24 h para confirmar tu sesión gratuita de evaluación.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CAREERS MODAL -->
+  <div id="careersModal" class="modal-backdrop fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="careersModalTitle">
+    <div class="modal-box modal-scroll bg-brand-card border border-brand-border rounded-2xl w-full max-w-2xl shadow-2xl">
+
+      <!-- Header -->
+      <div class="flex justify-between items-start p-6 sm:p-8 pb-0">
+        <div>
+          <span class="text-brand-gold text-xs font-bold uppercase tracking-widest">Únete al equipo</span>
+          <h3 id="careersModalTitle" class="text-2xl font-black mt-1">Trabaja con nosotros</h3>
+          <p class="text-brand-muted text-sm mt-1">¿Apasionado/a por el deporte y la nutrición? Queremos conocerte.</p>
+        </div>
+        <button onclick="closeModal('careersModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5 flex-shrink-0 ml-4" aria-label="Cerrar">&times;</button>
+      </div>
+
+      <!-- Open positions -->
+      <div class="px-6 sm:px-8 pt-6 pb-2 grid sm:grid-cols-3 gap-3">
+        <div class="bg-brand-dark border border-brand-border rounded-xl p-4 text-center">
+          <p class="text-2xl mb-2">🏋️</p>
+          <p class="text-white font-bold text-sm">Asesor/a Deportivo</p>
+          <p class="text-brand-muted text-xs mt-1">Tienda física · Jornada completa</p>
+        </div>
+        <div class="bg-brand-dark border border-brand-border rounded-xl p-4 text-center">
+          <p class="text-2xl mb-2">📦</p>
+          <p class="text-white font-bold text-sm">Gestión de Almacén</p>
+          <p class="text-brand-muted text-xs mt-1">Logística · Media jornada</p>
+        </div>
+        <div class="bg-brand-dark border border-brand-border rounded-xl p-4 text-center">
+          <p class="text-2xl mb-2">📱</p>
+          <p class="text-white font-bold text-sm">Community Manager</p>
+          <p class="text-brand-muted text-xs mt-1">Marketing · Remoto</p>
+        </div>
+      </div>
+
+      <!-- Application form -->
+      <div class="px-6 sm:px-8 py-6 space-y-4">
+        <p class="text-xs text-brand-muted uppercase tracking-wider font-semibold">Envía tu candidatura</p>
+
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Nombre completo <span class="text-red-400">*</span></label>
+            <input id="careerName" type="text" placeholder="Ana García"
+              class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Email <span class="text-red-400">*</span></label>
+            <input id="careerEmail" type="email" placeholder="tu@email.com"
+              class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+          </div>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Teléfono</label>
+            <input id="careerPhone" type="tel" placeholder="+34 600 000 000"
+              class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Posición de interés <span class="text-red-400">*</span></label>
+            <select id="careerPosition"
+              class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-gold transition-colors">
+              <option value="">Selecciona un puesto...</option>
+              <option value="Asesor/a Deportivo">Asesor/a Deportivo</option>
+              <option value="Gestión de Almacén">Gestión de Almacén</option>
+              <option value="Community Manager">Community Manager</option>
+              <option value="Candidatura espontánea">Candidatura espontánea</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Cuéntanos sobre ti <span class="text-red-400">*</span></label>
+          <textarea id="careerMessage" rows="4"
+            placeholder="¿Por qué quieres formar parte de NUTRETIUM? Experiencia relevante, motivación..."
+            class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors resize-none"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">CV / Currículum (PDF, máx. 5 MB)</label>
+          <label class="flex items-center gap-3 w-full border border-dashed border-brand-border rounded-xl px-4 py-3 cursor-pointer hover:border-brand-gold transition-colors bg-brand-dark">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+            </svg>
+            <span id="cvLabel" class="text-xs text-brand-muted">Haz clic para adjuntar tu CV</span>
+            <input id="cvUpload" type="file" accept=".pdf,.doc,.docx" class="hidden" onchange="handleCvUpload(event)"/>
+          </label>
+        </div>
+
+        <p id="careerError" class="text-red-400 text-xs hidden"></p>
+
+        <button
+          onclick="submitCareerApplication()"
+          class="w-full bg-brand-gold text-black font-bold py-3.5 rounded-xl hover:bg-brand-goldlight transition-colors flex items-center justify-center gap-2"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.269 20.876L5.999 12zm0 0h7.5"/>
+          </svg>
+          Enviar candidatura
+        </button>
+        <p class="text-xs text-brand-muted text-center">Nos pondremos en contacto contigo en un plazo de 5 días hábiles.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       TAKE AWAY MODAL
+  ══════════════════════════════════════════ -->
+  <div id="takeawayModal" class="modal-backdrop fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="takeawayTitle">
+    <div class="modal-box modal-scroll bg-brand-card border border-brand-border rounded-2xl w-full max-w-md p-6 sm:p-8 shadow-2xl">
+      <div class="flex justify-between items-center mb-6">
+        <h3 id="takeawayTitle" class="text-xl font-black">🥤 Pedido Take Away</h3>
+        <button onclick="closeModal('takeawayModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <label for="taName" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Nombre</label>
+          <input id="taName" type="text" placeholder="Tu nombre" class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
+        </div>
+        <div>
+          <label for="taProduct" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">¿Qué quieres recoger?</label>
+          <select id="taProduct" class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-gold transition-colors">
+            <option value="Batido proteico">Batido proteico — 4,50€</option>
+            <option value="Bowl fitness">Bowl fitness — 6,90€</option>
+            <option value="Snack proteico">Snack proteico — 2,20€</option>
+            <option value="Café / pre-entreno">Café / pre-entreno — 2,50€</option>
+          </select>
+        </div>
+        <div>
+          <label for="taTime" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Hora de recogida</label>
+          <input id="taTime" type="time" class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-gold transition-colors"/>
+        </div>
+        <p id="taError" class="text-red-400 text-xs hidden" role="alert"></p>
+        <button onclick="submitTakeaway()" class="w-full bg-brand-gold text-black font-bold py-3 rounded-xl hover:bg-brand-goldlight transition-colors">Confirmar pedido</button>
+        <p class="text-xs text-brand-muted text-center">Recoge en Calle la Albericia Nº1, Santander. Pago al recoger o online.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       "HAZ TU TEST" MODAL (perfilado post-registro)
+  ══════════════════════════════════════════ -->
+  <div id="testModal" class="modal-backdrop fixed inset-0 bg-black/80 z-[70] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="testTitle">
+    <div class="modal-box modal-scroll bg-brand-card border border-brand-gold/40 rounded-2xl w-full max-w-lg p-6 sm:p-8 shadow-2xl">
+      <div class="text-center mb-6">
+        <span class="text-4xl">🎯</span>
+        <h3 id="testTitle" class="text-2xl font-black mt-3">¡Haz tu test!</h3>
+        <p class="text-brand-muted text-sm mt-2">Responde 3 preguntas rápidas y te recomendaremos los productos perfectos para ti.</p>
+      </div>
+      <div class="space-y-5">
+        <div>
+          <p class="text-xs font-bold text-brand-muted uppercase tracking-wider mb-2">¿Cuál es tu objetivo principal?</p>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="selectTest(this,'goal','Pérdida de grasa')" class="test-opt" data-group="goal">🔥 Pérdida de grasa</button>
+            <button onclick="selectTest(this,'goal','Desarrollo muscular')" class="test-opt" data-group="goal">💪 Masa muscular</button>
+            <button onclick="selectTest(this,'goal','Rendimiento')" class="test-opt" data-group="goal">⚡ Rendimiento</button>
+            <button onclick="selectTest(this,'goal','Salud y bienestar')" class="test-opt" data-group="goal">🌿 Salud general</button>
+          </div>
+        </div>
+        <div>
+          <p class="text-xs font-bold text-brand-muted uppercase tracking-wider mb-2">¿Con qué frecuencia entrenas?</p>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="selectTest(this,'freq','1-2 días')" class="test-opt" data-group="freq">1–2 días</button>
+            <button onclick="selectTest(this,'freq','3-4 días')" class="test-opt" data-group="freq">3–4 días</button>
+            <button onclick="selectTest(this,'freq','5+ días')" class="test-opt" data-group="freq">5+ días</button>
+          </div>
+        </div>
+        <div>
+          <p class="text-xs font-bold text-brand-muted uppercase tracking-wider mb-2">¿Tienes alguna preferencia dietética?</p>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="selectTest(this,'diet','Sin preferencia')" class="test-opt" data-group="diet">Ninguna</button>
+            <button onclick="selectTest(this,'diet','Vegana')" class="test-opt" data-group="diet">Vegana</button>
+            <button onclick="selectTest(this,'diet','Sin lactosa')" class="test-opt" data-group="diet">Sin lactosa</button>
+          </div>
+        </div>
+        <button onclick="submitTest()" class="w-full bg-brand-gold text-black font-bold py-3.5 rounded-xl hover:bg-brand-goldlight transition-colors">Ver mis recomendaciones</button>
+        <button onclick="closeModal('testModal')" class="w-full text-brand-muted text-sm hover:text-white transition-colors">Ahora no, gracias</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       INFO MODAL (legal / FAQs / afiliación)
+  ══════════════════════════════════════════ -->
+  <div id="infoModal" class="modal-backdrop fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+    <div class="modal-box modal-scroll bg-brand-card border border-brand-border rounded-2xl w-full max-w-lg p-6 sm:p-8 shadow-2xl">
+      <div class="flex justify-between items-center mb-5">
+        <h3 id="infoTitle" class="text-xl font-black">Información</h3>
+        <button onclick="closeModal('infoModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5" aria-label="Cerrar">&times;</button>
+      </div>
+      <div id="infoBody" class="text-sm text-brand-muted leading-relaxed space-y-3"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       FLOATING CHAT
+  ══════════════════════════════════════════ -->
+  <div class="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3">
+    <!-- Chat popup -->
+    <div id="chatPop" class="chat-pop w-[300px] sm:w-80 bg-brand-card border border-brand-border rounded-2xl shadow-2xl overflow-hidden">
+      <div class="bg-gradient-to-r from-brand-golddark to-brand-gold text-black px-4 py-3 flex items-center justify-between">
+        <div>
+          <p class="font-black text-sm">Atención NUTRETIUM</p>
+          <p class="text-xs flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-green-600 inline-block"></span> En línea ahora</p>
+        </div>
+        <button onclick="toggleChat()" class="text-black/70 hover:text-black text-xl leading-none w-8 h-8 flex items-center justify-center" aria-label="Cerrar chat">&times;</button>
+      </div>
+      <div id="chatBody" class="p-4 space-y-3 max-h-72 overflow-y-auto">
+        <div class="bg-brand-dark border border-brand-border rounded-xl rounded-tl-sm p-3 text-sm">
+          👋 ¡Hola! ¿En qué podemos ayudarte? Elige una opción:
+        </div>
+        <button onclick="chatQuick('seguimiento')" class="w-full text-left bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm font-semibold hover:border-brand-gold hover:text-brand-gold transition-colors flex items-center gap-2">
+          📦 Seguimiento de pedido
+        </button>
+        <button onclick="chatQuick('consultas')" class="w-full text-left bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm font-semibold hover:border-brand-gold hover:text-brand-gold transition-colors flex items-center gap-2">
+          💬 Otras consultas
+        </button>
+      </div>
+      <div class="border-t border-brand-border p-3 flex gap-2">
+        <input id="chatInput" type="text" placeholder="Escribe tu mensaje..." onkeydown="if(event.key==='Enter')chatSend()" class="flex-1 bg-brand-dark border border-brand-border rounded-lg px-3 py-2 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold"/>
+        <button onclick="chatSend()" class="bg-brand-gold text-black font-bold px-3 rounded-lg hover:bg-brand-goldlight transition-colors" aria-label="Enviar">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.269 20.876L5.999 12zm0 0h7.5"/></svg>
+        </button>
+      </div>
+    </div>
+    <!-- Chat toggle button -->
+    <button onclick="toggleChat()" id="chatToggle" class="flex items-center gap-2 bg-brand-gold text-black font-bold pl-4 pr-5 py-3 rounded-full shadow-2xl hover:bg-brand-goldlight transition-colors" aria-label="Abrir chat de ayuda">
+      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+      <span class="text-sm whitespace-nowrap">¿Necesitas ayuda!</span>
+    </button>
+  </div>
+
+  <script src="products-data.js"></script>
+  <script src="app.js"></script>
+  <script src="animations.js"></script>
+</body>
+</html>

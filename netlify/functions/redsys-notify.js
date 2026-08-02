@@ -29,6 +29,13 @@ const HEADERS = { 'Content-Type': 'text/plain; charset=utf-8' };
 async function getStore() {
   try {
     const { getStore } = require('@netlify/blobs');
+    const siteID = process.env.SITE_ID;
+    const token  = process.env.NETLIFY_API_TOKEN;
+
+    // Este runtime no inyecta NETLIFY_BLOBS_CONTEXT, así que pasamos las
+    // credenciales a mano. Si algún día sí la inyecta, el modo automático
+    // (sin siteID/token) sigue funcionando como respaldo.
+    if (siteID && token) return getStore({ name: 'redsys-orders', siteID, token });
     return getStore('redsys-orders');
   } catch { return null; }
 }

@@ -16,7 +16,11 @@
 async function checkBlobs() {
   try {
     const { getStore } = require('@netlify/blobs');
-    const store = getStore('redsys-orders');
+    const siteID = process.env.SITE_ID;
+    const token  = process.env.NETLIFY_API_TOKEN;
+    const store  = (siteID && token)
+      ? getStore({ name: 'redsys-orders', siteID, token })
+      : getStore('redsys-orders');
     await store.setJSON('__diag__', { ok: true, ts: Date.now() });
     const back = await store.get('__diag__', { type: 'json' });
     await store.delete('__diag__');
@@ -64,6 +68,7 @@ exports.handler = async function () {
       runtime: {
         tieneBlobsContext: !!process.env.NETLIFY_BLOBS_CONTEXT,
         tieneSiteId:       !!process.env.SITE_ID,
+        tieneApiToken:     !!process.env.NETLIFY_API_TOKEN,
         versionBlobs:      (() => {
           try { return require('@netlify/blobs/package.json').version; }
           catch { return 'no instalado'; }

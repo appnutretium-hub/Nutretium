@@ -11,12 +11,22 @@
 const crypto = require('crypto');
 
 /**
- * Secreto de firma. Debe definirse JWT_SECRET en las variables de entorno del
- * sitio: con el valor por defecto, cualquiera que conozca este repositorio
- * podría falsificar sesiones.
+ * Secreto de firma.
+ *
+ * TODO(seguridad): definir JWT_SECRET en Netlify → Site configuration →
+ * Environment variables (cadena larga y aleatoria, marcada como secreta) y
+ * redesplegar. Mientras no exista, se usa el valor por defecto que está
+ * escrito aquí abajo, en el repositorio: cualquiera que lo lea puede
+ * falsificar sesiones de usuario. Al cambiarlo, las sesiones abiertas se
+ * invalidan y los usuarios tendrán que volver a iniciar sesión (una vez).
  */
 function getSecret() {
-  return process.env.JWT_SECRET || 'nutretium-dev-secret-change-in-production';
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    console.warn('[jwt] TODO: falta JWT_SECRET en el entorno; usando el secreto por defecto (INSEGURO).');
+    return 'nutretium-dev-secret-change-in-production';
+  }
+  return secret;
 }
 
 function base64url(buf) {

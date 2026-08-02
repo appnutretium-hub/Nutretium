@@ -58,6 +58,21 @@ exports.handler = async function () {
       // Si "disponible" es false, redsys-notify no puede guardar el resultado
       // y el pago se quedara siempre en "Pago en verificacion".
       blobs: await checkBlobs(),
+      // Diagnostico del runtime: NOMBRES de variables (nunca valores).
+      // NETLIFY_BLOBS_CONTEXT es la que inyecta Netlify para configurar Blobs
+      // automaticamente; si no aparece, el runtime no la esta proporcionando.
+      runtime: {
+        tieneBlobsContext: !!process.env.NETLIFY_BLOBS_CONTEXT,
+        tieneSiteId:       !!process.env.SITE_ID,
+        versionBlobs:      (() => {
+          try { return require('@netlify/blobs/package.json').version; }
+          catch { return 'no instalado'; }
+        })(),
+        nodeVersion: process.version,
+        varsNetlify: Object.keys(process.env)
+          .filter(k => /^(NETLIFY|SITE|DEPLOY|AWS_LAMBDA)/.test(k))
+          .sort(),
+      },
     }, null, 2),
   };
 };

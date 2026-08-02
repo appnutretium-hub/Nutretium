@@ -26,7 +26,8 @@ const HEADERS = { 'Content-Type': 'text/plain; charset=utf-8' };
 
 // ─── PERSISTENCIA (Netlify Blobs, opcional) ────────────────────────────────────
 
-const { getBlobStore } = require('../lib/blob-store');
+const { getBlobStore }            = require('../lib/blob-store');
+const { sendEmail, buildOrderEmail } = require('../lib/email');
 
 async function getStore() {
   return getBlobStore('redsys-orders');
@@ -166,6 +167,18 @@ exports.handler = async function (event) {
   }
 
   console.log('[Redsys-notify]', JSON.stringify({ order, status: record.status, responseCode: record.responseCode }));
+
+  // ── Avisar a la tienda por correo (solo si el pago se autorizó) ────────────
+  // Va después de persistir y nunca puede tumbar la notificación: si el correo
+  // falla, el pedido ya está guardado y sigue visible en "Mis pedidos".
+  if (authorised) {
+    try {
+      const { subject, html } = buildOrderEmail(record);
+      await sendEmail({ to: process.env.ORDER_NOTIFICATION_EMAIL, subject, html });
+    } catch (err) {
+      console.error('[Redsys-notify] Fallo al enviar el aviso de pedido:', err);
+    }
+  }
 
   // Redsys solo necesita un 200 OK para dar por entregada la notificación.
   return { statusCode: 200, headers: HEADERS, body: 'OK' };

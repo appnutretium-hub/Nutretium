@@ -23,6 +23,8 @@
 'use strict';
 
 const crypto = require('crypto');
+const { getBlobStore } = require('../lib/blob-store');
+const { verifyJWT }    = require('../lib/jwt');
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
@@ -52,6 +54,19 @@ function generateOrderNumber() {
     pad(now.getSeconds());
   const rand = String(Math.floor(Math.random() * 100)).padStart(2, '0');
   return (datePart + rand).slice(0, 12);
+}
+
+/**
+ * Normaliza los artículos del carrito antes de guardarlos.
+ * Lo que llega del navegador no es de fiar: se recorta y se acota el tamaño.
+ */
+function sanitiseItems(items) {
+  if (!Array.isArray(items)) return [];
+  return items.slice(0, 50).map(i => ({
+    name:  String(i && i.name || '').slice(0, 120),
+    qty:   Math.max(1, Math.min(99, parseInt(i && i.qty, 10) || 1)),
+    price: Math.max(0, Number(i && i.price) || 0),
+  }));
 }
 
 /**
@@ -133,7 +148,7 @@ exports.handler = async function (event) {
     };
   }
 
-  const { amount } = requestBody;
+  const { amount, items, token } = requestBody;
 
   if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
     return {
@@ -213,6 +228,46 @@ exports.handler = async function (event) {
       headers: CORS_HEADERS,
       body: JSON.stringify({ error: 'Signature generation failed' }),
     };
+  }
+
+  // ── Registrar el pedido como PENDIENTE ─────────────────────────────────────
+  // Se guarda ANTES de ir a la pasarela para poder asociarlo al usuario y
+  // conservar los artículos: la notificación de Redsys no incluye nada de eso,
+  // solo el importe y el resultado.
+  try {
+    // El email sale del token firmado, nunca de lo que envíe el navegador.
+    let email = null;
+    if (token) {
+      try { email = verifyJWT(token).email || null; }
+      catch { email = null; } // sesión caducada → pedido de invitado
+    }
+
+    const store = getBlobStore('redsys-orders');
+    if (store) {
+      await store.setJSON(orderNumber, {
+        order:     orderNumber,
+        email,
+        items:     sanitiseItems(items),
+        amount:    Number(amountCents) / 100,
+        currency:  '978',
+        status:    'PENDING',
+        createdAt: new Date().toISOString(),
+      });
+
+      // Índice por usuario, para poder listar "Mis pedidos" sin recorrer todo.
+      if (email) {
+        const index = getBlobStore('user-orders');
+        if (index) {
+          const previos = (await index.get(email, { type: 'json' }).catch(() => null)) || [];
+          const lista = [orderNumber, ...previos.filter(o => o !== orderNumber)].slice(0, 100);
+          await index.setJSON(email, lista);
+        }
+      }
+    }
+  } catch (err) {
+    // Un fallo aquí no debe impedir el pago: la notificación firmada creará
+    // igualmente el registro, solo que sin usuario ni artículos.
+    console.error('[Redsys] No se pudo registrar el pedido', orderNumber, err);
   }
 
   // ── Return payload to frontend ──────────────────────────────────────────────

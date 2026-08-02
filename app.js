@@ -1145,7 +1145,107 @@ document.addEventListener('click', e => {
 function showSection(section) {
   closeProfileDropdown();
   if (section === 'profile') showToast('Perfil — próximamente disponible.');
-  if (section === 'orders')  showToast('Pedidos — próximamente disponible.');
+  if (section === 'orders')  openOrders();
+}
+
+// ─── MIS PEDIDOS ──────────────────────────────────────────────────────────────
+
+const ORDER_STATUS = {
+  PAID:    { label: 'Pagado',        cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
+  FAILED:  { label: 'No completado', cls: 'bg-red-500/15 text-red-400 border-red-500/30' },
+  PENDING: { label: 'En proceso',    cls: 'bg-amber-500/15 text-amber-400 border-amber-500/30' },
+};
+
+function formatOrderDate(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleDateString('es-ES', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  } catch { return ''; }
+}
+
+function orderCardHTML(o) {
+  const st    = ORDER_STATUS[o.status] || ORDER_STATUS.PENDING;
+  const fecha = formatOrderDate(o.createdAt || o.receivedAt);
+
+  const articulos = o.items.length
+    ? o.items.map(i => `
+        <li class="flex justify-between gap-3">
+          <span class="text-brand-muted">${escapeHTML(i.name)} <span class="opacity-60">×${i.qty}</span></span>
+          <span class="text-white/80 whitespace-nowrap">${(i.price * i.qty).toFixed(2)} €</span>
+        </li>`).join('')
+    : '<li class="text-brand-muted opacity-60">Sin detalle de artículos.</li>';
+
+  return `
+    <article class="border border-brand-border rounded-xl p-4 bg-white/[0.02]">
+      <div class="flex items-start justify-between gap-3 mb-3">
+        <div>
+          <p class="text-white font-bold text-sm">Pedido ${escapeHTML(o.order)}</p>
+          ${fecha ? `<p class="text-xs text-brand-muted mt-0.5">${fecha}</p>` : ''}
+        </div>
+        <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full border ${st.cls} whitespace-nowrap">${st.label}</span>
+      </div>
+      <ul class="text-sm space-y-1 mb-3">${articulos}</ul>
+      <div class="flex justify-between items-center pt-3 border-t border-brand-border">
+        <span class="text-xs text-brand-muted">${o.authCode ? `Autorización ${escapeHTML(o.authCode)}` : ''}</span>
+        <span class="text-brand-gold font-black">${Number(o.amount || 0).toFixed(2)} €</span>
+      </div>
+    </article>`;
+}
+
+/** Escapa texto antes de inyectarlo como HTML. */
+function escapeHTML(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+function setOrdersBody(html) {
+  const body = document.getElementById('infoBody');
+  if (body) body.innerHTML = html;
+}
+
+async function openOrders() {
+  if (!currentUser) {
+    showToast('Inicia sesión para ver tus pedidos.');
+    return;
+  }
+
+  document.getElementById('infoTitle').textContent = 'Mis pedidos';
+  setOrdersBody('<p class="text-center py-6"><span class="spinner"></span></p>');
+  openModal('infoModal');
+
+  try {
+    const res = await fetch('/.netlify/functions/orders', {
+      headers: { Authorization: `Bearer ${currentUser.token}` },
+    });
+
+    if (res.status === 401) {
+      setOrdersBody('<p>Tu sesión ha caducado. Vuelve a iniciar sesión para ver tus pedidos.</p>');
+      return;
+    }
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+
+    const { orders = [] } = await res.json();
+
+    if (!orders.length) {
+      setOrdersBody(`
+        <div class="text-center py-6">
+          <p class="text-4xl mb-3">📦</p>
+          <p class="text-white font-bold mb-1">Aún no tienes pedidos</p>
+          <p>Cuando completes una compra, aparecerá aquí.</p>
+        </div>`);
+      return;
+    }
+
+    setOrdersBody(`<div class="space-y-3">${orders.map(orderCardHTML).join('')}</div>`);
+
+  } catch (err) {
+    console.error('[Pedidos] Error al cargar:', err);
+    setOrdersBody('<p>No hemos podido cargar tus pedidos. Inténtalo de nuevo en unos minutos.</p>');
+  }
 }
 
 // ─── PRODUCTS FROM DB ─────────────────────────────────────────────────────────
@@ -1186,12 +1286,15 @@ async function initiateRedsysPayment() {
       body: JSON.stringify({
         // Amount in euros (the function converts to cents)
         amount: total,
-        // Pass cart summary for merchant URL notification (optional)
+        // Artículos del carrito: se guardan con el pedido para "Mis pedidos"
         items: Array.from(cart.values()).map(i => ({
           name: i.product.name,
           qty: i.quantity,
           price: i.product.price,
         })),
+        // Si hay sesión, el pedido queda asociado al usuario. El servidor
+        // saca el email del token firmado, no de aquí.
+        token: currentUser?.token || null,
       }),
     });
 

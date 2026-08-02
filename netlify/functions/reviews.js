@@ -24,11 +24,10 @@ const SEED_REVIEWS = [
   { id:'r3', author:'Marcos R.', product:'Creatina Monohidrato 500g',rating:4, text:'Calidad excelente al precio más competitivo del mercado. Notando mejoras en fuerza.',          date:'2026-03-15', approved:true },
 ];
 
+const { getBlobStore } = require('../lib/blob-store');
+
 async function getStore() {
-  try {
-    const { getStore } = require('@netlify/blobs');
-    return getStore('reviews');
-  } catch { return null; }
+  return getBlobStore('reviews');
 }
 
 async function readReviews() {

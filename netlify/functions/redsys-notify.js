@@ -26,18 +26,10 @@ const HEADERS = { 'Content-Type': 'text/plain; charset=utf-8' };
 
 // ─── PERSISTENCIA (Netlify Blobs, opcional) ────────────────────────────────────
 
-async function getStore() {
-  try {
-    const { getStore } = require('@netlify/blobs');
-    const siteID = process.env.SITE_ID;
-    const token  = process.env.NETLIFY_API_TOKEN;
+const { getBlobStore } = require('../lib/blob-store');
 
-    // Este runtime no inyecta NETLIFY_BLOBS_CONTEXT, así que pasamos las
-    // credenciales a mano. Si algún día sí la inyecta, el modo automático
-    // (sin siteID/token) sigue funcionando como respaldo.
-    if (siteID && token) return getStore({ name: 'redsys-orders', siteID, token });
-    return getStore('redsys-orders');
-  } catch { return null; }
+async function getStore() {
+  return getBlobStore('redsys-orders');
 }
 
 // ─── CRIPTOGRAFÍA (idéntica a redsys.js) ───────────────────────────────────────
@@ -145,21 +137,28 @@ exports.handler = async function (event) {
   const responseCode = parseInt(params.Ds_Response, 10);
   const authorised = Number.isInteger(responseCode) && responseCode >= 0 && responseCode <= 99;
 
-  const record = {
+  // ── Persistir (para poder consultar el estado real del pedido) ─────────────
+  // Se FUSIONA con lo que registró redsys.js al iniciar el pago (usuario y
+  // artículos), porque la notificación no incluye esos datos.
+  const resultado = {
     order,
-    amount:      params.Ds_Amount,           // en céntimos
-    currency:    params.Ds_Currency,
+    amount:       Number(params.Ds_Amount) / 100,  // Redsys manda céntimos
+    currency:     params.Ds_Currency,
     responseCode: params.Ds_Response,
-    authCode:    params.Ds_AuthorisationCode || null,
-    paymentType: params.Ds_PayMethod || null, // p.ej. "z" = Bizum
-    status:      authorised ? 'PAID' : 'FAILED',
-    receivedAt:  new Date().toISOString(),
+    authCode:     params.Ds_AuthorisationCode || null,
+    paymentType:  params.Ds_PayMethod || null,     // p.ej. "z" = Bizum
+    status:       authorised ? 'PAID' : 'FAILED',
+    receivedAt:   new Date().toISOString(),
   };
 
-  // ── Persistir (para poder consultar el estado real del pedido) ─────────────
+  let record = resultado;
   try {
     const store = await getStore();
-    if (store) await store.setJSON(order, record);
+    if (store) {
+      const previo = await store.get(order, { type: 'json' }).catch(() => null);
+      record = { ...(previo || {}), ...resultado };
+      await store.setJSON(order, record);
+    }
   } catch (err) {
     // No hacemos fallar la notificación por un error de almacenamiento:
     // Redsys reintentaría y el cobro ya es válido. Solo lo registramos.

@@ -48,11 +48,10 @@ const SEED_PRODUCTS = [
 
 // ─── Storage helpers ──────────────────────────────────────────────────────────
 
+const { getBlobStore } = require('../lib/blob-store');
+
 async function getStore() {
-  try {
-    const { getStore } = require('@netlify/blobs');
-    return getStore('products');
-  } catch { return null; }
+  return getBlobStore('products');
 }
 
 async function readProducts() {

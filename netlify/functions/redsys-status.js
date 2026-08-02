@@ -21,17 +21,10 @@ const CORS = {
   'Content-Type': 'application/json',
 };
 
-async function getStore() {
-  try {
-    const { getStore } = require('@netlify/blobs');
-    const siteID = process.env.SITE_ID;
-    const token  = process.env.NETLIFY_API_TOKEN;
+const { getBlobStore } = require('../lib/blob-store');
 
-    // Mismo criterio que en redsys-notify: credenciales explícitas porque
-    // este runtime no inyecta NETLIFY_BLOBS_CONTEXT.
-    if (siteID && token) return getStore({ name: 'redsys-orders', siteID, token });
-    return getStore('redsys-orders');
-  } catch { return null; }
+async function getStore() {
+  return getBlobStore('redsys-orders');
 }
 
 exports.handler = async function (event) {

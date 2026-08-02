@@ -63,13 +63,10 @@ function verifyPassword(password, stored) {
 // We wrap it so the function degrades gracefully if the package isn't present
 // (e.g. local dev without netlify dev).
 
+const { getBlobStore } = require('../lib/blob-store');
+
 async function getStore() {
-  try {
-    const { getStore } = require('@netlify/blobs');
-    return getStore('users');
-  } catch {
-    return null; // local dev fallback — in-memory only
-  }
+  return getBlobStore('users'); // null en local sin `netlify dev` → memoria
 }
 
 const IN_MEMORY_USERS = {}; // fallback for local dev

@@ -22,11 +22,10 @@ const CORS = {
   'Content-Type': 'application/json',
 };
 
+const { getBlobStore } = require('../lib/blob-store');
+
 async function getStore() {
-  try {
-    const { getStore } = require('@netlify/blobs');
-    return getStore('contact-messages');
-  } catch { return null; }
+  return getBlobStore('contact-messages');
 }
 
 exports.handler = async function (event) {

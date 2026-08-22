@@ -20,6 +20,8 @@
       'CATALOGO_NUTRETIUM.xlsx' \
       'AUDITORIA_CATALOGO.md' \
       'DESPLIEGUE.md' \
+      'PRUEBAS_REDSYS.md' \
+      'CLAUDE.md' \
       'GUIA_ARQUITECTURA_NETLIFY.md' \
       'PROMPT_SISTEMA_CLAUDE.md.md' \
       '.env.example' \

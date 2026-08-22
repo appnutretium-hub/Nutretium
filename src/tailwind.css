@@ -1,0 +1,5 @@
+/* Entrada del build de Tailwind. El CSS propio de la tienda sigue en el
+   <style> de index.html; aquí solo se generan las utilidades. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

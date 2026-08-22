@@ -14,13 +14,9 @@
 'use strict';
 
 const crypto = require('crypto');
+const { cabecerasCORS } = require('../lib/cors');
 
-const CORS = {
-  'Access-Control-Allow-Origin':  '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Content-Type': 'application/json',
-};
+const CORS = cabecerasCORS('POST, OPTIONS');
 
 const { getBlobStore } = require('../lib/blob-store');
 

@@ -16,33 +16,12 @@
 'use strict';
 
 const crypto = require('crypto');
+const { cabecerasCORS } = require('../lib/cors');
+// JWT compartido con el resto de funciones: una sola implementación y un solo
+// secreto. La copia que había aquí no comprobaba la caducidad del token.
+const { signJWT, verifyJWT, secretConfigured } = require('../lib/jwt');
 
-const CORS = {
-  'Access-Control-Allow-Origin':  '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-  'Content-Type': 'application/json',
-};
-
-// ─── Simple JWT (HS256) — no external dependency ─────────────────────────────
-
-function base64url(buf) {
-  return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
-function signJWT(payload, secret) {
-  const header  = base64url(Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));
-  const body    = base64url(Buffer.from(JSON.stringify(payload)));
-  const sig     = base64url(crypto.createHmac('sha256', secret).update(`${header}.${body}`).digest());
-  return `${header}.${body}.${sig}`;
-}
-
-function verifyJWT(token, secret) {
-  const [header, body, sig] = token.split('.');
-  const expected = base64url(crypto.createHmac('sha256', secret).update(`${header}.${body}`).digest());
-  if (sig !== expected) throw new Error('Invalid token');
-  return JSON.parse(Buffer.from(body, 'base64').toString());
-}
+const CORS = cabecerasCORS('POST, GET, OPTIONS');
 
 // ─── Password hashing (PBKDF2) ────────────────────────────────────────────────
 
@@ -95,11 +74,17 @@ exports.handler = async function (event) {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
   if (event.httpMethod !== 'POST')    return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: 'Method Not Allowed' }) };
 
+  // Sin JWT_SECRET no se emiten sesiones: mejor que el login no funcione a que
+  // funcione con un secreto que cualquiera puede adivinar.
+  if (!secretConfigured()) {
+    console.error('[auth] Falta JWT_SECRET (o es demasiado corto). Configúralo en Netlify.');
+    return { statusCode: 503, headers: CORS, body: JSON.stringify({ error: 'El registro y el inicio de sesión no están disponibles ahora mismo.' }) };
+  }
+
   let body;
   try { body = JSON.parse(event.body || '{}'); }
   catch { return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Invalid JSON' }) }; }
 
-  const JWT_SECRET = process.env.JWT_SECRET || 'nutretium-dev-secret-change-in-production';
 
   // ── REGISTER ───────────────────────────────────────────────────────────────
   if (body.action === 'register') {
@@ -126,7 +111,7 @@ exports.handler = async function (event) {
 
     await writeUser(emailLower, user);
 
-    const token   = signJWT({ sub: id, email: emailLower, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30 }, JWT_SECRET);
+    const token   = signJWT({ sub: id, email: emailLower, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30 });
     const profile = { id, name: user.name, surname: user.surname, email: emailLower, phone: user.phone, token };
 
     return { statusCode: 201, headers: CORS, body: JSON.stringify({ user: profile }) };
@@ -144,7 +129,7 @@ exports.handler = async function (event) {
     if (!user || !verifyPassword(password, user.passwordHash))
       return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'Email o contraseña incorrectos.' }) };
 
-    const token   = signJWT({ sub: user.id, email: emailLower, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30 }, JWT_SECRET);
+    const token   = signJWT({ sub: user.id, email: emailLower, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30 });
     const profile = { id: user.id, name: user.name, surname: user.surname, email: emailLower, phone: user.phone, token };
 
     return { statusCode: 200, headers: CORS, body: JSON.stringify({ user: profile }) };
@@ -157,7 +142,7 @@ exports.handler = async function (event) {
       return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'Token requerido.' }) };
 
     let claims;
-    try { claims = verifyJWT(token, JWT_SECRET); }
+    try { claims = verifyJWT(token); }
     catch { return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'Token inválido o expirado.' }) }; }
 
     const user = await readUser(claims.email);

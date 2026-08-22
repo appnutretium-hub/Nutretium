@@ -15,13 +15,10 @@
 
 'use strict';
 
-const CORS = {
-  'Access-Control-Allow-Origin':  '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Content-Type': 'application/json',
-};
+const { getBlobStore }  = require('../lib/blob-store');
+const { cabecerasCORS } = require('../lib/cors');
 
-const { getBlobStore } = require('../lib/blob-store');
+const CORS = cabecerasCORS('GET, OPTIONS');
 
 async function getStore() {
   return getBlobStore('redsys-orders');

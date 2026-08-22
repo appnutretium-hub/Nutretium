@@ -3,6 +3,11 @@
  *
  * Serverless function that generates a signed Redsys payment request.
  *
+ * IMPORTE: lo calcula el servidor, nunca el navegador. La petición solo dice qué
+ * productos (por id) y cuántas unidades; los precios salen del catálogo a través
+ * de ../lib/catalogo.js. Si el total que trae la petición no coincide con el del
+ * catálogo, se devuelve 409 y no se firma nada.
+ *
  * Redsys HMAC-SHA256v1 signature flow:
  *   1. Build the Ds_MerchantParameters JSON object.
  *   2. Base64-encode it (standard, not URL-safe).
@@ -23,8 +28,10 @@
 'use strict';
 
 const crypto = require('crypto');
-const { getBlobStore } = require('../lib/blob-store');
-const { verifyJWT }    = require('../lib/jwt');
+const { cabecerasCORS } = require('../lib/cors');
+const { getBlobStore }   = require('../lib/blob-store');
+const { verifyJWT }      = require('../lib/jwt');
+const { valorarCarrito } = require('../lib/catalogo');
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
@@ -38,43 +45,35 @@ const SIGNATURE_VERSION = 'HMAC_SHA256_V1';
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 /**
- * Generates a zero-padded numeric order number.
- * Redsys requires: 4–12 chars, starts with 4 digits, alphanumeric only.
- * Format: YYYYMMDDHHMMSS + 2 random digits → trimmed to 12 chars.
+ * Genera el nº de pedido para Redsys.
+ *
+ * Redsys exige: 4–12 caracteres, los 4 primeros numéricos, resto alfanumérico,
+ * y ÚNICO por comercio (un repetido lo rechaza con SIS0051).
+ *
+ * Formato: MMDD + 8 caracteres aleatorios [0-9A-Z] = 12.
+ * Los 8 aleatorios salen de crypto.randomBytes: 36^8 ≈ 2,8 billones de combinaciones,
+ * así que dos pedidos simultáneos no chocan y el número no se puede adivinar
+ * (redsys-status responde a quien acierte un nº de pedido).
  */
+const ALFABETO = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
 function generateOrderNumber() {
   const now = new Date();
   const pad = n => String(n).padStart(2, '0');
-  const datePart =
-    String(now.getFullYear()) +
-    pad(now.getMonth() + 1) +
-    pad(now.getDate()) +
-    pad(now.getHours()) +
-    pad(now.getMinutes()) +
-    pad(now.getSeconds());
-  const rand = String(Math.floor(Math.random() * 100)).padStart(2, '0');
-  return (datePart + rand).slice(0, 12);
-}
+  const prefijo = pad(now.getMonth() + 1) + pad(now.getDate()); // 4 dígitos
 
-/**
- * Normaliza los artículos del carrito antes de guardarlos.
- * Lo que llega del navegador no es de fiar: se recorta y se acota el tamaño.
- */
-function sanitiseItems(items) {
-  if (!Array.isArray(items)) return [];
-  return items.slice(0, 50).map(i => ({
-    name:  String(i && i.name || '').slice(0, 120),
-    qty:   Math.max(1, Math.min(99, parseInt(i && i.qty, 10) || 1)),
-    price: Math.max(0, Number(i && i.price) || 0),
-  }));
-}
-
-/**
- * Converts a euro amount (float) to Redsys integer cents string.
- * e.g. 49.99 → "4999"
- */
-function eurosToCents(amount) {
-  return String(Math.round(parseFloat(amount) * 100));
+  // Rechazo por módulo: descarta los bytes del tramo incompleto (256 % 36 = 4)
+  // para que las 36 letras salgan con la misma probabilidad.
+  const limite = 256 - (256 % ALFABETO.length);
+  let sufijo = '';
+  while (sufijo.length < 8) {
+    for (const b of crypto.randomBytes(16)) {
+      if (b >= limite) continue;
+      sufijo += ALFABETO[b % ALFABETO.length];
+      if (sufijo.length === 8) break;
+    }
+  }
+  return prefijo + sufijo;
 }
 
 /**
@@ -113,12 +112,7 @@ function computeSignature(merchantParametersBase64, signingKey) {
 
 // ─── CORS HEADERS ─────────────────────────────────────────────────────────────
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Content-Type': 'application/json',
-};
+const CORS_HEADERS = cabecerasCORS('POST, OPTIONS');
 
 // ─── HANDLER ──────────────────────────────────────────────────────────────────
 
@@ -150,12 +144,37 @@ exports.handler = async function (event) {
 
   const { amount, items, token } = requestBody;
 
-  if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+  // ── Poner precio al pedido ─────────────────────────────────────────────────
+  // El importe NO se acepta del navegador: se calcula aquí con los precios del
+  // catálogo. `items` solo aporta qué producto (id) y cuántas unidades.
+  const pedido = valorarCarrito(items);
+  if (!pedido.ok) {
     return {
       statusCode: 400,
       headers: CORS_HEADERS,
-      body: JSON.stringify({ error: 'Invalid or missing amount' }),
+      body: JSON.stringify({ error: pedido.errores[0], detalles: pedido.errores }),
     };
+  }
+
+  // El `amount` que manda el navegador solo sirve para detectar desajustes: si
+  // no coincide con el del catálogo es que la página tiene precios viejos (o
+  // que alguien ha manipulado la petición). En ninguno de los dos casos se cobra.
+  if (amount !== undefined && amount !== null) {
+    const enviado = Math.round(parseFloat(amount) * 100);
+    if (!Number.isFinite(enviado) || enviado !== pedido.totalCents) {
+      console.warn(
+        '[Redsys] Importe descartado. Navegador:', enviado,
+        'céntimos | Catálogo:', pedido.totalCents, 'céntimos'
+      );
+      return {
+        statusCode: 409,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({
+          error: 'Los precios del carrito han cambiado. Recarga la página y vuelve a intentarlo.',
+          totalCorrecto: pedido.totalCents / 100,
+        }),
+      };
+    }
   }
 
   // ── Read configuration from environment ────────────────────────────────────
@@ -198,7 +217,7 @@ exports.handler = async function (event) {
 
   // ── Build Redsys parameters ─────────────────────────────────────────────────
   const orderNumber = generateOrderNumber();
-  const amountCents = eurosToCents(amount);
+  const amountCents = String(pedido.totalCents);
 
   const merchantParameters = {
     Ds_Merchant_Amount:          amountCents,
@@ -247,8 +266,9 @@ exports.handler = async function (event) {
       await store.setJSON(orderNumber, {
         order:     orderNumber,
         email,
-        items:     sanitiseItems(items),
-        amount:    Number(amountCents) / 100,
+        // Líneas valoradas por el servidor, no las que mandó el navegador.
+        items:     pedido.lineas,
+        amount:    pedido.totalCents / 100,
         currency:  '978',
         status:    'PENDING',
         createdAt: new Date().toISOString(),

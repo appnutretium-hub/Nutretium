@@ -15,15 +15,10 @@
 'use strict';
 
 const { getBlobStore }        = require('../lib/blob-store');
-const { verifyJWT, tokenFromHeader } = require('../lib/jwt');
+const { cabecerasCORS } = require('../lib/cors');
+const { verifyJWT, tokenFromHeader, secretConfigured } = require('../lib/jwt');
 
-const CORS = {
-  'Access-Control-Allow-Origin':  '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Content-Type':  'application/json',
-  'Cache-Control': 'no-store',
-};
+const CORS = cabecerasCORS('GET, OPTIONS');
 
 const MAX_PEDIDOS = 50;
 
@@ -50,6 +45,13 @@ exports.handler = async function (event) {
   const token = tokenFromHeader(event.headers);
   if (!token) {
     return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'Debes iniciar sesión.' }) };
+  }
+
+  // Sin JWT_SECRET no se puede verificar ninguna sesión: 503 explícito en vez de
+  // hacer creer al usuario que su sesión ha caducado.
+  if (!secretConfigured()) {
+    console.error('[orders] Falta JWT_SECRET. Configúralo en Netlify.');
+    return { statusCode: 503, headers: CORS, body: JSON.stringify({ error: 'Servicio no disponible ahora mismo.' }) };
   }
 
   let email;

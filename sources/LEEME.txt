@@ -1,0 +1,20 @@
+AMRO - FOTOS MAXIMA CALIDAD PARA WEB
+======================================
+
+Se han rehecho las imágenes priorizando calidad real y fidelidad de etiqueta.
+
+01_PNG_MAX_CALIDAD_CON_PVP
+- 22 archivos con el nombre + PVPR del Excel.
+- 20 archivos usan renders actuales de alta resolución disponibles en la web del distribuidor/tienda actual.
+- 2 referencias sin render actual equivalente (Creatina Micronizada 500g y L-Carnitine 3000 Liquid 500ml) se han mejorado desde la imagen nativa del PDF sin IA generativa, para no alterar textos ni envases.
+
+02_WEBP_MAX_CALIDAD_CON_PVP
+- Las mismas 22 referencias en WebP, formato recomendado para la web por calidad/peso.
+
+03_SIN_PRECIO_PNG_MAX_CALIDAD
+- 5 referencias del catálogo que no tenían PVPR en la plantilla Excel, mejoradas desde el PDF.
+
+IMPORTANTE
+- No se ha usado IA generativa para reconstruir etiquetas, porque podría cambiar letras, sellos o información del producto.
+- En los renders actuales, el diseño del envase puede ser más reciente que el catálogo PDF de 2023.
+- Los precios del nombre de archivo se mantienen según el Excel que facilitaste, no según precios actuales de otras webs.

@@ -10,13 +10,9 @@
 'use strict';
 
 const crypto = require('crypto');
+const { cabecerasCORS } = require('../lib/cors');
 
-const CORS = {
-  'Access-Control-Allow-Origin':  '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Content-Type': 'application/json',
-};
+const CORS = cabecerasCORS('GET, POST, OPTIONS');
 
 const SEED_REVIEWS = [
   { id:'r1', author:'Carlos M.', product:'Whey Protein Pro 2kg',    rating:5, text:'La mejor proteína que he probado. Se mezcla perfectamente y el sabor chocolate es increíble.', date:'2026-04-10', approved:true },

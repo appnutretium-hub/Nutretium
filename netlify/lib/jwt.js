@@ -10,21 +10,36 @@
 
 const crypto = require('crypto');
 
+/** Longitud mínima razonable para un secreto HS256. */
+const MIN_SECRETO = 32;
+
 /**
- * Secreto de firma.
+ * ¿Está el secreto bien configurado? Los handlers lo consultan para responder
+ * un 503 claro en vez de reventar con un 500 genérico.
+ */
+function secretConfigured() {
+  const s = process.env.JWT_SECRET;
+  return typeof s === 'string' && s.length >= MIN_SECRETO;
+}
+
+/**
+ * Secreto de firma. Sin JWT_SECRET NO se firma nada.
  *
- * TODO(seguridad): definir JWT_SECRET en Netlify → Site configuration →
- * Environment variables (cadena larga y aleatoria, marcada como secreta) y
- * redesplegar. Mientras no exista, se usa el valor por defecto que está
- * escrito aquí abajo, en el repositorio: cualquiera que lo lea puede
- * falsificar sesiones de usuario. Al cambiarlo, las sesiones abiertas se
- * invalidan y los usuarios tendrán que volver a iniciar sesión (una vez).
+ * Antes había aquí un valor por defecto escrito en el repositorio: cualquiera
+ * que leyese el código podía firmarse un token y hacerse pasar por otro usuario.
+ * Ahora falla cerrado — es preferible que el login no funcione a que funcione
+ * con un secreto público.
+ *
+ * Configúralo en Netlify → Site configuration → Environment variables, con una
+ * cadena larga y aleatoria marcada como secreta:  openssl rand -base64 48
  */
 function getSecret() {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
-    console.warn('[jwt] TODO: falta JWT_SECRET en el entorno; usando el secreto por defecto (INSEGURO).');
-    return 'nutretium-dev-secret-change-in-production';
+    throw new Error('JWT_SECRET no está configurado: las sesiones están deshabilitadas.');
+  }
+  if (secret.length < MIN_SECRETO) {
+    throw new Error(`JWT_SECRET es demasiado corto (mínimo ${MIN_SECRETO} caracteres).`);
   }
   return secret;
 }
@@ -67,4 +82,4 @@ function tokenFromHeader(headers = {}) {
   return m ? m[1].trim() : null;
 }
 
-module.exports = { signJWT, verifyJWT, getSecret, tokenFromHeader };
+module.exports = { signJWT, verifyJWT, getSecret, secretConfigured, tokenFromHeader };

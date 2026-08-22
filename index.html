@@ -4,32 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NUTRETIUM | Nutrición Deportiva Premium</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              gold: '#D4AF37',
-              goldlight: '#F0D060',
-              golddark: '#A07820',
-              dark: '#0a0a0a',
-              card: '#111111',
-              border: '#2a2200',
-              muted: '#8a7a50',
-            }
-          },
-          fontFamily: {
-            sans: ['Inter', 'system-ui', 'sans-serif'],
-          },
-          screens: {
-            'xs': '480px',
-          }
-        }
-      }
-    }
-  </script>
+  <!-- Tailwind compilado en el build (npm run build:css). Antes se cargaba
+       desde cdn.tailwindcss.com, que compila el CSS en el navegador y el
+       propio Tailwind desaconseja en producción. Config: tailwind.config.js -->
+  <link rel="stylesheet" href="styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet" />
   <style>
@@ -520,7 +498,14 @@
             <div class="mb-4">
               <p class="text-xs font-bold text-brand-muted uppercase tracking-wider mb-2">Marca</p>
               <div class="flex flex-wrap gap-2">
-                <button onclick="setBrandFilter(this,'Amix')" class="adv-chip">Amix</button>
+                <button onclick="setBrandFilter(this,'Amro')" class="adv-chip">Amro</button>
+                <button onclick="setBrandFilter(this,'Protella')" class="adv-chip">Protella</button>
+                <button onclick="setBrandFilter(this,'Barebells')" class="adv-chip">Barebells</button>
+                <button onclick="setBrandFilter(this,'Protzen')" class="adv-chip">Protzen</button>
+                <button onclick="setBrandFilter(this,'Monster')" class="adv-chip">Monster</button>
+                <button onclick="setBrandFilter(this,'Nocco')" class="adv-chip">Nocco</button>
+                <button onclick="setBrandFilter(this,'Vitamin Well')" class="adv-chip">Vitamin Well</button>
+                <button onclick="setBrandFilter(this,'Servivita')" class="adv-chip">Servivita</button>
               </div>
             </div>
             <!-- Ofertas + Packs -->
@@ -634,59 +619,58 @@
     <div class="hidden lg:block border-t border-brand-border bg-brand-dark/95 backdrop-blur">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center gap-1">
 
+        <!-- Bowls y heladería -->
+        <div class="mega group relative">
+          <button class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-muted hover:text-brand-gold transition-colors">
+            Bowls y heladería
+            <svg class="w-3.5 h-3.5 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          <div class="mega-panel absolute left-0 top-full w-64 bg-brand-card border border-brand-border rounded-b-xl shadow-2xl p-2 z-50">
+            <a onclick="filterByCategory('Bowls')" class="mega-link" role="button" tabindex="0">🍧 Bowls</a>
+            <a onclick="filterByCategory('Helados')" class="mega-link" role="button" tabindex="0">🍦 Helados</a>
+            <a onclick="filterByCategory('Yogures')" class="mega-link" role="button" tabindex="0">🥛 Yogures</a>
+            <a onclick="filterByCategory('Smoothies y batidos')" class="mega-link" role="button" tabindex="0">🥤 Smoothies y batidos</a>
+            <a onclick="filterByCategory('Waffles y caprichos')" class="mega-link" role="button" tabindex="0">🧇 Waffles y caprichos</a>
+            <a onclick="filterByCategory('Café y matcha')" class="mega-link" role="button" tabindex="0">☕ Café y matcha</a>
+          </div>
+        </div>
+
         <!-- Nutrición deportiva -->
         <div class="mega group relative">
           <button class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-muted hover:text-brand-gold transition-colors">
             Nutrición deportiva
             <svg class="w-3.5 h-3.5 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
           </button>
-          <div class="mega-panel absolute left-0 top-full w-60 bg-brand-card border border-brand-border rounded-b-xl shadow-2xl p-2 z-50">
+          <div class="mega-panel absolute left-0 top-full w-64 bg-brand-card border border-brand-border rounded-b-xl shadow-2xl p-2 z-50">
             <a onclick="filterByCategory('Proteínas')" class="mega-link" role="button" tabindex="0">🥛 Proteínas</a>
             <a onclick="filterByCategory('Creatinas')" class="mega-link" role="button" tabindex="0">💪 Creatinas</a>
-            <a onclick="filterByCategory('Aminoácidos')" class="mega-link" role="button" tabindex="0">🧬 Aminoácidos</a>
-            <a onclick="filterByCategory('Voluminizadores')" class="mega-link" role="button" tabindex="0">🏋️ Voluminizadores</a>
-            <a onclick="filterByCategory('Carbohidratos')" class="mega-link" role="button" tabindex="0">🌾 Carbohidratos</a>
+            <a onclick="filterByCategory('Pre-entrenos')" class="mega-link" role="button" tabindex="0">⚡ Pre-entrenos</a>
+            <a onclick="filterByCategory('Alimentación proteica')" class="mega-link" role="button" tabindex="0">🥣 Alimentación proteica</a>
           </div>
         </div>
 
-        <!-- Alimentación saludable -->
+        <!-- Salud y bienestar -->
         <div class="mega group relative">
           <button class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-muted hover:text-brand-gold transition-colors">
-            Alimentación saludable
-            <svg class="w-3.5 h-3.5 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-          </button>
-          <div class="mega-panel absolute left-0 top-full w-60 bg-brand-card border border-brand-border rounded-b-xl shadow-2xl p-2 z-50">
-            <a onclick="filterByCategory('Barritas y snacks')" class="mega-link" role="button" tabindex="0">🍫 Barritas y snacks</a>
-            <a onclick="filterByCategory('Bebidas')" class="mega-link" role="button" tabindex="0">🥤 Bebidas</a>
-            <a onclick="filterByCategory('Sustitutivos')" class="mega-link" role="button" tabindex="0">🥣 Sustitutivos de comida</a>
-          </div>
-        </div>
-
-        <!-- Salud -->
-        <div class="mega group relative">
-          <button class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-muted hover:text-brand-gold transition-colors">
-            Salud
-            <svg class="w-3.5 h-3.5 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-          </button>
-          <div class="mega-panel absolute left-0 top-full w-60 bg-brand-card border border-brand-border rounded-b-xl shadow-2xl p-2 z-50">
-            <a onclick="filterByCategory('Vitaminas y minerales')" class="mega-link" role="button" tabindex="0">🌿 Vitaminas y minerales</a>
-            <a onclick="filterByCategory('Péptidos')" class="mega-link" role="button" tabindex="0">🧪 Péptidos</a>
-            <a onclick="filterByCategory('Cosmética')" class="mega-link" role="button" tabindex="0">🧴 Cosmética</a>
-          </div>
-        </div>
-
-        <!-- Material deportivo -->
-        <div class="mega group relative">
-          <button class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-muted hover:text-brand-gold transition-colors">
-            Energía y rendimiento
+            Salud y bienestar
             <svg class="w-3.5 h-3.5 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
           </button>
           <div class="mega-panel absolute left-0 top-full w-64 bg-brand-card border border-brand-border rounded-b-xl shadow-2xl p-2 z-50">
-            <a onclick="filterByCategory('Energéticos')" class="mega-link" role="button" tabindex="0">⚡ Energéticos</a>
-            <a onclick="filterByCategory('Quemadores de grasa')" class="mega-link" role="button" tabindex="0">🔥 Quemadores de grasa</a>
-            <a onclick="filterByCategory('Estimulantes de crecimiento')" class="mega-link" role="button" tabindex="0">📈 Estimulantes de crecimiento</a>
-            <a onclick="filterByCategory('Unidosis')" class="mega-link" role="button" tabindex="0">💊 Unidosis</a>
-            <a onclick="filterByCategory('Bike Elite')" class="mega-link" role="button" tabindex="0">🚴 Bike Elite</a>
+            <a onclick="filterByCategory('Vitaminas y salud')" class="mega-link" role="button" tabindex="0">🌿 Vitaminas y salud</a>
+            <a onclick="filterByCategory('Colágeno y bienestar')" class="mega-link" role="button" tabindex="0">✨ Colágeno y bienestar</a>
+          </div>
+        </div>
+
+        <!-- Snacks, bebidas y accesorios -->
+        <div class="mega group relative">
+          <button class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-muted hover:text-brand-gold transition-colors">
+            Snacks y bebidas
+            <svg class="w-3.5 h-3.5 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          <div class="mega-panel absolute left-0 top-full w-64 bg-brand-card border border-brand-border rounded-b-xl shadow-2xl p-2 z-50">
+            <a onclick="filterByCategory('Barritas y snacks')" class="mega-link" role="button" tabindex="0">🍫 Barritas y snacks</a>
+            <a onclick="filterByCategory('Bebidas')" class="mega-link" role="button" tabindex="0">🥤 Bebidas</a>
+            <a onclick="filterByCategory('Accesorios gym')" class="mega-link" role="button" tabindex="0">🎒 Accesorios gym</a>
           </div>
         </div>
 
@@ -715,7 +699,21 @@
 
     <!-- Mobile / Tablet menu — shown below lg -->
     <div id="mobileMenu" class="mobile-menu lg:hidden border-t border-brand-border bg-brand-dark px-4 py-3 space-y-1">
-      <!-- Mobile category accordions (categorías reales AMIX) -->
+      <!-- Mobile category accordions (categorías reales del listado oficial) -->
+      <div class="mobile-acc">
+        <button onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">
+          Bowls y heladería
+          <svg class="mobile-acc-chevron w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div class="mobile-acc-panel pl-4 pb-2 space-y-1">
+          <a onclick="filterByCategory('Bowls'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Bowls</a>
+          <a onclick="filterByCategory('Helados'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Helados</a>
+          <a onclick="filterByCategory('Yogures'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Yogures</a>
+          <a onclick="filterByCategory('Smoothies y batidos'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Smoothies y batidos</a>
+          <a onclick="filterByCategory('Waffles y caprichos'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Waffles y caprichos</a>
+          <a onclick="filterByCategory('Café y matcha'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Café y matcha</a>
+        </div>
+      </div>
       <div class="mobile-acc">
         <button onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">
           Nutrición deportiva
@@ -724,44 +722,29 @@
         <div class="mobile-acc-panel pl-4 pb-2 space-y-1">
           <a onclick="filterByCategory('Proteínas'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Proteínas</a>
           <a onclick="filterByCategory('Creatinas'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Creatinas</a>
-          <a onclick="filterByCategory('Aminoácidos'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Aminoácidos</a>
-          <a onclick="filterByCategory('Voluminizadores'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Voluminizadores</a>
-          <a onclick="filterByCategory('Carbohidratos'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Carbohidratos</a>
+          <a onclick="filterByCategory('Pre-entrenos'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Pre-entrenos</a>
+          <a onclick="filterByCategory('Alimentación proteica'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Alimentación proteica</a>
         </div>
       </div>
       <div class="mobile-acc">
         <button onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">
-          Alimentación saludable
+          Salud y bienestar
+          <svg class="mobile-acc-chevron w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div class="mobile-acc-panel pl-4 pb-2 space-y-1">
+          <a onclick="filterByCategory('Vitaminas y salud'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Vitaminas y salud</a>
+          <a onclick="filterByCategory('Colágeno y bienestar'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Colágeno y bienestar</a>
+        </div>
+      </div>
+      <div class="mobile-acc">
+        <button onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">
+          Snacks y bebidas
           <svg class="mobile-acc-chevron w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
         </button>
         <div class="mobile-acc-panel pl-4 pb-2 space-y-1">
           <a onclick="filterByCategory('Barritas y snacks'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Barritas y snacks</a>
           <a onclick="filterByCategory('Bebidas'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Bebidas</a>
-          <a onclick="filterByCategory('Sustitutivos'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Sustitutivos de comida</a>
-        </div>
-      </div>
-      <div class="mobile-acc">
-        <button onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">
-          Salud
-          <svg class="mobile-acc-chevron w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-        </button>
-        <div class="mobile-acc-panel pl-4 pb-2 space-y-1">
-          <a onclick="filterByCategory('Vitaminas y minerales'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Vitaminas y minerales</a>
-          <a onclick="filterByCategory('Péptidos'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Péptidos</a>
-          <a onclick="filterByCategory('Cosmética'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Cosmética</a>
-        </div>
-      </div>
-      <div class="mobile-acc">
-        <button onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">
-          Energía y rendimiento
-          <svg class="mobile-acc-chevron w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-        </button>
-        <div class="mobile-acc-panel pl-4 pb-2 space-y-1">
-          <a onclick="filterByCategory('Energéticos'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Energéticos</a>
-          <a onclick="filterByCategory('Quemadores de grasa'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Quemadores de grasa</a>
-          <a onclick="filterByCategory('Estimulantes de crecimiento'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Estimulantes de crecimiento</a>
-          <a onclick="filterByCategory('Unidosis'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Unidosis</a>
-          <a onclick="filterByCategory('Bike Elite'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Bike Elite</a>
+          <a onclick="filterByCategory('Accesorios gym'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Accesorios gym</a>
         </div>
       </div>
       <div class="mobile-acc">
@@ -875,25 +858,25 @@
       <p class="text-brand-muted mt-2 text-sm sm:text-base">Encuentra exactamente lo que necesitas para tu entrenamiento y bienestar.</p>
     </div>
     <div class="category-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Bowls')" role="button" tabindex="0" aria-label="Bowls">
+        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🍧</span>
+        <span class="text-sm font-bold text-center">Bowls</span>
+      </div>
+      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Bebidas')" role="button" tabindex="0" aria-label="Bebidas">
+        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🥤</span>
+        <span class="text-sm font-bold text-center">Bebidas</span>
+      </div>
+      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Helados')" role="button" tabindex="0" aria-label="Helados">
+        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🍦</span>
+        <span class="text-sm font-bold text-center">Helados</span>
+      </div>
+      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Alimentación proteica')" role="button" tabindex="0" aria-label="Alimentación proteica">
+        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🥣</span>
+        <span class="text-sm font-bold text-center">Alimentación proteica</span>
+      </div>
       <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Proteínas')" role="button" tabindex="0" aria-label="Proteínas">
         <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🥛</span>
         <span class="text-sm font-bold text-center">Proteínas</span>
-      </div>
-      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Aminoácidos')" role="button" tabindex="0" aria-label="Aminoácidos">
-        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🧬</span>
-        <span class="text-sm font-bold text-center">Aminoácidos</span>
-      </div>
-      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Creatinas')" role="button" tabindex="0" aria-label="Creatinas">
-        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">💪</span>
-        <span class="text-sm font-bold text-center">Creatinas</span>
-      </div>
-      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Vitaminas y minerales')" role="button" tabindex="0" aria-label="Vitaminas y minerales">
-        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🌿</span>
-        <span class="text-sm font-bold text-center">Vitaminas y minerales</span>
-      </div>
-      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Quemadores de grasa')" role="button" tabindex="0" aria-label="Quemadores de grasa">
-        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🔥</span>
-        <span class="text-sm font-bold text-center">Quemadores de grasa</span>
       </div>
       <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Barritas y snacks')" role="button" tabindex="0" aria-label="Barritas y snacks">
         <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🍫</span>
@@ -1005,25 +988,24 @@
           aria-label="Buscar productos"
         />
       </div>
-      <!-- Filter chips — scrollable on mobile (categorías reales AMIX) -->
+      <!-- Filter chips — scrollable on mobile (categorías reales del listado oficial) -->
       <div class="filter-scroll flex gap-2 pb-1">
-        <button onclick="setFilter('Todos')"                       class="filter-btn active flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Todos">Todos</button>
-        <button onclick="setFilter('Proteínas')"                   class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Proteínas">Proteínas</button>
-        <button onclick="setFilter('Aminoácidos')"                 class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Aminoácidos">Aminoácidos</button>
-        <button onclick="setFilter('Creatinas')"                   class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Creatinas">Creatinas</button>
-        <button onclick="setFilter('Vitaminas y minerales')"       class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Vitaminas y minerales">Vitaminas y minerales</button>
-        <button onclick="setFilter('Quemadores de grasa')"         class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Quemadores de grasa">Quemadores de grasa</button>
-        <button onclick="setFilter('Estimulantes de crecimiento')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Estimulantes de crecimiento">Estimulantes</button>
-        <button onclick="setFilter('Carbohidratos')"               class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Carbohidratos">Carbohidratos</button>
-        <button onclick="setFilter('Energéticos')"                 class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Energéticos">Energéticos</button>
-        <button onclick="setFilter('Barritas y snacks')"           class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Barritas y snacks">Barritas y snacks</button>
-        <button onclick="setFilter('Bebidas')"                     class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Bebidas">Bebidas</button>
-        <button onclick="setFilter('Voluminizadores')"             class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Voluminizadores">Voluminizadores</button>
-        <button onclick="setFilter('Unidosis')"                    class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Unidosis">Unidosis</button>
-        <button onclick="setFilter('Sustitutivos')"                class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Sustitutivos">Sustitutivos</button>
-        <button onclick="setFilter('Péptidos')"                    class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Péptidos">Péptidos</button>
-        <button onclick="setFilter('Cosmética')"                   class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Cosmética">Cosmética</button>
-        <button onclick="setFilter('Bike Elite')"                  class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Bike Elite">Bike Elite</button>
+        <button onclick="setFilter('Todos')" class="filter-btn active flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Todos">Todos</button>
+        <button onclick="setFilter('Bowls')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Bowls">Bowls</button>
+        <button onclick="setFilter('Bebidas')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Bebidas">Bebidas</button>
+        <button onclick="setFilter('Alimentación proteica')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Alimentación proteica">Alimentación proteica</button>
+        <button onclick="setFilter('Helados')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Helados">Helados</button>
+        <button onclick="setFilter('Proteínas')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Proteínas">Proteínas</button>
+        <button onclick="setFilter('Barritas y snacks')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Barritas y snacks">Barritas y snacks</button>
+        <button onclick="setFilter('Café y matcha')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Café y matcha">Café y matcha</button>
+        <button onclick="setFilter('Vitaminas y salud')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Vitaminas y salud">Vitaminas y salud</button>
+        <button onclick="setFilter('Smoothies y batidos')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Smoothies y batidos">Smoothies y batidos</button>
+        <button onclick="setFilter('Waffles y caprichos')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Waffles y caprichos">Waffles y caprichos</button>
+        <button onclick="setFilter('Creatinas')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Creatinas">Creatinas</button>
+        <button onclick="setFilter('Yogures')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Yogures">Yogures</button>
+        <button onclick="setFilter('Colágeno y bienestar')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Colágeno y bienestar">Colágeno y bienestar</button>
+        <button onclick="setFilter('Accesorios gym')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Accesorios gym">Accesorios gym</button>
+        <button onclick="setFilter('Pre-entrenos')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Pre-entrenos">Pre-entrenos</button>
       </div>
     </div>
 

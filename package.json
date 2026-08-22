@@ -5,5 +5,18 @@
   "description": "NUTRETIUM — tienda online (Netlify Functions + Redsys)",
   "dependencies": {
     "@netlify/blobs": "^10.7.11"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.19"
+  },
+  "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.js -i src/tailwind.css -o styles.css --minify",
+    "watch:css": "tailwindcss -c tailwind.config.js -i src/tailwind.css -o styles.css --watch",
+    "build": "npm run build:css",
+    "dev": "node scripts/dev-server.js",
+    "test": "node scripts/test-precios.js"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

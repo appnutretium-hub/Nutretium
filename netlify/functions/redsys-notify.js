@@ -158,6 +158,20 @@ exports.handler = async function (event) {
     if (store) {
       const previo = await store.get(order, { type: 'json' }).catch(() => null);
       record = { ...(previo || {}), ...resultado };
+
+      // El importe cobrado debe ser el que calculó redsys.js con los precios del
+      // catálogo. Si no cuadra, el pago es válido (Redsys lo firma) pero el pedido
+      // queda marcado para revisarlo a mano en vez de darlo por bueno en silencio.
+      const esperadoCents = Math.round(Number(previo && previo.amount) * 100);
+      const cobradoCents  = parseInt(params.Ds_Amount, 10);
+      if (Number.isFinite(esperadoCents) && esperadoCents !== cobradoCents) {
+        record.amountMismatch = { esperado: esperadoCents / 100, cobrado: cobradoCents / 100 };
+        console.error(
+          '[Redsys-notify] IMPORTE DISTINTO AL ESPERADO — pedido', order,
+          '| esperado', esperadoCents, 'céntimos | cobrado', cobradoCents, 'céntimos'
+        );
+      }
+
       await store.setJSON(order, record);
     }
   } catch (err) {

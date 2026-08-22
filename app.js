@@ -1,11 +1,10 @@
 /**
  * NUTRETIUM — app.js
- * Handles: auth, products (DB + local fallback), cart, filters, reviews,
+ * Handles: auth, products, cart, filters, reviews,
  *           product customization, contact form, and Redsys payment.
  *
  * Backend endpoints (Netlify Functions):
  *   POST /.netlify/functions/auth        — login / register / profile
- *   GET  /.netlify/functions/products    — fetch product catalogue
  *   POST /.netlify/functions/reviews     — submit / fetch reviews
  *   POST /.netlify/functions/contact     — contact form
  *   POST /.netlify/functions/redsys      — payment signature
@@ -13,79 +12,16 @@
 
 'use strict';
 
-// ─── PRODUCT CATALOGUE (local fallback while DB loads) ───────────────────────
+// ─── CATÁLOGO ─────────────────────────────────────────────────────────────────
+//
+// products-data.js es la ÚNICA lista de productos. La cargan tanto esta página
+// como las funciones de Netlify, que son las que ponen el precio del pedido
+// (ver netlify/lib/catalogo.js). Si aquí hubiera otra lista, la web podría
+// enseñar productos o precios que el servidor no reconoce al cobrar.
 
-const PRODUCTS_FALLBACK = [
-  {
-    id: 1, name: 'Whey Protein Pro 2kg', category: 'Proteína', price: 49.99,
-    badge: 'Más vendido', badgeColor: 'bg-brand-gold text-black',
-    image: 'sources/PROTEINA ISO WHEY.png',
-    emoji: '🥛', customizable: false,
-    description: 'Concentrado de suero de leche con 24g de proteína por servicio. Sabor chocolate belga.',
-    rating: 4.9, reviews: 312,
-  },
-  {
-    id: 2, name: 'Nitro Pre-Workout 300g', category: 'Pre-Workout', price: 34.95,
-    badge: 'Nuevo', badgeColor: 'bg-red-600 text-white',
-    image: 'sources/PROTEINA 100% WHEY.png',
-    emoji: '⚡', customizable: false,
-    description: 'Fórmula explosiva con cafeína, beta-alanina y citrulina. Máxima energía y foco.',
-    rating: 4.7, reviews: 189,
-  },
-  {
-    id: 3, name: 'Creatina Monohidrato 500g', category: 'Creatina', price: 19.99,
-    badge: null, badgeColor: '',
-    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&q=80',
-    emoji: '💪', customizable: false,
-    description: 'Creatina micronizada de grado farmacéutico. Aumenta la fuerza y la recuperación muscular.',
-    rating: 4.8, reviews: 427,
-  },
-  {
-    id: 4, name: 'Thermo Burn Elite 90 caps', category: 'Fat Burner', price: 39.95,
-    badge: 'Oferta', badgeColor: 'bg-yellow-400 text-black',
-    image: 'https://images.unsplash.com/photo-1607619662634-3ac55ec0e216?w=400&h=400&fit=crop&q=80',
-    emoji: '🔥', customizable: false,
-    description: 'Termogénico avanzado con extracto de té verde, L-carnitina y capsaicina.',
-    rating: 4.5, reviews: 98,
-  },
-  {
-    id: 5, name: 'BCAA 2:1:1 Instantized 400g', category: 'Aminoácidos', price: 27.50,
-    badge: null, badgeColor: '',
-    image: 'https://images.unsplash.com/photo-1546519638405-a9f9f3cad1f4?w=400&h=400&fit=crop&q=80',
-    emoji: '🧬', customizable: false,
-    description: 'Aminoácidos de cadena ramificada en ratio óptimo 2:1:1. Sabor sandía refrescante.',
-    rating: 4.6, reviews: 215,
-  },
-  {
-    id: 6, name: 'Multivitamínico Sport 60 tabs', category: 'Vitaminas', price: 22.95,
-    badge: null, badgeColor: '',
-    image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400&h=400&fit=crop&q=80',
-    emoji: '🌿', customizable: false,
-    description: 'Complejo vitamínico y mineral formulado específicamente para deportistas de alto rendimiento.',
-    rating: 4.7, reviews: 143,
-  },
-  {
-    id: 7, name: 'Camiseta Técnica NUTRETIUM', category: 'Ropa', price: 29.95,
-    badge: '✨ Custom', badgeColor: 'bg-brand-gold text-black',
-    image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop&q=80',
-    emoji: '👕', customizable: true,
-    description: 'Camiseta técnica de alto rendimiento. Personaliza con tu logo, nombre y colores.',
-    rating: 4.8, reviews: 64,
-  },
-  {
-    id: 8, name: 'Botella Shaker 700ml', category: 'Accesorios', price: 14.95,
-    badge: '✨ Custom', badgeColor: 'bg-brand-gold text-black',
-    image: 'https://images.unsplash.com/photo-1556656793-08538906a9f8?w=400&h=400&fit=crop&q=80',
-    emoji: '🧴', customizable: true,
-    description: 'Shaker premium con filtro anti-grumos. Graba tu logo o nombre en la botella.',
-    rating: 4.9, reviews: 201,
-  },
-];
-
-// Active product list — usa el catálogo real AMIX (products-data.js) si está disponible.
-let PRODUCTS = (typeof window !== 'undefined' && Array.isArray(window.NUTRETIUM_PRODUCTS) && window.NUTRETIUM_PRODUCTS.length)
+let PRODUCTS = Array.isArray(window.NUTRETIUM_PRODUCTS)
   ? window.NUTRETIUM_PRODUCTS.map(p => ({ ...p }))
-  : [...PRODUCTS_FALLBACK];
+  : [];
 
 // ─── AUTH STATE ───────────────────────────────────────────────────────────────
 
@@ -223,8 +159,20 @@ function addToCart(productId, customization = null) {
   const product = PRODUCTS.find(p => p.id === productId);
   if (!product) return;
 
+  // Nunca se vende por encima del stock del listado oficial.
+  if (!inStock(product)) {
+    showToast(`${product.name} está agotado`);
+    return;
+  }
+
   // Customizable products get a unique key per customization set
   const key = customization ? `${productId}_custom_${Date.now()}` : String(productId);
+
+  const available = (typeof product.stock === 'number') ? product.stock : Infinity;
+  if (!customization && cart.has(key) && cart.get(key).quantity >= available) {
+    showToast(`Solo quedan ${available} unidades de ${product.name}`);
+    return;
+  }
 
   if (!customization && cart.has(key)) {
     cart.get(key).quantity += 1;
@@ -244,6 +192,11 @@ function removeFromCart(key) {
 function changeQuantity(key, delta) {
   if (!cart.has(key)) return;
   const item = cart.get(key);
+  const available = (typeof item.product.stock === 'number') ? item.product.stock : Infinity;
+  if (delta > 0 && item.quantity + delta > available) {
+    showToast(`Solo quedan ${available} unidades de ${item.product.name}`);
+    return;
+  }
   item.quantity += delta;
   if (item.quantity <= 0) cart.delete(key);
   updateCartUI();
@@ -377,6 +330,12 @@ function renderStars(rating) {
   return stars;
 }
 
+// Un producto es comprable si el listado oficial le reconoce stock disponible.
+// stock === undefined (catálogo servido por el backend antiguo) se considera disponible.
+function inStock(product) {
+  return product.stock === undefined || product.stock === null || product.stock > 0;
+}
+
 function renderProducts(list = PRODUCTS) {
   const grid      = document.getElementById('productGrid');
   const noResults = document.getElementById('noResults');
@@ -388,7 +347,10 @@ function renderProducts(list = PRODUCTS) {
   }
   noResults.classList.add('hidden');
 
-  grid.innerHTML = list.map(product => `
+  // Los agotados se muestran, pero siempre al final de la parrilla.
+  const ordered = [...list].sort((a, b) => inStock(b) - inStock(a));
+
+  grid.innerHTML = ordered.map(product => `
     <article class="product-card group bg-brand-card border border-brand-border rounded-2xl overflow-hidden flex flex-col hover:border-brand-gold/50 transition-colors duration-200">
       <div class="relative bg-gradient-to-br from-[#0f0f0f] to-brand-card h-52 overflow-hidden">
         ${product.image
@@ -398,18 +360,28 @@ function renderProducts(list = PRODUCTS) {
         <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10 pointer-events-none"></div>
         ${product.badge ? `<span class="absolute top-3 left-3 ${product.badgeColor} text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wide shadow">${product.badge}</span>` : ''}
         <span class="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-xs px-2.5 py-1 rounded-full font-semibold">${product.category}</span>
+        ${inStock(product) ? '' : `<span class="absolute bottom-3 left-3 bg-black/75 backdrop-blur-sm text-brand-muted text-xs px-2.5 py-1 rounded-full font-bold uppercase tracking-wide">Agotado</span>`}
       </div>
       <div class="p-5 flex flex-col flex-1">
         <h3 class="font-bold text-base leading-snug mb-1">${product.name}</h3>
-        <p class="text-brand-muted text-xs leading-relaxed mb-3 flex-1">${product.description}</p>
+        ${product.description
+          ? `<p class="text-brand-muted text-xs leading-relaxed mb-3 flex-1">${product.description}</p>`
+          : `<div class="flex-1"></div>`}
+        ${product.reviews > 0 ? `
         <div class="flex items-center gap-2 mb-4">
           <div class="flex text-sm leading-none">${renderStars(product.rating)}</div>
           <span class="text-xs text-brand-muted">${product.rating} (${product.reviews})</span>
-        </div>
+        </div>` : `<div class="mb-4"></div>`}
         <div class="flex items-center justify-between gap-3">
           <span class="text-2xl font-black text-white">€${product.price.toFixed(2)}</span>
           <div class="flex gap-2">
-            ${product.customizable
+            ${!inStock(product)
+              ? `<button disabled
+                   class="bg-brand-border/40 text-brand-muted font-bold text-sm px-5 py-2.5 rounded-xl cursor-not-allowed flex-shrink-0"
+                   aria-label="${product.name} agotado">
+                   Agotado
+                 </button>`
+              : product.customizable
               ? `<button onclick="openCustomModal(${product.id})"
                    class="add-to-cart-btn bg-brand-border text-white font-bold text-sm px-4 py-2.5 rounded-xl transition-colors duration-200 flex items-center gap-1.5 flex-shrink-0"
                    aria-label="Personalizar ${product.name}">
@@ -458,14 +430,14 @@ function filterByCategory(category) {
   document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
 }
 
-// Mapea un objetivo a la(s) categoría(s) reales del catálogo AMIX
+// Mapea un objetivo a una categoría real del catálogo (ver window.NUTRETIUM_CATEGORIES)
 const GOAL_MAP = {
-  'Pérdida de grasa':    'Quemadores de grasa',
-  'Mayor rendimiento':   'Energéticos',
-  'Rendimiento':         'Energéticos',
-  'Recuperación':        'Aminoácidos',
+  'Pérdida de grasa':    'Alimentación proteica',
+  'Mayor rendimiento':   'Pre-entrenos',
+  'Rendimiento':         'Pre-entrenos',
+  'Recuperación':        'Colágeno y bienestar',
   'Desarrollo muscular': 'Proteínas',
-  'Salud y bienestar':   'Vitaminas y minerales',
+  'Salud y bienestar':   'Vitaminas y salud',
 };
 
 function filterByGoal(goal) {
@@ -492,7 +464,7 @@ function applyFilters() {
   if (query) {
     list = list.filter(p =>
       p.name.toLowerCase().includes(query) ||
-      p.description.toLowerCase().includes(query) ||
+      (p.description || '').toLowerCase().includes(query) ||
       p.category.toLowerCase().includes(query)
     );
   }
@@ -756,11 +728,9 @@ function addCustomToCart() {
 // ─── REVIEWS ─────────────────────────────────────────────────────────────────
 
 let reviewStarValue = 0;
-let REVIEWS = [
-  { author: 'Carlos M.', product: 'WHEY-PRO Fusion 1 KG', rating: 5, text: 'La mejor proteína que he probado. Se mezcla perfectamente y el sabor es increíble.', date: '2026-06-10' },
-  { author: 'Laura G.',  product: 'Isoprime CFM Isolate 1 KG', rating: 5, text: 'Aislado de máxima calidad, digestión perfecta y resultados que se notan. Repetiré seguro.', date: '2026-06-02' },
-  { author: 'Marcos R.', product: 'Creatine Monohydrate', rating: 5, text: 'Calidad Amix al mejor precio. Noto mejoras claras en fuerza y recuperación.', date: '2026-05-21' },
-];
+// Sin reseñas semilla: las anteriores describían productos AMIX ya retirados del
+// catálogo. Se rellena desde /.netlify/functions/reviews con reseñas reales.
+let REVIEWS = [];
 
 function setReviewStar(val) {
   reviewStarValue = val;
@@ -824,6 +794,13 @@ async function loadReviews() {
 function renderReviews() {
   const grid = document.getElementById('reviewsGrid');
   if (!grid) return;
+  if (!REVIEWS.length) {
+    grid.innerHTML = `
+    <div class="col-span-full bg-brand-card border border-brand-border rounded-2xl p-8 text-center">
+      <p class="text-sm text-brand-muted">Todavía no hay reseñas. ¡Sé el primero en opinar!</p>
+    </div>`;
+    return;
+  }
   grid.innerHTML = REVIEWS.slice(0, 6).map(r => `
     <div class="bg-brand-card border border-brand-border rounded-2xl p-6 flex flex-col gap-3">
       <div class="flex items-center justify-between">
@@ -1248,18 +1225,12 @@ async function openOrders() {
   }
 }
 
-// ─── PRODUCTS FROM DB ─────────────────────────────────────────────────────────
+// ─── PINTAR EL CATÁLOGO ───────────────────────────────────────────────────────
 
-async function loadProducts() {
-  try {
-    const res  = await fetch('/.netlify/functions/products');
-    const data = await res.json();
-    // Solo sustituye el catálogo real si el backend aporta un catálogo más completo
-    // (evita que la semilla de ejemplo pise los 160 productos AMIX reales).
-    if (res.ok && Array.isArray(data.products) && data.products.length > PRODUCTS.length) {
-      PRODUCTS = data.products;
-    }
-  } catch { /* keep local catalogue */ }
+// El catálogo ya viene cargado en PRODUCTS desde products-data.js: no hay que
+// pedírselo a ningún endpoint. Antes se consultaba /functions/products, que servía
+// una lista de ejemplo distinta; se retiró para no tener dos listas de precios.
+function loadProducts() {
   renderProducts();
   renderNovedades();
   renderRecomendados();
@@ -1284,13 +1255,16 @@ async function initiateRedsysPayment() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        // Amount in euros (the function converts to cents)
+        // El importe REAL lo calcula el servidor con los precios del catálogo.
+        // Esto va solo para que detecte si la página tiene precios viejos: si no
+        // coincide con su cálculo, devuelve 409 y no se cobra nada.
         amount: total,
-        // Artículos del carrito: se guardan con el pedido para "Mis pedidos"
+        // Qué se compra. El servidor resuelve nombre y precio a partir del id;
+        // el code viaja para que compruebe que hablamos del mismo catálogo.
         items: Array.from(cart.values()).map(i => ({
-          name: i.product.name,
+          id: i.product.id,
+          code: i.product.code,
           qty: i.quantity,
-          price: i.product.price,
         })),
         // Si hay sesión, el pedido queda asociado al usuario. El servidor
         // saca el email del token firmado, no de aquí.
@@ -1471,7 +1445,7 @@ async function handlePaymentReturn() {
 document.addEventListener('DOMContentLoaded', () => {
   loadSession();
   updateAuthUI();
-  loadProducts();   // fetches from DB, falls back to local
+  loadProducts();   // pinta el catálogo de products-data.js
   loadReviews();    // fetches from DB, falls back to local
   updateCartUI();
   handlePaymentReturn();  // muestra el resultado si venimos de /pago-ok o /pago-ko
@@ -1580,13 +1554,15 @@ function miniCard(product) {
       </div>
       <div class="p-4 flex flex-col flex-1">
         <h3 class="font-bold text-sm leading-snug mb-1">${product.name}</h3>
-        <div class="flex items-center gap-1 mb-3 text-xs text-brand-muted"><span class="leading-none">${renderStars(product.rating)}</span><span>(${product.reviews})</span></div>
+        ${product.reviews > 0 ? `<div class="flex items-center gap-1 mb-3 text-xs text-brand-muted"><span class="leading-none">${renderStars(product.rating)}</span><span>(${product.reviews})</span></div>` : ''}
         <div class="flex items-center justify-between gap-2 mt-auto">
           <span class="text-lg font-black text-white">€${product.price.toFixed(2)}</span>
-          <button onclick="${product.customizable ? `openCustomModal(${product.id})` : `addToCart(${product.id})`}"
+          ${!inStock(product)
+            ? `<button disabled class="bg-brand-border/40 text-brand-muted font-bold text-xs px-3 py-2 rounded-lg cursor-not-allowed">Agotado</button>`
+            : `<button onclick="${product.customizable ? `openCustomModal(${product.id})` : `addToCart(${product.id})`}"
             class="bg-brand-border text-white hover:bg-brand-gold hover:text-black font-bold text-xs px-3 py-2 rounded-lg transition-colors">
             ${product.customizable ? '✨' : '+ Añadir'}
-          </button>
+          </button>`}
         </div>
       </div>
     </article>`;
@@ -1595,7 +1571,8 @@ function miniCard(product) {
 function renderNovedades() {
   const grid = document.getElementById('novedadesGrid');
   if (!grid) return;
-  const list = [...PRODUCTS]
+  // Los carruseles solo muestran producto servible.
+  const list = PRODUCTS.filter(inStock)
     .sort((a, b) => ((b.badge === 'Nuevo') - (a.badge === 'Nuevo')) || ((b.badge === 'Oferta') - (a.badge === 'Oferta')))
     .slice(0, 8);
   grid.innerHTML = list.map(miniCard).join('');
@@ -1604,7 +1581,7 @@ function renderNovedades() {
 function renderRecomendados() {
   const grid = document.getElementById('recomendadosGrid');
   if (!grid) return;
-  const list = [...PRODUCTS].sort((a, b) => b.rating - a.rating).slice(0, 8);
+  const list = PRODUCTS.filter(inStock).sort((a, b) => b.rating - a.rating).slice(0, 8);
   grid.innerHTML = list.map(miniCard).join('');
 }
 
@@ -1858,7 +1835,7 @@ function chatSearchCatalog(userText) {
   const cheap = _hasAny(_norm(userText), ['barat', 'economic', 'mas barato', 'menos de', 'ofert']);
   const scored = [];
   PRODUCTS.forEach(p => {
-    const hay = _norm(`${p.name} ${p.category} ${p.description}`);
+    const hay = _norm(`${p.name} ${p.category} ${p.description || ''}`);
     let score = 0;
     tokens.forEach(tok => { if (hay.includes(tok)) score += (_norm(p.category).includes(tok) ? 2 : 1); });
     if (score > 0) scored.push({ p, score });

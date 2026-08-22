@@ -1,13 +1,57 @@
 [build]
   publish = "."
   functions = "netlify/functions"
-  # Excluye del sitio publicado los originales pesados y los informes internos.
-  # Solo afecta a la copia que Netlify despliega; tus archivos locales NO se tocan.
-  command = "rm -rf 'sources/amix_fotos_categoria_nombre_pvp_FINAL_WEB/02_originales_renombradas_max_calidad' 'sources/amix_fotos_categoria_nombre_pvp_FINAL_WEB/03_informes_control'"
+
+  # Lo que NO debe salir publicado.
+  #
+  # publish = "." sirve la carpeta entera, así que todo lo que esté aquí queda
+  # accesible por URL. Este comando lo borra de la COPIA que Netlify despliega;
+  # tus archivos locales NO se tocan.
+  #
+  # Importante: el listado del ERP, el Excel y la auditoría llevan precios,
+  # stock y datos de proveedor. Publicados serían descargables por cualquiera.
+  #
+  # El comando hace dos cosas: 1) compila el CSS de Tailwind a styles.css,
+  # 2) borra de la copia desplegada lo que no debe publicarse.
+  command = """
+    npm run build:css &&
+    rm -rf \
+      'Listado de stock disponible.pdf' \
+      'CATALOGO_NUTRETIUM.xlsx' \
+      'AUDITORIA_CATALOGO.md' \
+      'DESPLIEGUE.md' \
+      'GUIA_ARQUITECTURA_NETLIFY.md' \
+      'PROMPT_SISTEMA_CLAUDE.md.md' \
+      '.env.example' \
+      'test_write.txt' \
+      'Nuevo Documento de texto.txt' \
+      '_backup_pre_actualizacion' \
+      'scripts' \
+      '.vscode' \
+      '.claude' \
+      'sources/01_PNG_MAX_CALIDAD_CON_PVP' \
+      'sources/00_CONTROL_CALIDAD.csv' \
+      'sources/00_RELACION_IMAGENES_PVP.csv' \
+      'sources/LEEME.txt' \
+      'sources/PROTEINA 100% WHEY.png' \
+      'sources/PROTEINA ISO WHEY.png' \
+      'sources/productos/LEEME.md' \
+      'sources/productos/NOMBRES_ESPERADOS.csv' \
+      'sources/amix_fotos_categoria_nombre_pvp_FINAL_WEB' \
+      'src' \
+      'tailwind.config.js'
+  """
+  # No se borran package.json, package-lock.json ni node_modules: Netlify los
+  # necesita DESPUÉS de este comando para empaquetar las funciones. No son
+  # sensibles, y las reglas de más abajo impiden servirlos.
 
 [functions]
   node_bundler = "esbuild"
-  included_files = ["netlify/functions/**"]
+  # products-data.js es el catálogo: las funciones lo necesitan para poner ellas
+  # los precios del pedido en vez de fiarse del importe que manda el navegador.
+  included_files = ["netlify/functions/**", "products-data.js"]
+
+# ─── Cabeceras ────────────────────────────────────────────────────────────────
 
 [[headers]]
   for = "/*"
@@ -15,6 +59,22 @@
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=(), payment=(), interest-cohort=()"
+    Cross-Origin-Opener-Policy = "same-origin"
+    # CSP. Ya no hace falta 'unsafe-eval' ni permitir el CDN de Tailwind: el CSS
+    # va compilado. Queda 'unsafe-inline' porque index.html tiene <script> y
+    # atributos onclick en línea; quitarlo exigiría sacar todo ese JS a archivos.
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' https:; connect-src 'self' https:; frame-src https://www.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://sis.redsys.es https://sis-t.redsys.es"
+
+# Las fotos de producto llevan el código en el nombre: si cambia la foto,
+# cambia el archivo. Se pueden cachear de forma agresiva.
+[[headers]]
+  for = "/sources/productos/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# ─── Redirecciones ────────────────────────────────────────────────────────────
 
 [[redirects]]
   from = "/pago-ok"
@@ -25,3 +85,62 @@
   from = "/pago-ko"
   to = "/index.html"
   status = 200
+
+# Red de seguridad por si el comando de build no llega a ejecutarse (por ejemplo
+# en un despliegue manual arrastrando la carpeta): estos tipos de archivo nunca
+# se sirven desde la raíz del sitio.
+[[redirects]]
+  from = "/*.pdf"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/*.xlsx"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/*.md"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/_backup_pre_actualizacion/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/node_modules/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
+# El código de las funciones vive dentro de la carpeta publicada. Se accede a
+# ellas por /.netlify/functions/<nombre>, nunca por su ruta de archivo.
+[[redirects]]
+  from = "/netlify/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/netlify.toml"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/package*.json"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.env*"
+  to = "/index.html"
+  status = 404
+  force = true

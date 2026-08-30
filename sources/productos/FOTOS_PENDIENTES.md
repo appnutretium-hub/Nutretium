@@ -3,7 +3,7 @@
 > Generado por `scripts/fotos-incorporar.js`. No editar a mano: se rehace
 > solo cada vez que se incorporan fotos nuevas.
 
-**121 de 151 productos siguen sin foto** (30 ya la tienen).
+**121 de 152 productos siguen sin foto** (31 ya la tienen).
 
 Se parten en dos grupos que se resuelven de forma distinta. Para meter las
 fotos una vez conseguidas, ver `sources/_nuevas/LEEME.md`.

@@ -62,9 +62,27 @@ function sesion() {
 
 const token = () => (sesion() || {}).token || '';
 
+// Salir recarga la página, y el aviso de «tienes cambios sin guardar» bloquea
+// las recargas. Sin esta bandera, pulsar Salir con algo a medias no hacía nada
+// visible: el navegador cancelaba la recarga y parecía que el botón no iba.
+let saliendoAPosta = false;
+
 function cierraSesion() {
-  localStorage.removeItem(SESION);
-  location.reload();
+  const salir = () => {
+    saliendoAPosta = true;
+    localStorage.removeItem(SESION);
+    location.reload();
+  };
+
+  if (!resumenCambios().hayCambios) { salir(); return; }
+
+  abreDialogo(
+    '<h2>Salir sin ' + (MODO === 'online' ? 'publicar' : 'guardar') + '</h2>' +
+    '<p>Tienes cambios a medias. Si sales ahora se pierden.</p>',
+    [
+      { texto: 'Seguir editando', alPulsar: cierra },
+      { texto: 'Salir igualmente', clase: 'primario', alPulsar: salir },
+    ]);
 }
 
 // ── Transporte ──────────────────────────────────────────────────────────────
@@ -649,7 +667,7 @@ $('btnGuardar').onclick = guarda;
 $('btnDeshacer').onclick = descarta;
 
 window.addEventListener('beforeunload', (ev) => {
-  if (!resumenCambios().hayCambios) return;
+  if (saliendoAPosta || !resumenCambios().hayCambios) return;
   ev.preventDefault();
   ev.returnValue = '';   // los navegadores antiguos piden esto para avisar
 });

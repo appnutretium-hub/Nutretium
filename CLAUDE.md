@@ -63,6 +63,7 @@ nada de `cd /d`.
 | `npm run test:redsys` | el TPV por dentro, sin tocar el banco — 19 casos |
 | `npm run test:catalogo` | la hoja de catálogo: lo que NO deja publicar — 43 casos |
 | `npm run test:admin` | el panel online: quién entra y qué se sube — 42 casos |
+| `npm run test:cuentas` | cuentas de cliente: rol, ficha y freno al login — 25 casos |
 | `npm run dev` | servidor estático en `localhost:4173` (sin funciones: los `/.netlify/functions/*` dan 404, es normal) |
 | `npm run build:css` | recompila `styles.css` con Tailwind |
 | `npm run stock` | actualiza el stock desde CSV (ensayo; `-- --aplicar` para escribir) |
@@ -133,6 +134,12 @@ despliegue intermedio con la ficha apuntando a una foto que aún no existe.
 usuarios viven en Blobs, y con el rol ahí, quien consiguiera escribir en ese
 almacén se ascendería y podría cambiar los precios que cobra el TPV. El
 registro nunca acepta un rol del cliente: se calcula siempre (`rolDe`).
+
+La ficha del cliente se edita con `action: 'update'` en `auth.js`, y esa acción
+escribe **solo** nombre, apellidos y teléfono: el correo, el id, el hash de la
+contraseña y la fecha de alta se conservan vengan como vengan en la petición. El
+correo no se puede cambiar porque es la clave con la que se guarda el usuario en
+Blobs: cambiarlo sería mover la ficha y dejar los pedidos apuntando a la vieja.
 
 Sin `ADMIN_EMAILS` el panel está cerrado para todos (503), como el resto de
 credenciales del proyecto. `netlify/lib/admin.js` lo comprueba en **todas** las
@@ -207,9 +214,9 @@ use otra lista de productos donde el id 3 no sea el id 3 del servidor.
 
 **Ejecuta `npm test` siempre que toques precios o el carrito**,
 `npm run test:redsys` si tocas la pasarela o la notificación,
-`npm run test:catalogo` si tocas el validador o las vías de edición, y
+`npm run test:catalogo` si tocas el validador o las vías de edición,
 `npm run test:admin` si tocas el panel online, el rol de administrador o el
-commit a GitHub.
+commit a GitHub, y `npm run test:cuentas` si tocas `auth.js`.
 
 ## Secretos: se falla cerrado, no se inventan valores por defecto
 

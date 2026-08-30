@@ -1139,7 +1139,7 @@ document.addEventListener('click', e => {
 
 function showSection(section) {
   closeProfileDropdown();
-  if (section === 'profile') showToast('Perfil — próximamente disponible.');
+  if (section === 'profile') openProfile();
   if (section === 'orders')  openOrders();
 }
 
@@ -1197,9 +1197,122 @@ function escapeHTML(str) {
   ));
 }
 
-function setOrdersBody(html) {
+// infoModal es el modal genérico de la página: lo usan «Mis pedidos» y «Mi
+// perfil». Por eso el nombre ya no habla de pedidos.
+function setInfoBody(html) {
   const body = document.getElementById('infoBody');
   if (body) body.innerHTML = html;
+}
+
+// ─── MI PERFIL ────────────────────────────────────────────────────────────────
+
+// Los datos de la ficha del cliente: nombre, apellidos y teléfono. El correo se
+// enseña pero no se puede cambiar, porque es la clave con la que se guarda el
+// usuario: cambiarlo sería mover la ficha entera y dejar los pedidos antiguos
+// apuntando a la vieja.
+//
+// Se pinta dentro de infoModal, el mismo modal que «Mis pedidos», para no
+// añadir más marcado a index.html.
+
+const CAMPO_PERFIL =
+  'w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors';
+const ETIQUETA_PERFIL =
+  'block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2';
+
+function openProfile() {
+  if (!currentUser) {
+    showToast('Inicia sesión para ver tu perfil.');
+    return;
+  }
+
+  document.getElementById('infoTitle').textContent = 'Mi perfil';
+  setInfoBody(`
+    <div class="space-y-4">
+      <div class="grid grid-cols-2 gap-3 sm:gap-4">
+        <div>
+          <label for="perfilNombre" class="${ETIQUETA_PERFIL}">Nombre</label>
+          <input id="perfilNombre" type="text" autocomplete="given-name" maxlength="60"
+            value="${escapeHTML(currentUser.name)}" class="${CAMPO_PERFIL}"/>
+        </div>
+        <div>
+          <label for="perfilApellidos" class="${ETIQUETA_PERFIL}">Apellidos</label>
+          <input id="perfilApellidos" type="text" autocomplete="family-name" maxlength="60"
+            value="${escapeHTML(currentUser.surname)}" class="${CAMPO_PERFIL}"/>
+        </div>
+      </div>
+      <div>
+        <label for="perfilTelefono" class="${ETIQUETA_PERFIL}">Teléfono <span class="normal-case font-normal">(opcional)</span></label>
+        <input id="perfilTelefono" type="tel" autocomplete="tel" maxlength="20"
+          value="${escapeHTML(currentUser.phone)}" class="${CAMPO_PERFIL}"/>
+      </div>
+      <div>
+        <label class="${ETIQUETA_PERFIL}">Email</label>
+        <p class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-brand-muted">${escapeHTML(currentUser.email)}</p>
+        <p class="text-xs mt-2">El correo no se puede cambiar. Si necesitas otro, escríbenos desde el formulario de contacto.</p>
+      </div>
+      <p id="perfilAviso" class="hidden text-sm"></p>
+      <button id="perfilGuardar" onclick="saveProfile()"
+        class="w-full bg-brand-gold text-black font-black py-3 rounded-xl hover:bg-brand-goldlight transition-colors">
+        Guardar cambios
+      </button>
+    </div>`);
+  openModal('infoModal');
+}
+
+function setProfileNotice(mensaje, esError) {
+  const aviso = document.getElementById('perfilAviso');
+  if (!aviso) return;
+  aviso.textContent = mensaje;
+  aviso.className = esError ? 'text-sm text-red-400' : 'text-sm text-emerald-400';
+}
+
+async function saveProfile() {
+  if (!currentUser) return;
+
+  const boton = document.getElementById('perfilGuardar');
+  const datos = {
+    name:    document.getElementById('perfilNombre').value.trim(),
+    surname: document.getElementById('perfilApellidos').value.trim(),
+    phone:   document.getElementById('perfilTelefono').value.trim(),
+  };
+
+  boton.disabled = true;
+  boton.textContent = 'Guardando…';
+  setProfileNotice('', false);
+
+  try {
+    const res = await fetch('/.netlify/functions/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update', token: currentUser.token, ...datos }),
+    });
+    const cuerpo = await res.json().catch(() => ({}));
+
+    if (res.status === 401) {
+      setProfileNotice('Tu sesión ha caducado. Vuelve a iniciar sesión.', true);
+      return;
+    }
+    if (!res.ok) {
+      // El mensaje del servidor explica qué campo está mal; si no lo hay (una
+      // caída, un 404), al cliente se le dice algo útil y el código queda en la
+      // consola para quien lo tenga que mirar.
+      console.error('[Perfil] Respuesta ' + res.status);
+      throw new Error(cuerpo.error || 'No hemos podido guardar los cambios. Inténtalo de nuevo en unos minutos.');
+    }
+
+    // El token no cambia: se conserva el de la sesión y se refresca el resto.
+    saveSession({ ...currentUser, ...cuerpo.user });
+    updateAuthUI();
+    setProfileNotice('Datos guardados.', false);
+    showToast('Perfil actualizado.');
+
+  } catch (err) {
+    console.error('[Perfil] Error al guardar:', err);
+    setProfileNotice(err.message || 'No hemos podido guardar los cambios.', true);
+  } finally {
+    boton.disabled = false;
+    boton.textContent = 'Guardar cambios';
+  }
 }
 
 async function openOrders() {
@@ -1209,7 +1322,7 @@ async function openOrders() {
   }
 
   document.getElementById('infoTitle').textContent = 'Mis pedidos';
-  setOrdersBody('<p class="text-center py-6"><span class="spinner"></span></p>');
+  setInfoBody('<p class="text-center py-6"><span class="spinner"></span></p>');
   openModal('infoModal');
 
   try {
@@ -1218,7 +1331,7 @@ async function openOrders() {
     });
 
     if (res.status === 401) {
-      setOrdersBody('<p>Tu sesión ha caducado. Vuelve a iniciar sesión para ver tus pedidos.</p>');
+      setInfoBody('<p>Tu sesión ha caducado. Vuelve a iniciar sesión para ver tus pedidos.</p>');
       return;
     }
     if (!res.ok) throw new Error(`Error ${res.status}`);
@@ -1226,7 +1339,7 @@ async function openOrders() {
     const { orders = [] } = await res.json();
 
     if (!orders.length) {
-      setOrdersBody(`
+      setInfoBody(`
         <div class="text-center py-6">
           <p class="text-4xl mb-3">📦</p>
           <p class="text-white font-bold mb-1">Aún no tienes pedidos</p>
@@ -1235,11 +1348,11 @@ async function openOrders() {
       return;
     }
 
-    setOrdersBody(`<div class="space-y-3">${orders.map(orderCardHTML).join('')}</div>`);
+    setInfoBody(`<div class="space-y-3">${orders.map(orderCardHTML).join('')}</div>`);
 
   } catch (err) {
     console.error('[Pedidos] Error al cargar:', err);
-    setOrdersBody('<p>No hemos podido cargar tus pedidos. Inténtalo de nuevo en unos minutos.</p>');
+    setInfoBody('<p>No hemos podido cargar tus pedidos. Inténtalo de nuevo en unos minutos.</p>');
   }
 }
 
@@ -1809,7 +1922,7 @@ function chatReply(userText) {
 
   // Contacto
   if (_hasAny(t, ['contacto', 'telefono', 'llamar', 'email', 'correo', 'whatsapp', 'hablar con', 'asesor', 'persona', 'humano', 'agente'])) {
-    chatAddBot('📞 Puedes llamarnos al <strong>633 653 517</strong> (Lun–Sáb 09:00–21:00) o escribir a <strong>info@nutretium.com</strong>.' +
+    chatAddBot('📞 Puedes llamarnos al <strong>633 753 517</strong> (Lun–Sáb 09:00–21:00) o escribir a <strong>info@nutretium.com</strong>.' +
       chatBtn('✉️ Enviar un mensaje', "document.getElementById('contact').scrollIntoView({behavior:'smooth'}); toggleChat()"));
     return;
   }
@@ -1868,7 +1981,7 @@ function chatReply(userText) {
     chatBtn('🚚 Envíos', "chatAsk('envíos')") +
     chatBtn('↩️ Devoluciones', "chatAsk('devoluciones')") +
     chatBtn('📦 Seguimiento de pedido', "chatAsk('seguimiento de pedido')") +
-    '<p class="text-xs text-brand-muted pt-1">O llama al <strong>633 653 517</strong> y te atiende una persona.</p>');
+    '<p class="text-xs text-brand-muted pt-1">O llama al <strong>633 753 517</strong> y te atiende una persona.</p>');
 }
 
 // Busca productos en el catálogo real a partir del texto libre
@@ -1979,7 +2092,7 @@ const INFO_CONTENT = {
     html: `
       <p><strong class="text-white">Titular:</strong> NUTRETIUM S.L. · CIF B-27659754.</p>
       <p><strong class="text-white">Domicilio:</strong> Calle la Albericia Nº1, 39012 Santander, España.</p>
-      <p><strong class="text-white">Contacto:</strong> <a href="mailto:info@nutretium.com" class="text-brand-gold hover:underline">info@nutretium.com</a> · 633 653 517.</p>
+      <p><strong class="text-white">Contacto:</strong> <a href="mailto:info@nutretium.com" class="text-brand-gold hover:underline">info@nutretium.com</a> · 633 753 517.</p>
       <p>El acceso y uso de este sitio web atribuye la condición de usuario y la aceptación de las presentes condiciones.</p>`
   }
 };

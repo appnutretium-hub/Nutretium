@@ -49,7 +49,22 @@ prefijo responsive, así que no hay más casos.
 
 ---
 
-## 2. La radio y el botón de dejar reseña no responden
+## 2. ~~La radio y el botón de dejar reseña no responden~~ — HIPÓTESIS DESCARTADA 30/08/2026
+
+**La causa que se sospechaba no era.** Comprobado en producción el 30/08/2026:
+los `onclick` en línea **sí se ejecutan** en `nutretium.com` (se disparó el botón
+de Filtros y abrió su panel), y la CSP que sirve Netlify es exactamente la de
+`netlify.toml`, con `'unsafe-inline'` y sin ningún `nonce` que lo anulara. El
+`app.js` desplegado es byte a byte el del repositorio.
+
+Así que si la radio o el botón de reseñas siguen sin responder, **no es el CSP**:
+hay que abrir la consola en el momento del fallo y mirar el error concreto. La
+radio tira de `streamtheworld.com` (podría ser el propio flujo, no la página) y
+las reseñas de `.netlify/functions/reviews`.
+
+Lo de debajo se conserva porque el descarte de causas sigue siendo válido.
+
+### Diagnóstico original
 
 **Síntoma.** En `nutretium.com`, el botón «Escuchar» del hilo musical y el de
 «+ Dejar reseña» no hacen nada.
@@ -101,7 +116,7 @@ Cuando se sepan, van en `sources/_stock/STOCK.csv` y se aplican con
 
 ## 4. Fotos de producto
 
-121 de 151 productos sin foto. La lista está en
+121 de 152 productos sin foto. La lista está en
 `sources/productos/FOTOS_PENDIENTES.md`, partida en dos: 68 que hay que pedir a
 los distribuidores y 53 que hay que fotografiar en la tienda. Para incorporarlas,
 `sources/_nuevas/LEEME.md`, o una a una desde el panel (`npm run panel`).
@@ -111,3 +126,29 @@ ya no hacen falta. Los 28 que se pedían a Coca-Cola, Pepsico y Monster salen
 del correo a proveedores.
 
 Es el bloqueante probable para el pase a real (ver `PRUEBAS_REDSYS.md`, § 6).
+
+---
+
+## 5. ~~«Mi perfil» no hacía nada~~ — HECHO 30/08/2026
+
+**Lo que pasaba.** La entrada del menú existía desde siempre pero
+`showSection('profile')` solo mostraba un aviso: «Perfil — próximamente
+disponible». No era una regresión: la pantalla no se había hecho nunca.
+
+**Ahora.** `openProfile()` abre el modal genérico (`infoModal`, el mismo de «Mis
+pedidos») con nombre, apellidos y teléfono editables, y el correo a la vista pero
+fijo. Guardar llama a `action: 'update'` en `auth.js`.
+
+El correo no se puede cambiar a propósito: es la clave con la que se guarda el
+usuario en Blobs, así que cambiarlo sería mover la ficha entera y dejar los
+pedidos antiguos apuntando a la vieja. Si algún día hace falta, es una migración,
+no un campo editable.
+
+`update` escribe **solo** esos tres campos: id, correo, hash de la contraseña y
+fecha de alta se conservan aunque vengan en la petición. Hay pruebas de eso y de
+que nadie se asciende a administrador metiendo `role` en el cuerpo:
+`npm run test:cuentas`, 25 casos.
+
+**Pendiente si se quiere ir más lejos:** cambiar la contraseña desde el perfil.
+Se dejó fuera porque toca el camino de autenticación, que está en verde y
+pendiente del pase a real con el banco.

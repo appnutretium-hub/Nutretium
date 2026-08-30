@@ -82,6 +82,25 @@ async function writeUser(email, data) {
 // Se cuenta por correo, tanto si existe como si no: si solo se frenaran los
 // correos registrados, la diferencia de respuesta diría cuáles lo están.
 
+// Lo que se acepta en los datos de la ficha. El nombre acaba en el correo del
+// pedido y en el saludo de la cabecera, así que ni etiquetas ni longitudes
+// absurdas: mismo criterio que el validador del catálogo.
+const MAX_NOMBRE = 60;
+const MAX_TELEFONO = 20;
+const TELEFONO_VALIDO = /^[0-9 +().-]*$/;
+
+function revisaFicha({ name, surname, phone }) {
+  if (!name) return 'El nombre es obligatorio.';
+  if (name.length > MAX_NOMBRE) return 'El nombre no puede pasar de ' + MAX_NOMBRE + ' caracteres.';
+  if (surname.length > MAX_NOMBRE) return 'Los apellidos no pueden pasar de ' + MAX_NOMBRE + ' caracteres.';
+  if (phone.length > MAX_TELEFONO) return 'El teléfono no puede pasar de ' + MAX_TELEFONO + ' caracteres.';
+  if (phone && !TELEFONO_VALIDO.test(phone)) return 'El teléfono solo puede llevar números, espacios y los signos + ( ) . -';
+  if ([name, surname, phone].some((campo) => /[<>]/.test(campo))) {
+    return 'Ni el nombre ni los apellidos ni el teléfono pueden llevar «<» ni «>».';
+  }
+  return null;
+}
+
 const MAX_INTENTOS = 5;
 const CASTIGO_MS = 15 * 60 * 1000;
 const VENTANA_MS = 15 * 60 * 1000;
@@ -230,6 +249,51 @@ exports.handler = async function (event) {
       return { statusCode: 404, headers: CORS, body: JSON.stringify({ error: 'Usuario no encontrado.' }) };
 
     const profile = { id: user.id, name: user.name, surname: user.surname, email: user.email, phone: user.phone, role: rolDe(user.email) };
+    return { statusCode: 200, headers: CORS, body: JSON.stringify({ user: profile }) };
+  }
+
+  // ── ACTUALIZAR FICHA ──────────────────────────────────────────────────────
+  // El correo NO se puede cambiar: es la clave con la que se guarda el usuario
+  // en Blobs, así que cambiarlo sería mover la ficha entera (y dejar los
+  // pedidos antiguos apuntando a la vieja).
+  if (body.action === 'update') {
+    const { token } = body;
+    if (!token)
+      return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'Token requerido.' }) };
+
+    let claims;
+    try { claims = verifyJWT(token); }
+    catch { return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'Token inválido o expirado.' }) }; }
+
+    const user = await readUser(claims.email);
+    if (!user)
+      return { statusCode: 404, headers: CORS, body: JSON.stringify({ error: 'Usuario no encontrado.' }) };
+
+    const ficha = {
+      name: String(body.name || '').trim(),
+      surname: String(body.surname || '').trim(),
+      phone: String(body.phone || '').trim(),
+    };
+
+    const problema = revisaFicha(ficha);
+    if (problema)
+      return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: problema }) };
+
+    // Se escriben SOLO estos tres campos: el hash de la contraseña, el id y la
+    // fecha de alta se conservan tal cual, vengan como vengan en la petición.
+    const actualizado = {
+      ...user,
+      name: ficha.name,
+      surname: ficha.surname,
+      phone: ficha.phone,
+      updatedAt: new Date().toISOString(),
+    };
+    await writeUser(claims.email, actualizado);
+
+    const profile = {
+      id: actualizado.id, name: actualizado.name, surname: actualizado.surname,
+      email: actualizado.email, phone: actualizado.phone, role: rolDe(actualizado.email),
+    };
     return { statusCode: 200, headers: CORS, body: JSON.stringify({ user: profile }) };
   }
 

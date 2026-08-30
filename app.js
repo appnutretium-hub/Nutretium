@@ -1370,6 +1370,49 @@ function loadProducts() {
 
 // ─── REDSYS PAYMENT INITIATION ────────────────────────────────────────────────
 
+// Devuelve el botón de pagar a su estado normal. Quién decide si va habilitado
+// o no es updateCartUI(), según lo que quede en el carrito.
+function restauraBotonPago() {
+  const btnText = document.getElementById('redsysBtnText');
+  if (btnText) btnText.innerHTML = 'Pagar con Redsys';
+  updateCartUI();
+}
+
+// form.submit() no avisa de si el envío llegó a salir: cuando el navegador
+// cancela la navegación no lanza ninguna excepción, así que el catch de abajo
+// ni se entera. La única señal fiable de que hemos salido de la página es
+// 'pagehide'. Si pasado un rato seguimos aquí, el envío no se produjo: se avisa
+// al cliente y se le devuelve el botón, con el carrito intacto. El margen es
+// generoso a propósito: la alternativa es cortarle el paso a un banco lento.
+function vigilaEnvioAlTpv(margenMs = 8000) {
+  let salimos = false;
+  const marcaSalida = () => { salimos = true; };
+  window.addEventListener('pagehide', marcaSalida);
+
+  // Si quien bloquea es la CSP, el navegador lo cuenta aquí. Sirve para dar un
+  // mensaje concreto en vez de un «no se pudo conectar» genérico.
+  let motivo = null;
+  const anotaBloqueoCsp = (e) => {
+    if (String(e.violatedDirective || '').startsWith('form-action')) {
+      motivo = 'El navegador ha bloqueado la conexión con el banco. Tu carrito sigue intacto.';
+    }
+  };
+  document.addEventListener('securitypolicyviolation', anotaBloqueoCsp);
+
+  setTimeout(() => {
+    window.removeEventListener('pagehide', marcaSalida);
+    document.removeEventListener('securitypolicyviolation', anotaBloqueoCsp);
+    if (salimos) return;
+
+    console.error('[Redsys] el formulario no llegó a enviarse al TPV');
+    // El nº de pedido guardado se deja donde está: si esto fuese una falsa
+    // alarma (navegación lenta que sí acaba saliendo) borrarlo dejaría la
+    // vuelta del pago sin poder identificar el pedido. Un reintento lo pisa.
+    showToast(motivo || 'No se ha podido conectar con el banco. No se te ha cobrado nada y tu carrito sigue intacto.');
+    restauraBotonPago();
+  }, margenMs);
+}
+
 async function initiateRedsysPayment() {
   const total = getCartTotal();
   if (total <= 0) return;
@@ -1435,22 +1478,20 @@ async function initiateRedsysPayment() {
     document.getElementById('rf_merchantParameters').value = data.Ds_MerchantParameters;
     document.getElementById('rf_signature').value = data.Ds_Signature;
 
-    // Clear cart before redirect
-    cart.clear();
-    updateCartUI();
-
-    // Efecto: suma un cliente activo al confirmar la compra
-    if (typeof window.bumpClients === 'function') window.bumpClients(1);
-
+    // El carrito NO se vacía aquí. Se vaciaba justo antes de este submit, y
+    // cuando el envío no llegaba a producirse —la CSP bloqueando form-action
+    // contra sis-t.redsys.es:25443, que es lo que pasó probando el TPV— el
+    // cliente se quedaba sin carrito y sin haber pagado, y sin forma de
+    // recuperarlo. Ahora se vacía en la vuelta del pago, cuando consta que el
+    // pedido está pagado (tratarPagoConfirmado).
+    vigilaEnvioAlTpv();
     form.submit();
 
   } catch (err) {
     console.error('[Redsys] Payment initiation failed:', err);
     showToast(`Error: ${err.message}`);
-
-    // Restore button
-    btn.disabled = false;
-    btnText.innerHTML = 'Pagar con Redsys';
+    // El carrito sigue como estaba: por aquí no se toca.
+    restauraBotonPago();
   }
 }
 
@@ -1515,6 +1556,37 @@ function closePaymentOverlay() {
   history.replaceState({}, '', '/');
 }
 
+// Todo lo que pasa cuando consta que el pedido está PAGADO, venga la
+// confirmación de donde venga. AQUÍ se vacía el carrito, y no antes de mandar
+// al TPV: si el envío no llega a salir el cliente conserva lo que tenía.
+function tratarPagoConfirmado(order) {
+  localStorage.removeItem('nutretium_last_order');
+  if (cart.size > 0) {
+    cart.clear();
+    restauraBotonPago();
+  }
+  // Efecto: suma un cliente activo al confirmar la compra
+  if (typeof window.bumpClients === 'function') window.bumpClients(1);
+  showPaymentOverlay('ok', order);
+}
+
+// Vuelta con el botón «atrás» desde el TPV: el navegador restaura la página tal
+// y como estaba (bfcache), con el carrito lleno y el botón en «Procesando…».
+// Si el pedido se llegó a pagar hay que vaciarlo —si no, el cliente podría
+// comprar lo mismo dos veces—; si no se pagó, se le deja para que reintente.
+async function revisaVueltaDelCache(e) {
+  if (!e.persisted) return;
+  restauraBotonPago();
+
+  const order = localStorage.getItem('nutretium_last_order');
+  if (!order || cart.size === 0) return;
+  try {
+    const r = await fetch(`/.netlify/functions/redsys-status?order=${encodeURIComponent(order)}`);
+    const d = await r.json();
+    if (d.found && d.status === 'PAID') tratarPagoConfirmado(order);
+  } catch { /* sin respuesta no se toca nada: el carrito se queda */ }
+}
+
 async function handlePaymentReturn() {
   // Resultado del pago: por query (?pago=ok|ko, vía función pago-return) o,
   // como respaldo, por ruta (/pago-ok · /pago-ko).
@@ -1531,6 +1603,7 @@ async function handlePaymentReturn() {
   const order = query.get('order') || localStorage.getItem('nutretium_last_order');
 
   if (result === 'ko') {
+    // El carrito no se toca: no se ha cobrado nada y el cliente puede reintentar.
     showPaymentOverlay('ko', order);
     localStorage.removeItem('nutretium_last_order');
     return;
@@ -1540,8 +1613,12 @@ async function handlePaymentReturn() {
   // Redsys). Es la vía normal y no necesita consultar nada más.
   const estado = query.get('estado');
   if (estado === 'PAID' || estado === 'FAILED') {
-    localStorage.removeItem('nutretium_last_order');
-    showPaymentOverlay(estado === 'PAID' ? 'ok' : 'ko', order);
+    if (estado === 'PAID') {
+      tratarPagoConfirmado(order);
+    } else {
+      localStorage.removeItem('nutretium_last_order');
+      showPaymentOverlay('ko', order);
+    }
     return;
   }
 
@@ -1561,8 +1638,7 @@ async function handlePaymentReturn() {
   }
 
   if (status === 'PAID') {
-    localStorage.removeItem('nutretium_last_order');
-    showPaymentOverlay('ok', order);
+    tratarPagoConfirmado(order);
   } else if (status === 'FAILED') {
     localStorage.removeItem('nutretium_last_order');
     showPaymentOverlay('ko', order);
@@ -1582,6 +1658,10 @@ document.addEventListener('DOMContentLoaded', () => {
   updateCartUI();
   handlePaymentReturn();  // muestra el resultado si venimos de /pago-ok o /pago-ko
 });
+
+// La vuelta con «atrás» desde el TPV no recarga la página, así que no dispara
+// nada de lo de arriba: hace falta escuchar 'pageshow'.
+window.addEventListener('pageshow', revisaVueltaDelCache);
 
 // ════════════════════════════════════════════════════════════════════════════
 //  NUEVAS FUNCIONALIDADES (mega menú, filtros avanzados, carruseles, chat, etc.)

@@ -19,8 +19,12 @@
 // (ver netlify/lib/catalogo.js). Si aquí hubiera otra lista, la web podría
 // enseñar productos o precios que el servidor no reconoce al cobrar.
 
+// Los que llevan active:false están retirados de la venta: netlify/lib/catalogo.js
+// los rechaza al cobrar, así que tampoco se pueden enseñar aquí o el cliente
+// llenaría el carrito con algo que el pago va a rechazar. Es el interruptor que
+// mueve el panel de catálogo ("publicado SI/NO").
 let PRODUCTS = Array.isArray(window.NUTRETIUM_PRODUCTS)
-  ? window.NUTRETIUM_PRODUCTS.map(p => ({ ...p }))
+  ? window.NUTRETIUM_PRODUCTS.filter(p => p.active !== false).map(p => ({ ...p }))
   : [];
 
 // ─── AUTH STATE ───────────────────────────────────────────────────────────────
@@ -60,6 +64,13 @@ function updateAuthUI() {
   authButtons.classList.add('hidden');
   authButtons.classList.toggle('lg:flex', !currentUser);
   profileMenu.classList.toggle('hidden', !currentUser);
+
+  // El enlace al panel de catálogo solo para la cuenta de administrador. El
+  // 'role' viene del servidor (se calcula desde ADMIN_EMAILS, nunca se pide),
+  // pero esto es cosmético: quien de verdad decide quién entra es
+  // netlify/functions/admin-catalogo.js, en cada llamada.
+  const enlacePanel = document.getElementById('enlacePanel');
+  if (enlacePanel) enlacePanel.classList.toggle('hidden', !currentUser || currentUser.role !== 'admin');
 
   if (currentUser) {
     if (profileName) profileName.textContent = currentUser.name || 'Mi cuenta';
@@ -1453,6 +1464,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSession();
   updateAuthUI();
   loadProducts();   // pinta el catálogo de products-data.js
+  pintaMarcas();    // chips de marca del panel de filtros, sacados del catálogo
   loadReviews();    // fetches from DB, falls back to local
   updateCartUI();
   handlePaymentReturn();  // muestra el resultado si venimos de /pago-ok o /pago-ko
@@ -1500,6 +1512,32 @@ function setPriceFilter(btn, min, max) {
   btn.parentElement.querySelectorAll('.adv-chip').forEach(b => b.classList.remove('active'));
   if (same) { advState.priceMin = null; advState.priceMax = null; }
   else { advState.priceMin = min; advState.priceMax = max; btn.classList.add('active'); }
+}
+
+// Las marcas salen del catálogo, no de una lista escrita en el HTML: al quitar
+// productos quedaban chips que no filtraban nada (pasó con Monster al retirar
+// las energéticas de marca). Solo se ofrecen las que tienen más de un producto,
+// para no llenar el panel de marcas de una sola referencia.
+function pintaMarcas() {
+  const caja = document.getElementById('brandChips');
+  if (!caja) return;
+
+  const cuenta = new Map();
+  PRODUCTS.forEach(p => {
+    if (!p.brand) return;
+    cuenta.set(p.brand, (cuenta.get(p.brand) || 0) + 1);
+  });
+
+  const marcas = [...cuenta.entries()]
+    .filter(([, n]) => n > 1)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'))
+    .slice(0, 10)
+    .map(([marca]) => marca);
+
+  caja.innerHTML = marcas.map(marca => {
+    const escapada = marca.replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/</g, '&lt;');
+    return `<button onclick="setBrandFilter(this,'${escapada}')" class="adv-chip">${escapada}</button>`;
+  }).join('');
 }
 
 function setBrandFilter(btn, brand) {

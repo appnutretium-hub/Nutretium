@@ -18,7 +18,11 @@
     "test": "node scripts/test-precios.js",
     "fotos": "node scripts/fotos-incorporar.js",
     "stock": "node scripts/stock-actualizar.js",
-    "test:redsys": "node scripts/test-redsys.js"
+    "test:redsys": "node scripts/test-redsys.js",
+    "catalogo": "node scripts/catalogo-actualizar.js",
+    "panel": "node scripts/panel-servidor.js",
+    "test:catalogo": "node scripts/test-catalogo.js",
+    "test:admin": "node scripts/test-admin.js"
   },
   "engines": {
     "node": ">=20"

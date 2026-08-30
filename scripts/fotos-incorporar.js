@@ -102,11 +102,13 @@ function porParecido(nombreBase, productos) {
 
 // ── Tratamiento de la imagen ────────────────────────────────────────────────
 
-async function procesa(origen, destino) {
+// 'escribir' y 'recorte' se pasan en vez de leerlos de argv: el panel visual
+// (scripts/panel-servidor.js) llama a esta misma función y no tiene argv.
+async function procesa(origen, destino, { escribir = APLICAR, recorte = !SIN_RECORTE } = {}) {
   const entrada = sharp(origen).rotate();   // rotate() respeta el EXIF del móvil
 
   let cuerpo = await entrada.clone().flatten({ background: '#ffffff' }).toBuffer();
-  if (!SIN_RECORTE) {
+  if (recorte) {
     // trim() falla si la foto no tiene borde uniforme: en ese caso se deja tal cual.
     cuerpo = await sharp(cuerpo).trim({ threshold: 12 }).toBuffer().catch(() => cuerpo);
   }
@@ -126,7 +128,7 @@ async function procesa(origen, destino) {
     salida = await base.clone().webp({ quality: calidad }).toBuffer();
   }
 
-  if (APLICAR) {
+  if (escribir) {
     fs.mkdirSync(path.dirname(destino), { recursive: true });
     fs.writeFileSync(destino, salida);
   }
@@ -139,7 +141,7 @@ async function procesa(origen, destino) {
 // línea. Enlazar una foto es cambiar "image":null por la ruta EN LA LÍNEA de ese
 // código, nada más: así el archivo se puede seguir regenerando y el cambio se
 // revisa de un vistazo en el diff.
-function enlaza(codigo, ruta) {
+function enlaza(codigo, ruta, escribir = APLICAR) {
   const lineas = fs.readFileSync(CATALOGO, 'utf8').split('\n');
   const aguja = `"code":"${codigo}"`;
   let tocadas = 0;
@@ -202,7 +204,7 @@ function tablaDe(lista) {
   return filas;
 }
 
-function regeneraListas() {
+function regeneraListas(escribir = APLICAR) {
   const productos = leeProductos();
   const rutas = rutasEsperadas();
 
@@ -213,7 +215,7 @@ function regeneraListas() {
     if (!esperada) return;
     csv.push([p.category, p.code, esperada.ruta, p.image ? 'si' : 'no'].join(';'));
   });
-  if (APLICAR) fs.writeFileSync(CSV_NOMBRES, csv.join('\n') + '\n', 'utf8');
+  if (escribir) fs.writeFileSync(CSV_NOMBRES, csv.join('\n') + '\n', 'utf8');
 
   const sinFoto = productos.filter((p) => !p.image);
   const propios = sinFoto.filter(esPropio);
@@ -270,7 +272,7 @@ function regeneraListas() {
     '',
   );
 
-  if (APLICAR) fs.writeFileSync(PENDIENTES, md.join('\n'), 'utf8');
+  if (escribir) fs.writeFileSync(PENDIENTES, md.join('\n'), 'utf8');
   return sinFoto.length;
 }
 
@@ -385,4 +387,8 @@ async function principal() {
   }
 }
 
-principal();
+if (require.main === module) principal();
+
+// El panel visual reutiliza el tratamiento de la imagen y el enlace al catálogo:
+// una foto subida desde el panel tiene que quedar igual que una del buzón.
+module.exports = { procesa, enlaza, regeneraListas, rutasEsperadas, BUZON, LIENZO };

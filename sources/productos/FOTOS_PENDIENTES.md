@@ -3,14 +3,14 @@
 > Generado por `scripts/fotos-incorporar.js`. No editar a mano: se rehace
 > solo cada vez que se incorporan fotos nuevas.
 
-**149 de 179 productos siguen sin foto** (30 ya la tienen).
+**121 de 151 productos siguen sin foto** (30 ya la tienen).
 
 Se parten en dos grupos que se resuelven de forma distinta. Para meter las
 fotos una vez conseguidas, ver `sources/_nuevas/LEEME.md`.
 
 ---
 
-## A. Pedir el packshot al distribuidor — 96 productos
+## A. Pedir el packshot al distribuidor — 68 productos
 
 Producto de marca envasado: el fabricante tiene foto oficial y material de
 punto de venta, y con él viene el permiso de uso. Es de donde salieron las
@@ -74,18 +74,6 @@ que hay que pedirle a ese proveedor.
 | `00495` | Helado Vainilla 100ml Protzen | Helados |
 | `00489` | Helado Vainilla 460ml Protzen | Helados |
 
-### Monster — 7
-
-| Código | Producto | Categoría |
-|---|---|---|
-| `00506` | Monster Energy 500ml | Bebidas |
-| `00505` | Monster Energy Absolutely Zero 500ml | Bebidas |
-| `00508` | Monster Juiced Monarch 500ml | Bebidas |
-| `00513` | Monster Lando Norris Zero 500ml | Bebidas |
-| `00512` | Monster Recover Rehab 500ml | Bebidas |
-| `00511` | Monster Ultra 500ml | Bebidas |
-| `00509` | Monster Ultra Paradise 500ml | Bebidas |
-
 ### Nocco — 6
 
 | Código | Producto | Categoría |
@@ -126,14 +114,6 @@ que hay que pedirle a ese proveedor.
 | `00480` | Oferta Pack Aqua Deus 6 Botellas 1.5l | Bebidas |
 | `00539` | Pack Aquadeus 6 Botellas 1.5l | Bebidas |
 
-### Coca-cola — 3
-
-| Código | Producto | Categoría |
-|---|---|---|
-| `00514` | Coca-cola Normal | Bebidas |
-| `00497` | Coca-cola Normal 0.33ml | Bebidas |
-| `00515` | Coca-cola Zero | Bebidas |
-
 ### Solares — 3
 
 | Código | Producto | Categoría |
@@ -142,41 +122,6 @@ que hay que pedirle a ese proveedor.
 | `00533` | Agua Solares 1.5l | Bebidas |
 | `00479` | Oferta Pack Solares 6 Botellas 1.5l | Bebidas |
 
-### Aquarius — 2
-
-| Código | Producto | Categoría |
-|---|---|---|
-| `00521` | Aquarius Limon 0.33ml | Bebidas |
-| `00520` | Aquarius Naranja 0.33ml | Bebidas |
-
-### Chupa Chups — 2
-
-| Código | Producto | Categoría |
-|---|---|---|
-| `00519` | Chupa Chups Bubble Gum 0.33ml | Bebidas |
-| `00518` | Chupa Chups Cola 0.33ml | Bebidas |
-
-### Dr Pepper — 2
-
-| Código | Producto | Categoría |
-|---|---|---|
-| `00529` | Dr Pepper Normal | Bebidas |
-| `00528` | Dr Pepper Zero Sugar | Bebidas |
-
-### Fanta — 2
-
-| Código | Producto | Categoría |
-|---|---|---|
-| `00516` | Fanta Naranja 0.33ml | Bebidas |
-| `00517` | Fanta Piña 0.33ml | Bebidas |
-
-### Kas — 2
-
-| Código | Producto | Categoría |
-|---|---|---|
-| `00526` | Kas Limon | Bebidas |
-| `00525` | Kas Naranja | Bebidas |
-
 ### NABE — 2
 
 | Código | Producto | Categoría |
@@ -184,54 +129,11 @@ que hay que pedirle a ese proveedor.
 | `00363` | NABE Aloe Vera THE Original | Bebidas |
 | `00362` | NABE Aloe Vera Sunny Mango | Vitaminas y salud |
 
-### Sin marca identificada — 2
+### Sin marca identificada — 1
 
 | Código | Producto | Categoría |
 |---|---|---|
-| `00510` | Loco Pinta Lenguas Frambuesa | Bebidas |
 | `00155` | Pastillero | Accesorios gym |
-
-### Cacaolat — 1
-
-| Código | Producto | Categoría |
-|---|---|---|
-| `00503` | Batido Cacaolat Chocolate | Bebidas |
-
-### Don Simon — 1
-
-| Código | Producto | Categoría |
-|---|---|---|
-| `00502` | Zumo Simon Mandarina | Bebidas |
-
-### Nestea — 1
-
-| Código | Producto | Categoría |
-|---|---|---|
-| `00522` | Nestea Limon | Bebidas |
-
-### Pascual — 1
-
-| Código | Producto | Categoría |
-|---|---|---|
-| `00501` | Bio Futras Tropical | Bebidas |
-
-### Red Bull — 1
-
-| Código | Producto | Categoría |
-|---|---|---|
-| `00530` | Red Bull | Bebidas |
-
-### Seven Up — 1
-
-| Código | Producto | Categoría |
-|---|---|---|
-| `00523` | Seven Up | Bebidas |
-
-### Trina — 1
-
-| Código | Producto | Categoría |
-|---|---|---|
-| `00524` | Trina Manzana | Bebidas |
 
 ---
 

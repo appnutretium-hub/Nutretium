@@ -3,6 +3,14 @@
 Pendientes de la web. Lo del TPV y el pase a real va aparte, en
 `PRUEBAS_REDSYS.md`.
 
+Para cambiar precios, fotos, altas y bajas del catálogo no hace falta tocar
+código: la tienda lo hace en `/admin.html` con su cuenta de administrador, y
+aquí están `npm run panel` y el Excel. Instrucciones para el cliente en
+`sources/_catalogo/LEEME.md`; el porqué, en `AUDITORIA_CATALOGO.md` §§ 11 y 12.
+
+**El panel online no funciona hasta configurar `ADMIN_EMAILS` y `GITHUB_TOKEN`
+en Netlify y redesplegar** (`DESPLIEGUE.md` § 1). Hasta entonces responde 503.
+
 ---
 
 ## 1. ~~Los botones de sesión no desaparecen al iniciar sesión~~ — ARREGLADO 22/08/2026
@@ -93,9 +101,13 @@ Cuando se sepan, van en `sources/_stock/STOCK.csv` y se aplican con
 
 ## 4. Fotos de producto
 
-149 productos sin foto. La lista está en
-`sources/productos/FOTOS_PENDIENTES.md`, partida en dos: 96 que hay que pedir a
+121 de 151 productos sin foto. La lista está en
+`sources/productos/FOTOS_PENDIENTES.md`, partida en dos: 68 que hay que pedir a
 los distribuidores y 53 que hay que fotografiar en la tienda. Para incorporarlas,
-`sources/_nuevas/LEEME.md`.
+`sources/_nuevas/LEEME.md`, o una a una desde el panel (`npm run panel`).
+
+Bajaron de 149 a 121 al retirar los 28 refrescos de marca ajena: esos packshots
+ya no hacen falta. Los 28 que se pedían a Coca-Cola, Pepsico y Monster salen
+del correo a proveedores.
 
 Es el bloqueante probable para el pase a real (ver `PRUEBAS_REDSYS.md`, § 6).

@@ -31,7 +31,7 @@ que venga detrás da igual, sirve para que tú reconozcas el archivo.
 ```
 00347__milkshake banana.jpg
 ABB-1000__bowl acai grande.jpg
-00505__cualquier cosa.png
+00353__cualquier cosa.png
 ```
 
 Los códigos están en `sources/productos/FOTOS_PENDIENTES.md`, que lista todos

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Panel de catálogo — NUTRETIUM</title>
+<!--
+  Panel de catálogo. Una sola página para las dos formas de usarlo:
+
+    · en la tienda, en /admin.html, con la cuenta de administrador;
+    · en el ordenador del desarrollador, con `npm run panel`.
+
+  Lo que cambia es a quién le habla (ver MODO en admin.js), no lo que hace.
+  Tener dos paneles distintos acabaría como acabaron las dos listas de
+  productos que documenta CLAUDE.md: divergiendo.
+
+  ESTA PÁGINA NO PROTEGE NADA. Es un archivo estático y cualquiera puede
+  descargarlo. Quien decide si puedes tocar el catálogo es
+  netlify/functions/admin-catalogo.js, que comprueba la sesión en cada llamada.
+-->
+<style>
+  /* Los colores de la tienda, pero esto es una herramienta, no un escaparate. */
+  :root {
+    --oro: #D4AF37;
+    --oro-claro: #F0D060;
+    --fondo: #0a0a0a;
+    --tarjeta: #111111;
+    --borde: #2a2200;
+    --apagado: #8a7a50;
+    --texto: #f2efe6;
+    --rojo: #e05555;
+    --verde: #4fb477;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--fondo); color: var(--texto);
+    font: 14px/1.5 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  a { color: var(--oro); }
+  [hidden] { display: none !important; }
+
+  header {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(10,10,10,.97); border-bottom: 1px solid var(--borde);
+    padding: 14px 20px; backdrop-filter: blur(6px);
+  }
+  .fila-cabecera { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  h1 { font-size: 17px; margin: 0; letter-spacing: .02em; }
+  h1 span { color: var(--oro); }
+  .recuento { color: var(--apagado); font-size: 13px; }
+  .crece { flex: 1; }
+
+  button {
+    font: inherit; font-weight: 600; cursor: pointer; border-radius: 8px;
+    border: 1px solid var(--borde); background: var(--tarjeta); color: var(--texto);
+    padding: 8px 14px; transition: border-color .15s, background .15s;
+  }
+  button:hover:not(:disabled) { border-color: var(--oro); }
+  button:disabled { opacity: .4; cursor: default; }
+  .primario { background: var(--oro); color: #000; border-color: var(--oro); }
+  .primario:hover:not(:disabled) { background: var(--oro-claro); }
+  .peligro { color: var(--rojo); }
+
+  .barra {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    padding: 12px 20px; border-bottom: 1px solid var(--borde);
+  }
+  input, select {
+    font: inherit; background: #0d0d0d; color: var(--texto);
+    border: 1px solid var(--borde); border-radius: 7px; padding: 6px 9px;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--oro); }
+  .buscador { min-width: 240px; }
+  label.marca-check { display: inline-flex; align-items: center; gap: 6px; color: var(--apagado); cursor: pointer; }
+
+  .aviso {
+    margin: 0; padding: 10px 20px; font-size: 13px;
+    background: #1b1400; color: var(--oro-claro); border-bottom: 1px solid var(--borde);
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    position: sticky; top: 0; z-index: 5;
+    background: #0d0d0d; border-bottom: 1px solid var(--borde);
+    text-align: left; font-size: 11px; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--apagado); padding: 9px 8px; font-weight: 700;
+  }
+  tbody td { border-bottom: 1px solid #1a1a1a; padding: 6px 8px; vertical-align: middle; }
+  tbody tr:hover { background: #0e0e0e; }
+  tr.oculto { opacity: .45; }
+  tr.nuevo td:first-child { box-shadow: inset 3px 0 0 var(--verde); }
+  tr.tocado td:first-child { box-shadow: inset 3px 0 0 var(--oro); }
+
+  .miniatura {
+    width: 46px; height: 46px; border-radius: 8px; border: 1px solid var(--borde);
+    background: #000 center/contain no-repeat; display: grid; place-items: center;
+    font-size: 20px; cursor: pointer; padding: 0; color: var(--apagado); position: relative;
+  }
+  .miniatura:hover { border-color: var(--oro); }
+  .miniatura.pendiente { border-color: var(--verde); }
+  .codigo { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--apagado); }
+  .celda-nombre input { width: 100%; min-width: 180px; }
+  .num { width: 78px; text-align: right; }
+  .corto { width: 110px; }
+  .centro { text-align: center; }
+
+  dialog {
+    background: var(--tarjeta); color: var(--texto); border: 1px solid var(--borde);
+    border-radius: 14px; padding: 0; max-width: 720px; width: calc(100% - 40px);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.75); }
+  .cuerpo-dialogo { padding: 22px; max-height: 65vh; overflow: auto; }
+  .pie-dialogo { display: flex; gap: 10px; justify-content: flex-end; padding: 16px 22px; border-top: 1px solid var(--borde); }
+  .cuerpo-dialogo h2 { margin: 0 0 14px; font-size: 17px; }
+  .cuerpo-dialogo h3 { margin: 18px 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--apagado); }
+  .cuerpo-dialogo ul { margin: 0; padding-left: 18px; }
+  .cuerpo-dialogo li { margin-bottom: 5px; }
+  .cuerpo-dialogo li ul { margin-top: 4px; }
+  .error { color: var(--rojo); }
+  .alta { color: var(--verde); }
+  .baja { color: var(--rojo); }
+  .vacio { padding: 40px 20px; text-align: center; color: var(--apagado); }
+
+  /* Pantalla de acceso: solo aparece en la tienda, no en el panel local. */
+  .acceso {
+    max-width: 380px; margin: 12vh auto; padding: 28px;
+    background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 14px;
+  }
+  .acceso h2 { margin: 0 0 6px; font-size: 19px; }
+  .acceso p.pie { color: var(--apagado); font-size: 13px; margin: 0 0 20px; }
+  .acceso label { display: block; margin-bottom: 14px; }
+  .acceso input { width: 100%; margin-top: 4px; }
+  .acceso button { width: 100%; }
+  .marca-acceso { text-align: center; letter-spacing: .18em; font-size: 12px; color: var(--oro); margin-bottom: 22px; }
+</style>
+</head>
+<body>
+
+<!-- Pantalla de acceso ─────────────────────────────────────────────────── -->
+<section id="acceso" hidden>
+  <form class="acceso" id="formAcceso">
+    <p class="marca-acceso">NUTRETIUM</p>
+    <h2>Panel de catálogo</h2>
+    <p class="pie" id="pieAcceso">Entra con la cuenta de administrador de la tienda.</p>
+    <label>Correo<input id="accesoEmail" type="email" autocomplete="username" required></label>
+    <label>Contraseña<input id="accesoClave" type="password" autocomplete="current-password" required></label>
+    <p class="error" id="errorAcceso"></p>
+    <button class="primario" type="submit" id="botonAcceso">Entrar</button>
+  </form>
+</section>
+
+<!-- Panel ──────────────────────────────────────────────────────────────── -->
+<div id="panel" hidden>
+  <header>
+    <div class="fila-cabecera">
+      <h1>Panel de catálogo <span>NUTRETIUM</span></h1>
+      <span class="recuento" id="recuento">cargando…</span>
+      <span class="crece"></span>
+      <button id="btnAnadir">+ Añadir producto</button>
+      <button id="btnDeshacer" disabled>Descartar cambios</button>
+      <button id="btnGuardar" class="primario" disabled>Guardar cambios</button>
+      <button id="btnSalir" hidden>Salir</button>
+    </div>
+  </header>
+
+  <p class="aviso" id="avisoModo"></p>
+
+  <div class="barra">
+    <input class="buscador" id="buscar" type="search" placeholder="Buscar por nombre, código o marca…">
+    <select id="filtroCategoria"><option value="">Todas las categorías</option></select>
+    <label class="marca-check"><input type="checkbox" id="filtroOcultos"> Solo los no publicados</label>
+    <label class="marca-check"><input type="checkbox" id="filtroSinFoto"> Solo los que no tienen foto</label>
+    <label class="marca-check"><input type="checkbox" id="filtroAgotados"> Solo agotados</label>
+    <span class="crece"></span>
+    <span class="recuento" id="recuentoFiltro"></span>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Foto</th>
+        <th>Código</th>
+        <th>Nombre</th>
+        <th>Categoría</th>
+        <th class="centro">Precio €</th>
+        <th class="centro">Stock</th>
+        <th class="centro">Publicado</th>
+        <th class="centro">Destacado</th>
+        <th>Marca</th>
+        <th>Etiqueta</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="tabla"></tbody>
+  </table>
+  <div class="vacio" id="vacio" hidden>No hay ningún producto que cumpla el filtro.</div>
+</div>
+
+<dialog id="dialogo">
+  <div class="cuerpo-dialogo" id="cuerpoDialogo"></div>
+  <div class="pie-dialogo" id="pieDialogo"></div>
+</dialog>
+
+<input type="file" id="selectorFoto" accept="image/*" hidden>
+
+<script src="admin.js"></script>
+</body>
+</html>

@@ -43,6 +43,7 @@
       'sources/productos/FOTOS_PENDIENTES.md' \
       'sources/_nuevas' \
       'sources/_stock' \
+      'sources/_catalogo' \
       'sources/amix_fotos_categoria_nombre_pvp_FINAL_WEB' \
       'src' \
       'tailwind.config.js'
@@ -72,6 +73,15 @@
     # va compilado. Queda 'unsafe-inline' porque index.html tiene <script> y
     # atributos onclick en línea; quitarlo exigiría sacar todo ese JS a archivos.
     Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' https:; connect-src 'self' https:; frame-src https://www.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://sis.redsys.es https://sis-t.redsys.es"
+
+# El panel de catálogo no es contenido de la tienda: fuera de los buscadores.
+# Quien decide quién entra es la función, no esto (ver netlify/lib/admin.js);
+# esto solo evita que salga en Google.
+[[headers]]
+  for = "/admin.html"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-store"
 
 # Las fotos de producto llevan el código en el nombre: si cambia la foto,
 # cambia el archivo. Se pueden cachear de forma agresiva.
@@ -109,6 +119,15 @@
 
 [[redirects]]
   from = "/*.md"
+  to = "/index.html"
+  status = 404
+  force = true
+
+# Las carpetas de trabajo de sources (_stock, _nuevas, _catalogo) llevan hojas
+# de precios y stock. El build las borra de la copia desplegada; esto es la red
+# por si el build no llega a ejecutarse.
+[[redirects]]
+  from = "/sources/_*"
   to = "/index.html"
   status = 404
   force = true

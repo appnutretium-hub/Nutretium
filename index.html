@@ -497,16 +497,9 @@
             <!-- Marca -->
             <div class="mb-4">
               <p class="text-xs font-bold text-brand-muted uppercase tracking-wider mb-2">Marca</p>
-              <div class="flex flex-wrap gap-2">
-                <button onclick="setBrandFilter(this,'Amro')" class="adv-chip">Amro</button>
-                <button onclick="setBrandFilter(this,'Protella')" class="adv-chip">Protella</button>
-                <button onclick="setBrandFilter(this,'Barebells')" class="adv-chip">Barebells</button>
-                <button onclick="setBrandFilter(this,'Protzen')" class="adv-chip">Protzen</button>
-                <button onclick="setBrandFilter(this,'Monster')" class="adv-chip">Monster</button>
-                <button onclick="setBrandFilter(this,'Nocco')" class="adv-chip">Nocco</button>
-                <button onclick="setBrandFilter(this,'Vitamin Well')" class="adv-chip">Vitamin Well</button>
-                <button onclick="setBrandFilter(this,'Servivita')" class="adv-chip">Servivita</button>
-              </div>
+              <!-- Los rellena pintaMarcas() en app.js leyendo el catálogo: escritos a
+                   mano se quedaban señalando marcas que ya no se venden. -->
+              <div id="brandChips" class="flex flex-wrap gap-2"></div>
             </div>
             <!-- Ofertas + Packs -->
             <div class="flex flex-wrap gap-2 mb-4">
@@ -559,6 +552,9 @@
           >
             <a href="#" onclick="showSection('profile')" class="block px-4 py-2.5 text-sm text-brand-muted hover:text-white hover:bg-white/5 transition-colors" role="menuitem">Mi perfil</a>
             <a href="#" onclick="showSection('orders')"  class="block px-4 py-2.5 text-sm text-brand-muted hover:text-white hover:bg-white/5 transition-colors" role="menuitem">Mis pedidos</a>
+            <!-- Solo se enseña a la cuenta de administrador (updateAuthUI en app.js).
+                 Enseñarlo no da acceso: quien decide es admin-catalogo.js. -->
+            <a href="/admin.html" id="enlacePanel" class="hidden block px-4 py-2.5 text-sm text-brand-gold hover:text-white hover:bg-white/5 transition-colors" role="menuitem">Panel de catálogo</a>
             <hr class="border-brand-border my-1"/>
             <a href="#" onclick="logout()" class="block px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-white/5 transition-colors" role="menuitem">Cerrar sesión</a>
           </div>

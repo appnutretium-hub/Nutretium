@@ -20,6 +20,10 @@ const { cabecerasCORS } = require('../lib/cors');
 // JWT compartido con el resto de funciones: una sola implementación y un solo
 // secreto. La copia que había aquí no comprobaba la caducidad del token.
 const { signJWT, verifyJWT, secretConfigured } = require('../lib/jwt');
+// El rol NO se guarda con el usuario: sale de ADMIN_EMAILS. Si viviera en la
+// ficha, cualquiera que pudiera escribir en el store de usuarios se ascendería
+// a administrador y podría cambiar los precios de la tienda.
+const { rolDe } = require('../lib/admin');
 
 const CORS = cabecerasCORS('POST, GET, OPTIONS');
 
@@ -68,6 +72,63 @@ async function writeUser(email, data) {
   }
 }
 
+// ─── Freno a los intentos de contraseña ──────────────────────────────────────
+//
+// Desde que existe el panel de catálogo en /admin.html, una cuenta de esta
+// tienda no solo da acceso a los pedidos de quien la abre: la del administrador
+// cambia los precios de lo que se cobra. Probar contraseñas a ciegas tiene que
+// costar tiempo.
+//
+// Se cuenta por correo, tanto si existe como si no: si solo se frenaran los
+// correos registrados, la diferencia de respuesta diría cuáles lo están.
+
+const MAX_INTENTOS = 5;
+const CASTIGO_MS = 15 * 60 * 1000;
+const VENTANA_MS = 15 * 60 * 1000;
+
+const INTENTOS_EN_MEMORIA = {};   // respaldo en local, sin Blobs
+
+async function leeIntentos(email) {
+  const store = getBlobStore('auth-intentos');
+  if (store) return (await store.get(email, { type: 'json' }).catch(() => null)) || null;
+  return INTENTOS_EN_MEMORIA[email] || null;
+}
+
+async function guardaIntentos(email, datos) {
+  const store = getBlobStore('auth-intentos');
+  if (store) await store.setJSON(email, datos);
+  else INTENTOS_EN_MEMORIA[email] = datos;
+}
+
+async function olvidaIntentos(email) {
+  const store = getBlobStore('auth-intentos');
+  if (store) await store.delete(email).catch(() => {});
+  else delete INTENTOS_EN_MEMORIA[email];
+}
+
+/** Segundos que faltan para poder volver a probar, o 0 si se puede ahora. */
+async function esperaPendiente(email) {
+  const datos = await leeIntentos(email);
+  if (!datos || !datos.hasta) return 0;
+  const restante = datos.hasta - Date.now();
+  return restante > 0 ? Math.ceil(restante / 1000) : 0;
+}
+
+async function apuntaFallo(email) {
+  const ahora = Date.now();
+  const previo = await leeIntentos(email);
+  // Los fallos viejos no cuentan: quien se equivocó una vez el mes pasado no
+  // debe quedarse a un intento del bloqueo.
+  const dentroDeVentana = previo && previo.primero && (ahora - previo.primero) < VENTANA_MS;
+  const fallos = (dentroDeVentana ? previo.fallos : 0) + 1;
+
+  await guardaIntentos(email, {
+    fallos,
+    primero: dentroDeVentana ? previo.primero : ahora,
+    hasta: fallos >= MAX_INTENTOS ? ahora + CASTIGO_MS : 0,
+  });
+}
+
 // ─── Handler ─────────────────────────────────────────────────────────────────
 
 exports.handler = async function (event) {
@@ -112,7 +173,9 @@ exports.handler = async function (event) {
     await writeUser(emailLower, user);
 
     const token   = signJWT({ sub: id, email: emailLower, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30 });
-    const profile = { id, name: user.name, surname: user.surname, email: emailLower, phone: user.phone, token };
+    // 'role' se calcula, no se lee del cuerpo de la petición: nadie se da de
+    // alta como administrador.
+    const profile = { id, name: user.name, surname: user.surname, email: emailLower, phone: user.phone, role: rolDe(emailLower), token };
 
     return { statusCode: 201, headers: CORS, body: JSON.stringify({ user: profile }) };
   }
@@ -124,13 +187,30 @@ exports.handler = async function (event) {
       return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Email y contraseña son obligatorios.' }) };
 
     const emailLower = email.toLowerCase().trim();
-    const user       = await readUser(emailLower);
 
-    if (!user || !verifyPassword(password, user.passwordHash))
+    const espera = await esperaPendiente(emailLower);
+    if (espera > 0) {
+      return {
+        statusCode: 429,
+        headers: { ...CORS, 'Retry-After': String(espera) },
+        body: JSON.stringify({
+          error: 'Demasiados intentos fallidos. Prueba otra vez dentro de ' +
+            Math.ceil(espera / 60) + ' minutos.',
+        }),
+      };
+    }
+
+    const user = await readUser(emailLower);
+
+    if (!user || !verifyPassword(password, user.passwordHash)) {
+      await apuntaFallo(emailLower);
       return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'Email o contraseña incorrectos.' }) };
+    }
+
+    await olvidaIntentos(emailLower);
 
     const token   = signJWT({ sub: user.id, email: emailLower, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30 });
-    const profile = { id: user.id, name: user.name, surname: user.surname, email: emailLower, phone: user.phone, token };
+    const profile = { id: user.id, name: user.name, surname: user.surname, email: emailLower, phone: user.phone, role: rolDe(emailLower), token };
 
     return { statusCode: 200, headers: CORS, body: JSON.stringify({ user: profile }) };
   }
@@ -149,7 +229,7 @@ exports.handler = async function (event) {
     if (!user)
       return { statusCode: 404, headers: CORS, body: JSON.stringify({ error: 'Usuario no encontrado.' }) };
 
-    const profile = { id: user.id, name: user.name, surname: user.surname, email: user.email, phone: user.phone };
+    const profile = { id: user.id, name: user.name, surname: user.surname, email: user.email, phone: user.phone, role: rolDe(user.email) };
     return { statusCode: 200, headers: CORS, body: JSON.stringify({ user: profile }) };
   }
 

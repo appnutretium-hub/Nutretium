@@ -1,0 +1,152 @@
+﻿codigo;nombre;categoria;precio;stock;activo;destacado;etiqueta;marca;foto
+ABB-1000;Açaí Berry Brutal 1000 ml;Bowls;18,50;siempre;SI;NO;;;
+ABB-500;Açaí Berry Brutal 500 ml;Bowls;10,50;siempre;SI;NO;;;
+ABB-750;Açaí Berry Brutal 750 ml;Bowls;13,50;siempre;SI;NO;;;
+BG-1000;Bahía Gold 1000 ml;Bowls;18,50;siempre;SI;NO;;;
+BG-500;Bahía Gold 500 ml;Bowls;10,50;siempre;SI;NO;;;
+BG-750;Bahía Gold 750 ml;Bowls;13,50;siempre;SI;NO;;;
+BCB-1000;Black Cacao Berry 1000 ml;Bowls;17,90;siempre;SI;NO;;;
+BCB-500;Black Cacao Berry 500 ml;Bowls;11,98;siempre;SI;NO;;;
+BCB-750;Black Cacao Berry 750 ml;Bowls;12,90;siempre;SI;NO;;;
+CP-1000;Choco Peanut 1000 ml;Bowls;17,50;siempre;SI;NO;;;
+CP-500;Choco Peanut 500 ml;Bowls;9,50;siempre;SI;NO;;;
+CP-750;Choco Peanut 750 ml;Bowls;12,50;siempre;SI;NO;;;
+DP-1000;Dubai Pistachio 1000 ml;Bowls;19,95;siempre;SI;NO;;;
+DP-500;Dubai Pistachio 500 ml;Bowls;11,89;siempre;SI;NO;;;
+DP-750;Dubai Pistachio 750 ml;Bowls;15,50;siempre;SI;NO;;;
+MS-1000;Matcha Strawberry 1000 ml;Bowls;18,50;siempre;SI;NO;;;
+MS-500;Matcha Strawberry 500 ml;Bowls;10,50;siempre;SI;NO;;;
+MS-750;Matcha Strawberry 750 ml;Bowls;13,50;siempre;SI;NO;;;
+RX-1000;Royal X 1.000 ml;Bowls;22,91;siempre;SI;NO;;;
+RX-500;Royal X 500 ml;Bowls;13,90;siempre;SI;NO;;;
+RX-750;Royal X 750 ml;Bowls;16,90;siempre;SI;NO;;;
+BOWL-1000;Personaliza Bowl 1.000 ml;Bowls;17,90;siempre;SI;NO;;;
+BOWL-500;Personaliza Bowl 500 ml;Bowls;9,90;siempre;SI;NO;;;
+BOWL-750;Personaliza Bowl 750 ml;Bowls;17,90;siempre;SI;NO;;;
+DAILY-BERRY;Daily Berry 500 ml;Yogures;5,90;siempre;SI;NO;;;
+DAILY-CACAO;Daily Cacao Crunch 500 ml;Yogures;5,90;siempre;SI;NO;;;
+DAILY-TROPI;Daily Tropical 500 ml;Yogures;5,90;siempre;SI;NO;;;
+00538;Batido Chocolate;Smoothies y batidos;4,90;siempre;SI;NO;;;
+00537;Batido Mango;Smoothies y batidos;4,90;siempre;SI;NO;;;
+BATI-BC;Berry Cloud;Smoothies y batidos;7,50;siempre;SI;NO;;;
+00534;Berry Smoothie;Smoothies y batidos;4,90;siempre;SI;NO;;;
+BATI-CP;Cacao Peanut;Smoothies y batidos;5,90;siempre;SI;NO;;;
+CAPRI-BCP;Berry Cloud Pop;Waffles y caprichos;6,90;siempre;SI;NO;;;
+00536;Capricho Fresa;Waffles y caprichos;4,90;siempre;SI;NO;;;
+CAPRI-MSC;Mini Sphere Cup;Waffles y caprichos;7,20;siempre;SI;NO;;;
+CAPRI-PGP;Pistachio Gold Pop;Waffles y caprichos;8,49;siempre;SI;NO;;;
+CAFE-AMERICAN;Americano;Café y matcha;2,50;siempre;SI;NO;;;
+CAFE-CAPPUCCI;Cappuccino;Café y matcha;3,61;siempre;SI;NO;;;
+CAFE-CORTADO;Cortado;Café y matcha;2,70;siempre;SI;NO;;;
+CAFE-ESPRESO;Espresso;Café y matcha;2,20;siempre;SI;NO;;;
+CAFE-ICED;LAT Iced Latte;Café y matcha;3,90;siempre;SI;NO;;;
+CAFE-LATTE;Latte;Café y matcha;3,40;siempre;SI;NO;;;
+00532;Agua Aquadeus 1.5l;Bebidas;1,40;0;SI;NO;;;
+00500;Agua Aquadeus 1.5l;Bebidas;1,50;0;SI;NO;;;
+00001;Agua Pequeña 33ml;Bebidas;0,50;0;SI;NO;;;
+00531;Agua Solares Pequeña 0.50ml;Bebidas;0,80;0;SI;NO;;;
+00533;Agua Solares 1.5l;Bebidas;1,50;0;SI;NO;;;
+ICE-CC;Iced Cacao Coffee;Bebidas;5,51;siempre;SI;NO;;;
+ICE-MC;Iced Matcha Classic;Bebidas;4,90;siempre;SI;NO;;;
+ICE-PM;Iced Pistachio Matcha;Bebidas;5,90;siempre;SI;NO;;;
+ICE-MT;Mango Tropical;Bebidas;5,90;siempre;SI;NO;;;
+00347;Milkshake Banana 330ml Barebells;Bebidas;2,95;8;SI;NO;;Barebells;
+00348;Milkshake Chocolate 330ml Barebells;Bebidas;2,95;15;SI;NO;;Barebells;
+00350;Milkshake Cookies & Cream 330ml Barebells;Bebidas;2,95;8;SI;NO;;Barebells;
+00346;Milkshake Strawberry 330ml Barebells;Bebidas;2,95;8;SI;NO;;Barebells;
+00349;Milkshake Vainilla 330ml Barebells;Bebidas;3,57;7;SI;NO;;Barebells;
+00363;NABE Aloe Vera THE Original;Bebidas;2,50;20;SI;NO;;NABE;
+00353;Nocco BCAA Mango 355ml;Bebidas;2,50;22;SI;NO;;Nocco;
+00352;Nocco BCAA+ Manzana 355ml;Bebidas;2,50;48;SI;NO;;Nocco;
+00355;Nocco Electrolyte Blood Orange 355ml;Bebidas;2,50;24;SI;NO;;Nocco;
+00351;Nocco Electrolyte Lima/limon 355ml;Bebidas;2,50;24;SI;NO;;Nocco;
+00354;Nocco Focus Grand Sour Limon/manzana 330ml;Bebidas;2,50;24;SI;NO;;Nocco;
+00356;Nocco Focus Ramonade 330ml;Bebidas;2,50;48;SI;NO;;Nocco;
+00480;Oferta Pack Aqua Deus 6 Botellas 1.5l;Bebidas;2,50;0;SI;NO;;;
+00479;Oferta Pack Solares 6 Botellas 1.5l;Bebidas;2,95;0;SI;NO;;;
+00539;Pack Aquadeus 6 Botellas 1.5l;Bebidas;2,50;0;SI;NO;;;
+00358;Vitamin Well Boost Arándanos Y Frambuesa;Bebidas;2,50;12;SI;NO;;Vitamin Well;
+00357;Vitamin Well Refresh Limonada/kiwi;Bebidas;2,50;12;SI;NO;;Vitamin Well;
+00360;Vitamin Well Sport 002 Limón/lima;Bebidas;3,03;12;SI;NO;;Vitamin Well;
+00361;Vitamin Well Zero Limón;Bebidas;2,50;12;SI;NO;;Vitamin Well;
+00359;Vitamin Well Zero Peach Melocotón;Bebidas;2,50;12;SI;NO;;Vitamin Well;
+00083;Zumo Naranja 500ml;Bebidas;3,50;siempre;SI;NO;;;
+00155;Pastillero;Accesorios gym;3,80;0;SI;NO;;;
+00289;Proteina Isolada Moca 2kg Amro;Proteínas;89,90;1;SI;NO;;Amro;sources/productos/PROTEINAS/00289__PROTEINA_ISOLADA_MOCA_2KG_AMRO.jpg
+00284;Cafe + Leche;Café y matcha;1,80;siempre;SI;NO;;;
+00302;Crema De Proteina Bonbon Crisp Protella 200g;Alimentación proteica;7,99;1;SI;NO;;Protella;
+00301;Crema De Proteina Choco Hazenut Protella 200g;Alimentación proteica;7,99;2;SI;NO;;Protella;
+00300;Crema De Proteina Chocolate Blanco Protella 200g;Alimentación proteica;7,99;1;SI;NO;;Protella;
+00303;Crema De Proteina Cookie Dough Protella 200g;Alimentación proteica;7,99;2;SI;NO;;Protella;
+00341;Harina De Avena Chocolate 1000g Amro;Alimentación proteica;6,50;5;SI;NO;;Amro;sources/productos/ALIMENTACION_PROTEICA/00341__HARINA_DE_AVENA_CHOCOLATE_1000G_AMRO.jpg
+00340;Harina De Avena Galleta Maria 1000g Amro;Alimentación proteica;6,50;2;SI;NO;;Amro;sources/productos/ALIMENTACION_PROTEICA/00340__HARINA_DE_AVENA_GALLETA_MARIA_1000G_AMRO.jpg
+00367;Salsa Barbacoa 320ml Servivita;Alimentación proteica;3,90;8;SI;NO;;Servivita;
+00365;Salsa Cesar Zero 320ml Servivita;Alimentación proteica;3,90;6;SI;NO;;Servivita;
+00366;Salsa Ketchup 320ml Servivita;Alimentación proteica;3,90;8;SI;NO;;Servivita;
+00368;Salsa Mayonesa 320ml Servivita;Alimentación proteica;3,90;2;SI;NO;;Servivita;
+00364;Salsa Miel & Mostaza 320ml Servivita;Alimentación proteica;3,90;6;SI;NO;;Servivita;
+00095;Dip Extra Salsa;Waffles y caprichos;0,50;siempre;SI;NO;;;
+00494;Helado Cacao & Avellana 100ml Protzen;Helados;2,99;0;SI;NO;;Protzen;
+00488;Helado Cacao & Avellana 460ml Protzen;Helados;7,99;0;SI;NO;;Protzen;
+00496;Helado Chocolate Negro 100ml Protzen;Helados;2,99;0;SI;NO;;Protzen;
+00490;Helado Chocolate Negro 460ml Protzen;Helados;7,99;0;SI;NO;;Protzen;
+00493;Helado Merengada 100ml Protzen;Helados;2,99;0;SI;NO;;Protzen;
+00487;Helado Merengada 460ml Protzen;Helados;7,99;0;SI;NO;;Protzen;
+00491;Helado Moka Fuel 100ml Protzen;Helados;2,99;0;SI;NO;;Protzen;
+00485;Helado Moka Fuel 460ml Protzen;Helados;7,99;0;SI;NO;;Protzen;
+00486;Helado Pistacho 460ml Protzen;Helados;7,99;0;SI;NO;;Protzen;
+00492;Helado Pistacho100ml Protzen;Helados;2,99;0;SI;NO;;Protzen;
+00495;Helado Vainilla 100ml Protzen;Helados;2,99;0;SI;NO;;Protzen;
+00489;Helado Vainilla 460ml Protzen;Helados;7,99;0;SI;NO;;Protzen;
+00086;Bolw Grande;Bowls;5,50;siempre;SI;NO;;;
+00085;Bolw Mediano;Bowls;4,50;siempre;SI;NO;;;
+00084;Bolw Pequeño;Bowls;3,50;siempre;SI;NO;;;
+00320;Ashwagandha 60cps Protella;Vitaminas y salud;22,95;8;SI;NO;;Protella;
+00311;Barrita Proteina Fudge Brownie 16g Barebells;Barritas y snacks;2,75;12;SI;NO;;Barebells;
+00304;Barrita Proteina Lemon Cheesecake 16g Barebells;Barritas y snacks;2,75;12;SI;NO;;Barebells;
+00307;Barrita Proteina Peanut Butter 16g Barebells;Barritas y snacks;2,75;9;SI;NO;;Barebells;
+00306;Barrita Proteina Peanut Caramel 16g Barebells;Barritas y snacks;2,75;11;SI;NO;;Barebells;
+00305;Barrita Proteina Peanut Cloud 16g Barebells;Barritas y snacks;2,75;12;SI;NO;;Barebells;
+00309;Barrita Proteina Salty Peanut 16g Barebells 73;Barritas y snacks;2,75;12;SI;NO;;Barebells;
+00310;Barrita Proteina Strawberry Sundae 16g Barebells;Barritas y snacks;2,75;12;SI;NO;;Barebells;
+00308;Barrita Proteina White Chocolate 16g Barebells;Barritas y snacks;3,33;12;SI;NO;;Barebells;
+00292;BCAA Glutamina Limon 500g Amro;Proteínas;39,90;4;SI;NO;;Amro;sources/productos/PROTEINAS/00292__BCAA_GLUTAMINA_LIMON_500G_AMRO.jpg
+00291;BCAA Glutamina Watermelon 500g Amro;Proteínas;39,90;2;SI;NO;;Amro;sources/productos/PROTEINAS/00291__BCAA_GLUTAMINA_WATERMELON_500G_AMRO.jpg
+00331;Colageno Mango 180g Protella;Colágeno y bienestar;19,95;2;SI;NO;;Protella;
+00333;Colageno Neutro 200g Protella;Colágeno y bienestar;19,95;2;SI;NO;;Protella;
+00332;Colageno Sandia 180g Protella;Colágeno y bienestar;19,95;3;SI;NO;;Protella;
+00334;Creatina Monohydrate Lollipop 300g Protella;Creatinas;16,90;2;SI;NO;;Protella;
+00335;Creatina Monohydrate Melon Gum,300g Protella;Creatinas;16,90;2;SI;NO;;Protella;
+00295;Creatina Micronized Natural 500g Amro;Creatinas;34,90;2;SI;NO;;Amro;sources/productos/CREATINAS/00295__CREATINA_MICRONIZED_NATURAL_500G_AMRO.jpg
+00345;Creatina Monohydrate 300g Protella;Creatinas;16,90;1;SI;NO;;Protella;
+00337;Crema De Arroz Cookie Dough 500g Protella;Alimentación proteica;12,50;2;SI;NO;;Protella;
+00336;Crema De Arroz Speculoos 500g Protella;Alimentación proteica;12,50;2;SI;NO;;Protella;
+00339;Crema De Arroz Chocolatte 500g Protella;Alimentación proteica;12,50;3;SI;NO;;Protella;
+00338;Crema De Arroz Peanut 500g Protella;Alimentación proteica;12,50;3;SI;NO;;Protella;
+00321;Daily One 60caps Amro;Vitaminas y salud;18,90;5;SI;NO;;Amro;sources/productos/VITAMINAS_Y_SALUD/00321__DAILY_ONE_60CAPS_AMRO.jpg
+00323;Diurex XT 120 caps Amro;Vitaminas y salud;34,90;4;SI;NO;;Amro;sources/productos/VITAMINAS_Y_SALUD/00323__DIUREX_XT_120_CAPS_AMRO.jpg
+00294;F-22 Raptor Pre- Entreno Piña/mango 400g Amro;Pre-entrenos;39,90;11;SI;NO;;Amro;sources/productos/PRE_ENTRENOS/00294__F_22_RAPTOR_PRE_ENTRENO_PINA_MANGO_400G_AMRO.jpg
+00343;Harina De Avena Black Cookies 1000g Amro;Alimentación proteica;6,50;5;SI;NO;;Amro;sources/productos/ALIMENTACION_PROTEICA/00343__HARINA_DE_AVENA_BLACK_COOKIES_1000G_AMRO.jpg
+00342;Harina De Avena Brownie 1000g Amro;Alimentación proteica;6,50;5;SI;NO;;Amro;sources/productos/ALIMENTACION_PROTEICA/00342__HARINA_DE_AVENA_BROWNIE_1000G_AMRO.jpg
+00344;Harina De Avena Chocolate Blanco 1000g Amro;Alimentación proteica;6,50;5;SI;NO;;Amro;sources/productos/ALIMENTACION_PROTEICA/00344__HARINA_DE_AVENA_CHOCOLATE_BLANCO_1000G_AMRO.jpg
+00293;M.A.P Kojak 500g Amro;Proteínas;54,90;7;SI;NO;;Amro;sources/productos/PROTEINAS/00293__M_A_P_KOJAK_500G_AMRO.jpg
+00322;Magnesium + Vitamina B6 100 caps Amro;Vitaminas y salud;17,90;4;SI;NO;;Amro;sources/productos/VITAMINAS_Y_SALUD/00322__MAGNESIUM_VITAMINA_B6_100_CAPS_AMRO.jpg
+00298;Mermelada Melocoton Protella 170g;Alimentación proteica;3,50;5;SI;NO;;Protella;
+00299;Mermelada Strawberry Protella 170g;Alimentación proteica;3,50;5;SI;NO;;Protella;
+00362;NABE Aloe Vera Sunny Mango;Vitaminas y salud;2,50;20;SI;NO;;NABE;
+00290;Proteina Isolate Strawberry 1kg Amro;Proteínas;49,50;0;SI;NO;;Amro;sources/productos/PROTEINAS/00290__PROTEINA_ISOLATE_STRAWBERRY_1KG_AMRO.jpg
+00297;Proteina Whey Chocolate 1kg Amro;Proteínas;39,90;1;SI;NO;;Amro;sources/productos/PROTEINAS/00297__PROTEINA_WHEY_CHOCOLATE_1KG_AMRO.jpg
+00318;Proteina Whey 100% Chocolate 2000g Amro;Proteínas;74,90;2;SI;NO;;Amro;sources/productos/PROTEINAS/00318__PROTEINA_WHEY_100_CHOCOLATE_2000G_AMRO.jpg
+00316;Proteina Whey 100% Strawberry 2000g Amro;Proteínas;74,90;2;SI;NO;;Amro;sources/productos/PROTEINAS/00316__PROTEINA_WHEY_100_STRAWBERRY_2000G_AMRO.jpg
+00317;Proteina Whey 100% Vainilla 2000g Amro;Proteínas;74,90;2;SI;NO;;Amro;sources/productos/PROTEINAS/00317__PROTEINA_WHEY_100_VAINILLA_2000G_AMRO.jpg
+00296;Proteina Whey Vainilla 1kg Amro;Proteínas;39,90;1;SI;NO;;Amro;sources/productos/PROTEINAS/00296__PROTEINA_WHEY_VAINILLA_1KG_AMRO.jpg
+00324;Volcano Thermogenic 90 caps Amro;Vitaminas y salud;37,90;4;SI;NO;;Amro;sources/productos/VITAMINAS_Y_SALUD/00324__VOLCANO_THERMOGENIC_90_CAPS_AMRO.jpg
+AMRO-CREAPURE-500;Creatina Creapure Neutro 500g Amro;Creatinas;44,90;10;SI;NO;;Amro;sources/productos/CREATINAS/AMRO-CREAPURE-500__CREATINA_CREAPURE_NEUTRO_500G_AMRO.jpg
+AMRO-LCARN2000-90;L-Carnitine 2000 Carnipure 90 caps Amro;Vitaminas y salud;24,90;10;SI;NO;;Amro;sources/productos/VITAMINAS_Y_SALUD/AMRO-LCARN2000-90__L_CARNITINE_2000_CARNIPURE_90_CAPS_AMRO.jpg
+AMRO-LCARN3000-500;L-Carnitine 3000 Limon 500ml Amro;Vitaminas y salud;29,90;10;SI;NO;;Amro;sources/productos/VITAMINAS_Y_SALUD/AMRO-LCARN3000-500__L_CARNITINE_3000_LIMON_500ML_AMRO.jpg
+AMRO-LCARN3000-20;L-Carnitine 3000 Limon 20 x 25ml Amro;Vitaminas y salud;34,90;10;SI;NO;;Amro;sources/productos/VITAMINAS_Y_SALUD/AMRO-LCARN3000-20__L_CARNITINE_3000_LIMON_20_X_25ML_AMRO.jpg
+AMRO-ANABOL-90;Anabol Pro 90 caps Amro;Vitaminas y salud;39,90;10;SI;NO;;Amro;sources/productos/VITAMINAS_Y_SALUD/AMRO-ANABOL-90__ANABOL_PRO_90_CAPS_AMRO.jpg
+AMRO-OMEGA3-90;Super Omega 3 35/25 90 perlas Amro;Vitaminas y salud;28,90;10;SI;NO;;Amro;sources/productos/VITAMINAS_Y_SALUD/AMRO-OMEGA3-90__SUPER_OMEGA_3_35_25_90_PERLAS_AMRO.jpg
+AMRO-VITC1000-100;Vitamin C 1000 100 caps Amro;Vitaminas y salud;24,90;10;SI;NO;;Amro;sources/productos/VITAMINAS_Y_SALUD/AMRO-VITC1000-100__VITAMIN_C_1000_100_CAPS_AMRO.jpg
+AMRO-NAC-120;NAC 120 caps Amro;Vitaminas y salud;23,90;10;SI;NO;;Amro;sources/productos/VITAMINAS_Y_SALUD/AMRO-NAC-120__NAC_120_CAPS_AMRO.jpg
+AMRO-COLAGENO-400;Colageno Limon 400g Amro;Colágeno y bienestar;29,90;10;SI;NO;;Amro;sources/productos/COLAGENO_Y_BIENESTAR/AMRO-COLAGENO-400__COLAGENO_LIMON_400G_AMRO.jpg

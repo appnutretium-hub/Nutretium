@@ -10,7 +10,7 @@
 //   · stock                                         → npm run stock
 //   · incorporar fotos del buzón                    → npm run fotos
 //
-// Actualizado el 30/8/2026: 153 productos, 153 publicados (130 disponibles, 23 agotados).
+// Actualizado el 30/8/2026: 153 productos, 153 publicados (131 disponibles, 22 agotados).
 //
 // Reglas aplicadas (ver AUDITORIA_CATALOGO.md):
 //   1. Fuente única de precios: columna P.Venta del listado oficial, sin recalcular.
@@ -219,7 +219,7 @@ NUTRETIUM_RAIZ.NUTRETIUM_PRODUCTS = [
  {"id":178,"code":"AMRO-NAC-120","name":"NAC 120 caps Amro","category":"Vitaminas y salud","price":23.9,"stock":10,"badge":null,"badgeColor":"","featured":false,"image":"sources/productos/VITAMINAS_Y_SALUD/AMRO-NAC-120__NAC_120_CAPS_AMRO.jpg","emoji":"🌿","customizable":false,"brand":"Amro","description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"Excel PVPR distribuidor AMRO","pdfDescription":null},
  {"id":179,"code":"AMRO-COLAGENO-400","name":"Colageno Limon 400g Amro","category":"Colágeno y bienestar","price":29.9,"stock":10,"badge":null,"badgeColor":"","featured":false,"image":"sources/productos/COLAGENO_Y_BIENESTAR/AMRO-COLAGENO-400__COLAGENO_LIMON_400G_AMRO.jpg","emoji":"✨","customizable":false,"brand":"Amro","description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"Excel PVPR distribuidor AMRO","pdfDescription":null},
  {"id":180,"code":"00100","name":"Tarta de Queso","category":"Alimentación proteica","price":5.5,"stock":null,"badge":null,"badgeColor":"","featured":false,"image":"sources/productos/ALIMENTACION_PROTEICA/00100__TARTA_DE_QUESO.webp","emoji":"🥣","customizable":false,"brand":null,"description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"Alta manual (hoja/panel)","pdfDescription":null},
- {"id":181,"code":"000541","name":"creatina monohidratada 300g","category":"Creatinas","price":32.5,"stock":0,"badge":null,"badgeColor":"","featured":false,"image":"sources/productos/CREATINAS/000541__CREATINA_MONOHIDRATADA_300G.webp","emoji":"💪","customizable":false,"brand":null,"description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"Alta manual (hoja/panel)","pdfDescription":null}
+ {"id":181,"code":"000541","name":"creatina monohidratada 300g","category":"Creatinas","price":32.5,"stock":null,"badge":null,"badgeColor":"","featured":false,"image":null,"emoji":"💪","customizable":false,"brand":null,"description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"Alta manual (hoja/panel)","pdfDescription":null}
 ];
 
 })(typeof module !== 'undefined' && module.exports ? module.exports : window);

@@ -10,7 +10,7 @@
 //   · stock                                         → npm run stock
 //   · incorporar fotos del buzón                    → npm run fotos
 //
-// Actualizado el 30/8/2026: 151 productos, 151 publicados (129 disponibles, 22 agotados).
+// Actualizado el 30/8/2026: 152 productos, 152 publicados (130 disponibles, 22 agotados).
 //
 // Reglas aplicadas (ver AUDITORIA_CATALOGO.md):
 //   1. Fuente única de precios: columna P.Venta del listado oficial, sin recalcular.
@@ -217,7 +217,8 @@ NUTRETIUM_RAIZ.NUTRETIUM_PRODUCTS = [
  {"id":176,"code":"AMRO-OMEGA3-90","name":"Super Omega 3 35/25 90 perlas Amro","category":"Vitaminas y salud","price":28.9,"stock":10,"badge":null,"badgeColor":"","featured":false,"image":"sources/productos/VITAMINAS_Y_SALUD/AMRO-OMEGA3-90__SUPER_OMEGA_3_35_25_90_PERLAS_AMRO.jpg","emoji":"🌿","customizable":false,"brand":"Amro","description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"Excel PVPR distribuidor AMRO","pdfDescription":null},
  {"id":177,"code":"AMRO-VITC1000-100","name":"Vitamin C 1000 100 caps Amro","category":"Vitaminas y salud","price":24.9,"stock":10,"badge":null,"badgeColor":"","featured":false,"image":"sources/productos/VITAMINAS_Y_SALUD/AMRO-VITC1000-100__VITAMIN_C_1000_100_CAPS_AMRO.jpg","emoji":"🌿","customizable":false,"brand":"Amro","description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"Excel PVPR distribuidor AMRO","pdfDescription":null},
  {"id":178,"code":"AMRO-NAC-120","name":"NAC 120 caps Amro","category":"Vitaminas y salud","price":23.9,"stock":10,"badge":null,"badgeColor":"","featured":false,"image":"sources/productos/VITAMINAS_Y_SALUD/AMRO-NAC-120__NAC_120_CAPS_AMRO.jpg","emoji":"🌿","customizable":false,"brand":"Amro","description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"Excel PVPR distribuidor AMRO","pdfDescription":null},
- {"id":179,"code":"AMRO-COLAGENO-400","name":"Colageno Limon 400g Amro","category":"Colágeno y bienestar","price":29.9,"stock":10,"badge":null,"badgeColor":"","featured":false,"image":"sources/productos/COLAGENO_Y_BIENESTAR/AMRO-COLAGENO-400__COLAGENO_LIMON_400G_AMRO.jpg","emoji":"✨","customizable":false,"brand":"Amro","description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"Excel PVPR distribuidor AMRO","pdfDescription":null}
+ {"id":179,"code":"AMRO-COLAGENO-400","name":"Colageno Limon 400g Amro","category":"Colágeno y bienestar","price":29.9,"stock":10,"badge":null,"badgeColor":"","featured":false,"image":"sources/productos/COLAGENO_Y_BIENESTAR/AMRO-COLAGENO-400__COLAGENO_LIMON_400G_AMRO.jpg","emoji":"✨","customizable":false,"brand":"Amro","description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"Excel PVPR distribuidor AMRO","pdfDescription":null},
+ {"id":180,"code":"00100","name":"Tarta de Queso","category":"Alimentación proteica","price":5.5,"stock":null,"badge":null,"badgeColor":"","featured":false,"image":"sources/productos/ALIMENTACION_PROTEICA/00100__TARTA_DE_QUESO.webp","emoji":"🥣","customizable":false,"brand":null,"description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"Alta manual (hoja/panel)","pdfDescription":null}
 ];
 
 })(typeof module !== 'undefined' && module.exports ? module.exports : window);

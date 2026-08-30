@@ -21,6 +21,7 @@
       'AUDITORIA_CATALOGO.md' \
       'DESPLIEGUE.md' \
       'PRUEBAS_REDSYS.md' \
+      'TODO.md' \
       'CLAUDE.md' \
       'GUIA_ARQUITECTURA_NETLIFY.md' \
       'PROMPT_SISTEMA_CLAUDE.md.md' \
@@ -39,6 +40,9 @@
       'sources/PROTEINA ISO WHEY.png' \
       'sources/productos/LEEME.md' \
       'sources/productos/NOMBRES_ESPERADOS.csv' \
+      'sources/productos/FOTOS_PENDIENTES.md' \
+      'sources/_nuevas' \
+      'sources/_stock' \
       'sources/amix_fotos_categoria_nombre_pvp_FINAL_WEB' \
       'src' \
       'tailwind.config.js'

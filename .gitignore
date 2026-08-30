@@ -32,3 +32,13 @@ Nuevo Documento de texto.txt
 sources/01_PNG_MAX_CALIDAD_CON_PVP/
 DESPLIEGUE.md
 PRUEBAS_REDSYS.md
+
+# Material de trabajo de la búsqueda de fotos (informes y hojas de contactos).
+# netlify.toml ya borra 'scripts' de la copia desplegada; esto es para no
+# llenar el repositorio de archivos temporales.
+scripts/_*
+
+# Buzón de fotos nuevas: las fotos sin tratar no van al repositorio, solo su
+# instrucción. Las tratadas sí, en sources/productos/.
+sources/_nuevas/*
+!sources/_nuevas/LEEME.md

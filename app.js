@@ -50,18 +50,25 @@ function updateAuthUI() {
   const profileName  = document.getElementById('profileName');
   const mobileAuth   = document.getElementById('mobileAuthButtons');
 
+  // Ojo con authButtons: en el HTML es "hidden lg:flex", y en el styles.css
+  // compilado el bloque @media de lg va DESPUÉS de .hidden. A partir de 1024 px
+  // gana .lg:flex, así que añadir 'hidden' no oculta nada en escritorio: hay
+  // que quitar también 'lg:flex'. Por eso aquí no vale un add/remove de 'hidden'.
+  // 'hidden' se queda SIEMPRE puesto: por debajo de 1024 px estos botones no
+  // salen nunca, ahí manda el menú móvil (mobileAuthButtons). Lo que decide si
+  // se ven en escritorio es 'lg:flex'.
+  authButtons.classList.add('hidden');
+  authButtons.classList.toggle('lg:flex', !currentUser);
+  profileMenu.classList.toggle('hidden', !currentUser);
+
   if (currentUser) {
-    authButtons.classList.add('hidden');
-    profileMenu.classList.remove('hidden');
     if (profileName) profileName.textContent = currentUser.name || 'Mi cuenta';
     if (mobileAuth) mobileAuth.innerHTML = `
       <p class="px-4 py-2 text-xs text-brand-muted">Hola, <strong class="text-brand-gold">${currentUser.name}</strong></p>
       <button onclick="toggleMobileMenu(); logout()" class="block w-full text-left px-4 py-3 rounded-lg text-red-400 font-semibold transition-colors">Cerrar sesión</button>
     `;
-  } else {
-    authButtons.classList.remove('hidden');
-    profileMenu.classList.add('hidden');
-    if (mobileAuth) mobileAuth.innerHTML = `
+  } else if (mobileAuth) {
+    mobileAuth.innerHTML = `
       <button onclick="toggleMobileMenu(); openModal('loginModal')" class="block w-full text-left px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">Iniciar sesión</button>
       <button onclick="toggleMobileMenu(); openModal('registerModal')" class="block w-full text-left px-4 py-3 rounded-lg text-brand-gold font-bold transition-colors">Registrarse</button>
     `;

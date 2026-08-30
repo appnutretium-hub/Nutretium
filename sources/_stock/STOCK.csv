@@ -1,0 +1,180 @@
+﻿codigo;nombre;categoria;stock
+ABB-1000;Açaí Berry Brutal 1000 ml;Bowls;siempre
+ABB-500;Açaí Berry Brutal 500 ml;Bowls;siempre
+ABB-750;Açaí Berry Brutal 750 ml;Bowls;siempre
+BG-1000;Bahía Gold 1000 ml;Bowls;siempre
+BG-500;Bahía Gold 500 ml;Bowls;siempre
+BG-750;Bahía Gold 750 ml;Bowls;siempre
+BCB-1000;Black Cacao Berry 1000 ml;Bowls;siempre
+BCB-500;Black Cacao Berry 500 ml;Bowls;siempre
+BCB-750;Black Cacao Berry 750 ml;Bowls;siempre
+CP-1000;Choco Peanut 1000 ml;Bowls;siempre
+CP-500;Choco Peanut 500 ml;Bowls;siempre
+CP-750;Choco Peanut 750 ml;Bowls;siempre
+DP-1000;Dubai Pistachio 1000 ml;Bowls;siempre
+DP-500;Dubai Pistachio 500 ml;Bowls;siempre
+DP-750;Dubai Pistachio 750 ml;Bowls;siempre
+MS-1000;Matcha Strawberry 1000 ml;Bowls;siempre
+MS-500;Matcha Strawberry 500 ml;Bowls;siempre
+MS-750;Matcha Strawberry 750 ml;Bowls;siempre
+RX-1000;Royal X 1.000 ml;Bowls;siempre
+RX-500;Royal X 500 ml;Bowls;siempre
+RX-750;Royal X 750 ml;Bowls;siempre
+BOWL-1000;Personaliza Bowl 1.000 ml;Bowls;siempre
+BOWL-500;Personaliza Bowl 500 ml;Bowls;siempre
+BOWL-750;Personaliza Bowl 750 ml;Bowls;siempre
+DAILY-BERRY;Daily Berry 500 ml;Yogures;siempre
+DAILY-CACAO;Daily Cacao Crunch 500 ml;Yogures;siempre
+DAILY-TROPI;Daily Tropical 500 ml;Yogures;siempre
+00538;Batido Chocolate;Smoothies y batidos;siempre
+00537;Batido Mango;Smoothies y batidos;siempre
+BATI-BC;Berry Cloud;Smoothies y batidos;siempre
+00534;Berry Smoothie;Smoothies y batidos;siempre
+BATI-CP;Cacao Peanut;Smoothies y batidos;siempre
+CAPRI-BCP;Berry Cloud Pop;Waffles y caprichos;siempre
+00536;Capricho Fresa;Waffles y caprichos;siempre
+CAPRI-MSC;Mini Sphere Cup;Waffles y caprichos;siempre
+CAPRI-PGP;Pistachio Gold Pop;Waffles y caprichos;siempre
+CAFE-AMERICAN;Americano;Café y matcha;siempre
+CAFE-CAPPUCCI;Cappuccino;Café y matcha;siempre
+CAFE-CORTADO;Cortado;Café y matcha;siempre
+CAFE-ESPRESO;Espresso;Café y matcha;siempre
+CAFE-ICED;LAT Iced Latte;Café y matcha;siempre
+CAFE-LATTE;Latte;Café y matcha;siempre
+00532;Agua Aquadeus 1.5l;Bebidas;0
+00500;Agua Aquadeus 1.5l;Bebidas;0
+00001;Agua Pequeña 33ml;Bebidas;0
+00531;Agua Solares Pequeña 0.50ml;Bebidas;0
+00533;Agua Solares 1.5l;Bebidas;0
+00521;Aquarius Limon 0.33ml;Bebidas;11
+00520;Aquarius Naranja 0.33ml;Bebidas;11
+00503;Batido Cacaolat Chocolate;Bebidas;14
+00501;Bio Futras Tropical;Bebidas;18
+00519;Chupa Chups Bubble Gum 0.33ml;Bebidas;12
+00518;Chupa Chups Cola 0.33ml;Bebidas;7
+00514;Coca-cola Normal;Bebidas;30
+00497;Coca-cola Normal 0.33ml;Bebidas;21
+00515;Coca-cola Zero;Bebidas;39
+00529;Dr Pepper Normal;Bebidas;23
+00528;Dr Pepper Zero Sugar;Bebidas;2
+00516;Fanta Naranja 0.33ml;Bebidas;12
+00517;Fanta Piña 0.33ml;Bebidas;11
+ICE-CC;Iced Cacao Coffee;Bebidas;siempre
+ICE-MC;Iced Matcha Classic;Bebidas;siempre
+ICE-PM;Iced Pistachio Matcha;Bebidas;siempre
+00526;Kas Limon;Bebidas;9
+00525;Kas Naranja;Bebidas;8
+00510;Loco Pinta Lenguas Frambuesa;Bebidas;11
+ICE-MT;Mango Tropical;Bebidas;siempre
+00347;Milkshake Banana 330ml Barebells;Bebidas;8
+00348;Milkshake Chocolate 330ml Barebells;Bebidas;15
+00350;Milkshake Cookies & Cream 330ml Barebells;Bebidas;8
+00346;Milkshake Strawberry 330ml Barebells;Bebidas;8
+00349;Milkshake Vainilla 330ml Barebells;Bebidas;7
+00506;Monster Energy 500ml;Bebidas;9
+00505;Monster Energy Absolutely Zero 500ml;Bebidas;6
+00508;Monster Juiced Monarch 500ml;Bebidas;12
+00513;Monster Lando Norris Zero 500ml;Bebidas;18
+00512;Monster Recover Rehab 500ml;Bebidas;8
+00511;Monster Ultra 500ml;Bebidas;12
+00509;Monster Ultra Paradise 500ml;Bebidas;11
+00363;NABE Aloe Vera THE Original;Bebidas;20
+00522;Nestea Limon;Bebidas;19
+00353;Nocco BCAA Mango 355ml;Bebidas;22
+00352;Nocco BCAA+ Manzana 355ml;Bebidas;48
+00355;Nocco Electrolyte Blood Orange 355ml;Bebidas;24
+00351;Nocco Electrolyte Lima/limon 355ml;Bebidas;24
+00354;Nocco Focus Grand Sour Limon/manzana 330ml;Bebidas;24
+00356;Nocco Focus Ramonade 330ml;Bebidas;48
+00480;Oferta Pack Aqua Deus 6 Botellas 1.5l;Bebidas;0
+00479;Oferta Pack Solares 6 Botellas 1.5l;Bebidas;0
+00539;Pack Aquadeus 6 Botellas 1.5l;Bebidas;0
+00530;Red Bull;Bebidas;21
+00523;Seven Up;Bebidas;33
+00524;Trina Manzana;Bebidas;28
+00358;Vitamin Well Boost Arándanos Y Frambuesa;Bebidas;12
+00357;Vitamin Well Refresh Limonada/kiwi;Bebidas;12
+00360;Vitamin Well Sport 002 Limón/lima;Bebidas;12
+00361;Vitamin Well Zero Limón;Bebidas;12
+00359;Vitamin Well Zero Peach Melocotón;Bebidas;12
+00083;Zumo Naranja 500ml;Bebidas;siempre
+00502;Zumo Simon Mandarina;Bebidas;28
+00155;Pastillero;Accesorios gym;0
+00289;Proteina Isolada Moca 2kg Amro;Proteínas;1
+00284;Cafe + Leche;Café y matcha;siempre
+00302;Crema De Proteina Bonbon Crisp Protella 200g;Alimentación proteica;1
+00301;Crema De Proteina Choco Hazenut Protella 200g;Alimentación proteica;2
+00300;Crema De Proteina Chocolate Blanco Protella 200g;Alimentación proteica;1
+00303;Crema De Proteina Cookie Dough Protella 200g;Alimentación proteica;2
+00341;Harina De Avena Chocolate 1000g Amro;Alimentación proteica;5
+00340;Harina De Avena Galleta Maria 1000g Amro;Alimentación proteica;2
+00367;Salsa Barbacoa 320ml Servivita;Alimentación proteica;8
+00365;Salsa Cesar Zero 320ml Servivita;Alimentación proteica;6
+00366;Salsa Ketchup 320ml Servivita;Alimentación proteica;8
+00368;Salsa Mayonesa 320ml Servivita;Alimentación proteica;2
+00364;Salsa Miel & Mostaza 320ml Servivita;Alimentación proteica;6
+00095;Dip Extra Salsa;Waffles y caprichos;siempre
+00494;Helado Cacao & Avellana 100ml Protzen;Helados;0
+00488;Helado Cacao & Avellana 460ml Protzen;Helados;0
+00496;Helado Chocolate Negro 100ml Protzen;Helados;0
+00490;Helado Chocolate Negro 460ml Protzen;Helados;0
+00493;Helado Merengada 100ml Protzen;Helados;0
+00487;Helado Merengada 460ml Protzen;Helados;0
+00491;Helado Moka Fuel 100ml Protzen;Helados;0
+00485;Helado Moka Fuel 460ml Protzen;Helados;0
+00486;Helado Pistacho 460ml Protzen;Helados;0
+00492;Helado Pistacho100ml Protzen;Helados;0
+00495;Helado Vainilla 100ml Protzen;Helados;0
+00489;Helado Vainilla 460ml Protzen;Helados;0
+00086;Bolw Grande;Bowls;siempre
+00085;Bolw Mediano;Bowls;siempre
+00084;Bolw Pequeño;Bowls;siempre
+00320;Ashwagandha 60cps Protella;Vitaminas y salud;8
+00311;Barrita Proteina Fudge Brownie 16g Barebells;Barritas y snacks;12
+00304;Barrita Proteina Lemon Cheesecake 16g Barebells;Barritas y snacks;12
+00307;Barrita Proteina Peanut Butter 16g Barebells;Barritas y snacks;9
+00306;Barrita Proteina Peanut Caramel 16g Barebells;Barritas y snacks;11
+00305;Barrita Proteina Peanut Cloud 16g Barebells;Barritas y snacks;12
+00309;Barrita Proteina Salty Peanut 16g Barebells 73;Barritas y snacks;12
+00310;Barrita Proteina Strawberry Sundae 16g Barebells;Barritas y snacks;12
+00308;Barrita Proteina White Chocolate 16g Barebells;Barritas y snacks;12
+00292;BCAA Glutamina Limon 500g Amro;Proteínas;4
+00291;BCAA Glutamina Watermelon 500g Amro;Proteínas;2
+00331;Colageno Mango 180g Protella;Colágeno y bienestar;2
+00333;Colageno Neutro 200g Protella;Colágeno y bienestar;2
+00332;Colageno Sandia 180g Protella;Colágeno y bienestar;3
+00334;Creatina Monohydrate Lollipop 300g Protella;Creatinas;2
+00335;Creatina Monohydrate Melon Gum,300g Protella;Creatinas;2
+00295;Creatina Micronized Natural 500g Amro;Creatinas;2
+00345;Creatina Monohydrate 300g Protella;Creatinas;1
+00337;Crema De Arroz Cookie Dough 500g Protella;Alimentación proteica;2
+00336;Crema De Arroz Speculoos 500g Protella;Alimentación proteica;2
+00339;Crema De Arroz Chocolatte 500g Protella;Alimentación proteica;3
+00338;Crema De Arroz Peanut 500g Protella;Alimentación proteica;3
+00321;Daily One 60caps Amro;Vitaminas y salud;5
+00323;Diurex XT 120 caps Amro;Vitaminas y salud;4
+00294;F-22 Raptor Pre- Entreno Piña/mango 400g Amro;Pre-entrenos;11
+00343;Harina De Avena Black Cookies 1000g Amro;Alimentación proteica;5
+00342;Harina De Avena Brownie 1000g Amro;Alimentación proteica;5
+00344;Harina De Avena Chocolate Blanco 1000g Amro;Alimentación proteica;5
+00293;M.A.P Kojak 500g Amro;Proteínas;7
+00322;Magnesium + Vitamina B6 100 caps Amro;Vitaminas y salud;4
+00298;Mermelada Melocoton Protella 170g;Alimentación proteica;5
+00299;Mermelada Strawberry Protella 170g;Alimentación proteica;5
+00362;NABE Aloe Vera Sunny Mango;Vitaminas y salud;20
+00290;Proteina Isolate Strawberry 1kg Amro;Proteínas;0
+00297;Proteina Whey Chocolate 1kg Amro;Proteínas;1
+00318;Proteina Whey 100% Chocolate 2000g Amro;Proteínas;2
+00316;Proteina Whey 100% Strawberry 2000g Amro;Proteínas;2
+00317;Proteina Whey 100% Vainilla 2000g Amro;Proteínas;2
+00296;Proteina Whey Vainilla 1kg Amro;Proteínas;1
+00324;Volcano Thermogenic 90 caps Amro;Vitaminas y salud;4
+AMRO-CREAPURE-500;Creatina Creapure Neutro 500g Amro;Creatinas;10
+AMRO-LCARN2000-90;L-Carnitine 2000 Carnipure 90 caps Amro;Vitaminas y salud;10
+AMRO-LCARN3000-500;L-Carnitine 3000 Limon 500ml Amro;Vitaminas y salud;10
+AMRO-LCARN3000-20;L-Carnitine 3000 Limon 20 x 25ml Amro;Vitaminas y salud;10
+AMRO-ANABOL-90;Anabol Pro 90 caps Amro;Vitaminas y salud;10
+AMRO-OMEGA3-90;Super Omega 3 35/25 90 perlas Amro;Vitaminas y salud;10
+AMRO-VITC1000-100;Vitamin C 1000 100 caps Amro;Vitaminas y salud;10
+AMRO-NAC-120;NAC 120 caps Amro;Vitaminas y salud;10
+AMRO-COLAGENO-400;Colageno Limon 400g Amro;Colágeno y bienestar;10

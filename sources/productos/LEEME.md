@@ -1,5 +1,13 @@
 # Fotos de producto — convención de nombres
 
+> **Ya no hace falta hacer nada de esto a mano.** Suelta las fotos en
+> `sources/_nuevas/` y lanza `npm run fotos`: él las trata, las nombra como
+> dice este documento y las enlaza en `products-data.js`. Las instrucciones
+> están en `sources/_nuevas/LEEME.md`, y la lista de las que faltan —partida
+> por proveedor— en `FOTOS_PENDIENTES.md`.
+>
+> Lo que sigue es la convención que aplica el script, por si hay que revisarla.
+
 De los 179 productos del catálogo, **30 ya tienen foto** (las referencias AMRO /
 American Rocket) y **149 siguen con `image: null`**: su ficha muestra el emoji de la
 categoría hasta que exista una foto real. En cuanto subas una foto con el nombre

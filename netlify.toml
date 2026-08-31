@@ -52,6 +52,19 @@
   # necesita DESPUÉS de este comando para empaquetar las funciones. No son
   # sensibles, y las reglas de más abajo impiden servirlos.
 
+[build.environment]
+  # sharp está en optionalDependencies y aquí se omite: son 28 MB de binarios
+  # que Netlify descargaría en CADA despliegue sin usarlos nunca. Solo lo
+  # necesitan los scripts/ (npm run fotos), y el comando de arriba borra esa
+  # carpeta de la copia desplegada. En tu ordenador se instala igual: npm
+  # instala las opcionales por defecto, así que `npm run fotos` no se entera.
+  #
+  # Cada publicación desde /admin.html lanza un despliegue entero, y los
+  # minutos de build de Netlify se acabaron una vez subiendo las fotos DE UNA
+  # EN UNA (30 builds para 30 fotos). Para tandas usa `npm run fotos`, que
+  # las mete todas y se sube en un solo push.
+  NPM_FLAGS = "--omit=optional"
+
 [functions]
   node_bundler = "esbuild"
   # products-data.js es el catálogo: las funciones lo necesitan para poner ellas

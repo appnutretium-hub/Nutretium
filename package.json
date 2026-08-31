@@ -7,8 +7,10 @@
     "@netlify/blobs": "^10.7.11"
   },
   "devDependencies": {
-    "sharp": "^0.35.3",
     "tailwindcss": "^3.4.19"
+  },
+  "optionalDependencies": {
+    "sharp": "^0.35.3"
   },
   "scripts": {
     "build:css": "tailwindcss -c tailwind.config.js -i src/tailwind.css -o styles.css --minify",

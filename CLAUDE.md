@@ -28,7 +28,9 @@ se falla cerrado sin credenciales, y una notificación manipulada se rechaza con
    404. Si Redsys no llega, el pago se cobra y el pedido nunca pasa a `PAID`.
 
 **Bloqueante aparte para el pase a real:** el banco exige que la mayoría de
-productos tengan foto y solo 30 de 179 la tienen (§ 6).
+productos tengan foto. Van **58 de 153** (§ 6): eran 30, y subieron de golpe al
+recuperar 18 fotos que estaban subidas pero que el catálogo había dejado de
+apuntar — ver «La ruta de la foto la calcula el servidor».
 
 ## Dos carpetas, y se han desincronizado ya una vez
 
@@ -62,7 +64,7 @@ nada de `cd /d`.
 | `npm test` | precios y carrito — 18 casos, incluidos intentos de manipular el importe |
 | `npm run test:redsys` | el TPV por dentro, sin tocar el banco — 19 casos |
 | `npm run test:catalogo` | la hoja de catálogo: lo que NO deja publicar — 43 casos |
-| `npm run test:admin` | el panel online: quién entra y qué se sube — 42 casos |
+| `npm run test:admin` | el panel online: quién entra y qué se sube — 44 casos |
 | `npm run test:cuentas` | cuentas de cliente: rol, ficha y freno al login — 25 casos |
 | `npm run dev` | servidor estático en `localhost:4173` (sin funciones: los `/.netlify/functions/*` dan 404, es normal) |
 | `npm run build:css` | recompila `styles.css` con Tailwind |
@@ -128,6 +130,24 @@ después de publicar. Se parsea, no se ejecuta (`hoja.parsea`).
 Catálogo y fotos van en **un solo commit**. Si fueran por separado habría un
 despliegue intermedio con la ficha apuntando a una foto que aún no existe.
 
+### La ruta de la foto la calcula el servidor, y hay que devolvérsela
+
+Esto costó 18 fotos. La ruta de destino la fija `hoja.rutaEsperada()` en el
+servidor, a propósito (§ Fotos de producto). Pero el navegador **no puede
+adivinarla**, así que si no se la mandas de vuelta, su lista se queda con la
+foto vacía — y la **siguiente** publicación manda ese producto sin foto y borra
+el enlace recién hecho. El `.webp` se queda en el repositorio, huérfano, y la
+ficha vuelve a salir sin foto. Solo sobrevivía la última foto de cada tanda.
+
+Por eso `admin-catalogo.js` devuelve `fotos: [{codigo, ruta}]` al publicar y
+`admin.js` las escribe en su lista **antes** de clonar `original`. Si tocas ese
+camino, `npm run test:admin` encadena dos publicaciones y lo comprueba.
+
+Y no daba error porque el validador descarta una foto con un **aviso**, no con
+un error, y los avisos no se enseñaban después de publicar. Ahora sí, en los dos
+modos: un aviso es justo lo que NO se ha aplicado, y callarlo fue la mitad del
+problema. **Si añades avisos nuevos, comprueba que se ven.**
+
 ### Quién es administrador lo dice una variable de entorno
 
 `ADMIN_EMAILS`, en Netlify. **No un campo `role` en la ficha del usuario**: los
@@ -162,6 +182,17 @@ publica desde `/admin.html`, el **repositorio se adelanta**. Antes de tocar el
 catálogo en local hay que hacer `git pull` en la carpeta del repo y traerse
 `products-data.js` y `sources/productos/`. Está escrito para el cliente en
 `sources/_catalogo/LEEME.md`.
+
+**Y `CATALOGO.csv` se queda atrás también**, porque el panel online escribe
+`products-data.js` y nunca el CSV. Eso convierte al Excel en una trampa
+cargada: `npm run catalogo -- --aplicar` con un CSV viejo **deshace** lo
+publicado desde la tienda —ya llegó a borrar 9 fotos y a dar de baja un alta—.
+El ensayo lo enseña, así que **léelo**. Para ponerlo al día con el catálogo
+actual antes de editarlo:
+
+```bash
+npm run catalogo -- --exportar --forzar
+```
 
 ### Nada de esto se aplica hasta configurar Netlify
 
@@ -235,8 +266,9 @@ Variables de entorno y qué se rompe si falta cada una: `.env.example` y
 
 ## Fotos de producto
 
-30 de 151 productos tienen foto. La lista de las que faltan, **partida por
-proveedor**, se genera sola en `sources/productos/FOTOS_PENDIENTES.md`.
+58 de 153 productos tienen foto. La lista de las que faltan, **partida por
+proveedor**, se genera sola en `sources/productos/FOTOS_PENDIENTES.md` — se
+rehace con `npm run fotos -- --aplicar` aunque el buzón esté vacío.
 
 Para incorporar fotos nuevas: se sueltan en `sources/_nuevas/` y `npm run fotos`
 las recorta, las centra en 800 × 800, las guarda en `.webp` y las enlaza. Las

@@ -161,7 +161,7 @@ function colocaFotos(filas, fotos) {
       foto.extension
     );
     fila.foto = ruta;
-    archivos.push({ ruta, base64: foto.base64 });
+    archivos.push({ codigo: foto.codigo, ruta, base64: foto.base64 });
   }
 
   return { archivos };
@@ -287,7 +287,16 @@ exports.handler = async function (event) {
         archivos,
       });
 
-      return respuesta(200, { ok: true, informe: informeParaPantalla(informe), commit });
+      // Las rutas vuelven al panel porque las calcula el servidor y el navegador
+      // no tiene forma de adivinarlas. Sin esto, su lista se queda con la foto
+      // vacía y la siguiente publicación borra el enlace que acaba de hacerse:
+      // el .webp se queda en el repositorio y la ficha vuelve a salir sin foto.
+      return respuesta(200, {
+        ok: true,
+        informe: informeParaPantalla(informe),
+        commit,
+        fotos: fotos.map((f) => ({ codigo: f.codigo, ruta: f.ruta })),
+      });
     }
 
     return respuesta(400, { error: 'Acción no reconocida.' });

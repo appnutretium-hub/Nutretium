@@ -3,70 +3,42 @@
 > Generado por `scripts/fotos-incorporar.js`. No editar a mano: se rehace
 > solo cada vez que se incorporan fotos nuevas.
 
-**121 de 152 productos siguen sin foto** (31 ya la tienen).
+**95 de 153 productos siguen sin foto** (58 ya la tienen).
 
 Se parten en dos grupos que se resuelven de forma distinta. Para meter las
 fotos una vez conseguidas, ver `sources/_nuevas/LEEME.md`.
 
 ---
 
-## A. Pedir el packshot al distribuidor — 68 productos
+## A. Pedir el packshot al distribuidor — 44 productos
 
 Producto de marca envasado: el fabricante tiene foto oficial y material de
 punto de venta, y con él viene el permiso de uso. Es de donde salieron las
 30 fotos AMRO que ya están publicadas. Cada apartado de abajo es la lista
 que hay que pedirle a ese proveedor.
 
-### Protella — 17
+### Protella — 11
 
 | Código | Producto | Categoría |
 |---|---|---|
 | `00302` | Crema De Proteina Bonbon Crisp Protella 200g | Alimentación proteica |
-| `00301` | Crema De Proteina Choco Hazenut Protella 200g | Alimentación proteica |
 | `00300` | Crema De Proteina Chocolate Blanco Protella 200g | Alimentación proteica |
 | `00303` | Crema De Proteina Cookie Dough Protella 200g | Alimentación proteica |
-| `00320` | Ashwagandha 60cps Protella | Vitaminas y salud |
 | `00331` | Colageno Mango 180g Protella | Colágeno y bienestar |
-| `00333` | Colageno Neutro 200g Protella | Colágeno y bienestar |
-| `00332` | Colageno Sandia 180g Protella | Colágeno y bienestar |
-| `00334` | Creatina Monohydrate Lollipop 300g Protella | Creatinas |
 | `00335` | Creatina Monohydrate Melon Gum,300g Protella | Creatinas |
 | `00345` | Creatina Monohydrate 300g Protella | Creatinas |
 | `00337` | Crema De Arroz Cookie Dough 500g Protella | Alimentación proteica |
 | `00336` | Crema De Arroz Speculoos 500g Protella | Alimentación proteica |
-| `00339` | Crema De Arroz Chocolatte 500g Protella | Alimentación proteica |
 | `00338` | Crema De Arroz Peanut 500g Protella | Alimentación proteica |
 | `00298` | Mermelada Melocoton Protella 170g | Alimentación proteica |
 | `00299` | Mermelada Strawberry Protella 170g | Alimentación proteica |
 
-### Barebells — 13
+### Protzen — 8
 
 | Código | Producto | Categoría |
 |---|---|---|
-| `00347` | Milkshake Banana 330ml Barebells | Bebidas |
-| `00348` | Milkshake Chocolate 330ml Barebells | Bebidas |
-| `00350` | Milkshake Cookies & Cream 330ml Barebells | Bebidas |
-| `00346` | Milkshake Strawberry 330ml Barebells | Bebidas |
-| `00349` | Milkshake Vainilla 330ml Barebells | Bebidas |
-| `00311` | Barrita Proteina Fudge Brownie 16g Barebells | Barritas y snacks |
-| `00304` | Barrita Proteina Lemon Cheesecake 16g Barebells | Barritas y snacks |
-| `00307` | Barrita Proteina Peanut Butter 16g Barebells | Barritas y snacks |
-| `00306` | Barrita Proteina Peanut Caramel 16g Barebells | Barritas y snacks |
-| `00305` | Barrita Proteina Peanut Cloud 16g Barebells | Barritas y snacks |
-| `00309` | Barrita Proteina Salty Peanut 16g Barebells 73 | Barritas y snacks |
-| `00310` | Barrita Proteina Strawberry Sundae 16g Barebells | Barritas y snacks |
-| `00308` | Barrita Proteina White Chocolate 16g Barebells | Barritas y snacks |
-
-### Protzen — 12
-
-| Código | Producto | Categoría |
-|---|---|---|
-| `00494` | Helado Cacao & Avellana 100ml Protzen | Helados |
-| `00488` | Helado Cacao & Avellana 460ml Protzen | Helados |
 | `00496` | Helado Chocolate Negro 100ml Protzen | Helados |
 | `00490` | Helado Chocolate Negro 460ml Protzen | Helados |
-| `00493` | Helado Merengada 100ml Protzen | Helados |
-| `00487` | Helado Merengada 460ml Protzen | Helados |
 | `00491` | Helado Moka Fuel 100ml Protzen | Helados |
 | `00485` | Helado Moka Fuel 460ml Protzen | Helados |
 | `00486` | Helado Pistacho 460ml Protzen | Helados |
@@ -85,15 +57,15 @@ que hay que pedirle a ese proveedor.
 | `00354` | Nocco Focus Grand Sour Limon/manzana 330ml | Bebidas |
 | `00356` | Nocco Focus Ramonade 330ml | Bebidas |
 
-### Servivita — 5
+### Barebells — 5
 
 | Código | Producto | Categoría |
 |---|---|---|
-| `00367` | Salsa Barbacoa 320ml Servivita | Alimentación proteica |
-| `00365` | Salsa Cesar Zero 320ml Servivita | Alimentación proteica |
-| `00366` | Salsa Ketchup 320ml Servivita | Alimentación proteica |
-| `00368` | Salsa Mayonesa 320ml Servivita | Alimentación proteica |
-| `00364` | Salsa Miel & Mostaza 320ml Servivita | Alimentación proteica |
+| `00350` | Milkshake Cookies & Cream 330ml Barebells | Bebidas |
+| `00346` | Milkshake Strawberry 330ml Barebells | Bebidas |
+| `00349` | Milkshake Vainilla 330ml Barebells | Bebidas |
+| `00304` | Barrita Proteina Lemon Cheesecake 16g Barebells | Barritas y snacks |
+| `00310` | Barrita Proteina Strawberry Sundae 16g Barebells | Barritas y snacks |
 
 ### Vitamin Well — 5
 
@@ -122,12 +94,11 @@ que hay que pedirle a ese proveedor.
 | `00533` | Agua Solares 1.5l | Bebidas |
 | `00479` | Oferta Pack Solares 6 Botellas 1.5l | Bebidas |
 
-### NABE — 2
+### NABE — 1
 
 | Código | Producto | Categoría |
 |---|---|---|
 | `00363` | NABE Aloe Vera THE Original | Bebidas |
-| `00362` | NABE Aloe Vera Sunny Mango | Vitaminas y salud |
 
 ### Sin marca identificada — 1
 
@@ -137,7 +108,7 @@ que hay que pedirle a ese proveedor.
 
 ---
 
-## B. Fotografiar en la tienda — 53 productos
+## B. Fotografiar en la tienda — 51 productos
 
 Recetas y elaboraciones de la casa: **no existen en internet**. Nadie tiene
 una foto de un «Royal X 750 ml» salvo Nutretium. Con el móvil, fondo liso y
@@ -149,7 +120,6 @@ con los códigos separados por `+`.
 | Código | Producto | Categoría |
 |---|---|---|
 | `ABB-1000` | Açaí Berry Brutal 1000 ml | Bowls |
-| `ABB-500` | Açaí Berry Brutal 500 ml | Bowls |
 | `ABB-750` | Açaí Berry Brutal 750 ml | Bowls |
 | `BG-1000` | Bahía Gold 1000 ml | Bowls |
 | `BG-500` | Bahía Gold 500 ml | Bowls |
@@ -178,7 +148,6 @@ con los códigos separados por `+`.
 | `00538` | Batido Chocolate | Smoothies y batidos |
 | `00537` | Batido Mango | Smoothies y batidos |
 | `BATI-BC` | Berry Cloud | Smoothies y batidos |
-| `00534` | Berry Smoothie | Smoothies y batidos |
 | `BATI-CP` | Cacao Peanut | Smoothies y batidos |
 | `CAPRI-BCP` | Berry Cloud Pop | Waffles y caprichos |
 | `00536` | Capricho Fresa | Waffles y caprichos |

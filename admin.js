@@ -567,6 +567,18 @@ function pintaInforme(informe) {
   return trozos.join('');
 }
 
+/**
+ * Los avisos no impiden publicar, y por eso el diálogo del final no los
+ * enseñaba: decía «Publicado» y ya. Pero un aviso es justo lo que NO se ha
+ * aplicado —una foto descartada, por ejemplo—, así que tiene que verse.
+ */
+function pintaAvisos(informe) {
+  const avisos = (informe && informe.avisos) || [];
+  if (!avisos.length) return '';
+  return '<h3>Ojo con esto</h3><ul class="error">' +
+    avisos.map((a) => '<li>' + escapa(a) + '</li>').join('') + '</ul>';
+}
+
 // ── Guardar / publicar ──────────────────────────────────────────────────────
 
 async function guarda() {
@@ -611,6 +623,15 @@ async function confirma(boton, enOnline) {
     return;
   }
 
+  // La ruta de cada foto la calcula el servidor (hoja.rutaEsperada), así que hay
+  // que traérsela: si la lista del navegador se queda con la foto vacía, la
+  // siguiente publicación manda ese producto sin foto y borra el enlace recién
+  // hecho — el archivo queda en el repositorio y la ficha vuelve a salir vacía.
+  (datos.fotos || []).forEach(({ codigo, ruta }) => {
+    const p = productos.find((otro) => claveDe(otro) === String(codigo).toUpperCase());
+    if (p) p.foto = ruta;
+  });
+
   fotosPendientes.forEach((f) => URL.revokeObjectURL(f.vistaPrevia));
   fotosPendientes.clear();
 
@@ -625,7 +646,8 @@ async function confirma(boton, enOnline) {
       '<p>El cambio ya está en el repositorio. La web se actualiza sola en <strong>uno o dos ' +
       'minutos</strong>: si la abres antes, todavía verás lo anterior.</p>' +
       (datos.commit ? '<p><a href="' + escapa(datos.commit.url) + '" target="_blank" rel="noopener">' +
-        'Ver el cambio en GitHub</a></p>' : ''),
+        'Ver el cambio en GitHub</a></p>' : '') +
+      pintaAvisos(datos.informe),
       [{ texto: 'Entendido', clase: 'primario', alPulsar: cierra }]);
     return;
   }
@@ -641,7 +663,8 @@ async function confirma(boton, enOnline) {
     '<p>El catálogo del proyecto ya está actualizado (' + datos.informe.total + ' productos).</p>' +
     '<h3>Falta un paso para que se vea en internet</h3>' +
     '<p>Los cambios están en tu ordenador. Para publicarlos en <strong>nutretium.com</strong> ' +
-    'hay que subirlos con git — el paso 4 de <code>sources/_catalogo/LEEME.md</code>.</p>',
+    'hay que subirlos con git — el paso 4 de <code>sources/_catalogo/LEEME.md</code>.</p>' +
+    pintaAvisos(datos.informe),
     [{ texto: 'Entendido', clase: 'primario', alPulsar: cierra }]);
 }
 

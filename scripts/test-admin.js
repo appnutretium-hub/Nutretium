@@ -54,7 +54,10 @@ const VETADOS = fs.readFileSync(path.join(RAIZ, 'netlify/lib/no-vendibles.js'), 
 
 let subido = null;   // lo que se habría enviado a GitHub
 
-function montaGitHub({ fallaAl } = {}) {
+// `catalogo` se puede cambiar para encadenar dos publicaciones: la segunda
+// tiene que ver lo que dejó la primera, que es donde estaba el fallo de las
+// fotos que se borraban solas.
+function montaGitHub({ fallaAl, catalogo = CATALOGO } = {}) {
   subido = { blobs: [], arboles: [], commits: [], refs: [] };
 
   global.fetch = async (url, opciones = {}) => {
@@ -66,7 +69,7 @@ function montaGitHub({ fallaAl } = {}) {
     }
 
     if (url.includes('/contents/products-data.js')) {
-      return responde({ content: Buffer.from(CATALOGO).toString('base64') });
+      return responde({ content: Buffer.from(catalogo).toString('base64') });
     }
     if (url.includes('/contents/netlify/lib/no-vendibles.js')) {
       return responde({ content: Buffer.from(VETADOS).toString('base64') });
@@ -106,8 +109,8 @@ async function llama(cuerpo, { token, metodo = 'POST' } = {}) {
 }
 
 // El catálogo tal cual, en el formato que manda el panel.
-function listaActual() {
-  const { productos } = hoja.parsea(CATALOGO);
+function listaActual(texto = CATALOGO) {
+  const { productos } = hoja.parsea(texto);
   return productos.map((p) => ({
     codigo: p.code, nombre: p.name, categoria: p.category, precio: Number(p.price),
     stock: p.stock, activo: p.active !== false, destacado: p.featured === true,
@@ -252,6 +255,29 @@ function listaActual() {
       rutas.includes('products-data.js') && subido.commits.length === 1);
     comprueba('el catálogo ya apunta a la foto',
       subido.blobs.some((b) => b.content.includes('00347__MILKSHAKE_BANANA_330ML_BAREBELLS.webp')));
+
+    // El navegador no puede calcular la ruta, así que el servidor se la
+    // devuelve. Sin esto la lista del panel se quedaba con la foto vacía y la
+    // SIGUIENTE publicación borraba el enlace recién hecho: el .webp se quedaba
+    // en el repositorio y la ficha volvía a salir sin foto. Pasó 18 veces.
+    comprueba('publicar devuelve la ruta de cada foto',
+      Array.isArray(conFoto.datos.fotos) && conFoto.datos.fotos.length === 1 &&
+      conFoto.datos.fotos[0].codigo === '00347' &&
+      conFoto.datos.fotos[0].ruta === 'sources/productos/BEBIDAS/00347__MILKSHAKE_BANANA_330ML_BAREBELLS.webp',
+      JSON.stringify(conFoto.datos.fotos));
+
+    // La segunda publicación, con el panel al día como lo deja el arreglo.
+    const publicado = subido.blobs.find((b) => b.encoding === 'utf-8').content;
+    const comoQuedaElPanel = lista.map((p) => {
+      const devuelta = (conFoto.datos.fotos || []).find((f) => f.codigo === p.codigo);
+      return devuelta ? Object.assign({}, p, { foto: devuelta.ruta }) : p;
+    });
+
+    montaGitHub({ catalogo: publicado });
+    const segunda = await llama({ action: 'publicar', productos: comoQuedaElPanel }, { token });
+    comprueba('y publicar otra vez ya no borra esa foto',
+      segunda.datos.sinCambios === true && subido.commits.length === 0,
+      JSON.stringify(segunda.datos.informe && segunda.datos.informe.cambios));
 
     // Una foto de un producto que no viene en la lista no tiene dónde ir.
     montaGitHub();

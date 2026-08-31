@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin
+Disallow: /admin.html
+Disallow: /pago-ok
+Disallow: /pago-ko
+Disallow: /.netlify/
+
+Sitemap: https://nutretium.com/sitemap.xml

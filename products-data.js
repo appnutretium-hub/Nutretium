@@ -10,7 +10,7 @@
 //   · stock                                         → npm run stock
 //   · incorporar fotos del buzón                    → npm run fotos
 //
-// Actualizado el 31/8/2026: 153 productos, 153 publicados (131 disponibles, 22 agotados).
+// Actualizado el 1/9/2026: 153 productos, 153 publicados (131 disponibles, 22 agotados).
 //
 // Reglas aplicadas (ver AUDITORIA_CATALOGO.md):
 //   1. Fuente única de precios: columna P.Venta del listado oficial, sin recalcular.
@@ -131,7 +131,7 @@ NUTRETIUM_RAIZ.NUTRETIUM_PRODUCTS = [
  {"id":86,"code":"00354","name":"Nocco Focus Grand Sour Limon/manzana 330ml","category":"Bebidas","price":2.5,"stock":24,"badge":null,"badgeColor":"","featured":false,"image":null,"emoji":"🥤","customizable":false,"brand":"Nocco","description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"070 - Bebidas frías","pdfDescription":"Nocco FOCUS GRAND SOUR LIMON/MANZANA 330ml"},
  {"id":87,"code":"00356","name":"Nocco Focus Ramonade 330ml","category":"Bebidas","price":2.5,"stock":48,"badge":null,"badgeColor":"","featured":false,"image":null,"emoji":"🥤","customizable":false,"brand":"Nocco","description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"070 - Bebidas frías","pdfDescription":"Nocco FOCUS RAMONADE 330ml"},
  {"id":88,"code":"00480","name":"Oferta Pack Aqua Deus 6 Botellas 1.5l","category":"Bebidas","price":2.5,"stock":0,"badge":null,"badgeColor":"","featured":false,"image":null,"emoji":"🥤","customizable":false,"brand":null,"description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"070 - Bebidas frías","pdfDescription":"oferta pack aqua deus 6 botellas 1.5l"},
- {"id":89,"code":"00479","name":"Oferta Pack Solares 6 Botellas 1.5l","category":"Bebidas","price":2.95,"stock":0,"badge":null,"badgeColor":"","featured":false,"image":null,"emoji":"🥤","customizable":false,"brand":null,"description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"070 - Bebidas frías","pdfDescription":"oferta pack solares 6 botellas 1.5l"},
+ {"id":89,"code":"00479","name":"Oferta Pack Solares 6 Botellas 1.5l","category":"Bebidas","price":2.95,"stock":0,"badge":null,"badgeColor":"","featured":false,"image":"sources/productos/BEBIDAS/00479__OFERTA_PACK_SOLARES_6_BOTELLAS_1_5L.webp","emoji":"🥤","customizable":false,"brand":null,"description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"070 - Bebidas frías","pdfDescription":"oferta pack solares 6 botellas 1.5l"},
  {"id":90,"code":"00539","name":"Pack Aquadeus 6 Botellas 1.5l","category":"Bebidas","price":2.5,"stock":0,"badge":null,"badgeColor":"","featured":false,"image":null,"emoji":"🥤","customizable":false,"brand":null,"description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"070 - Bebidas frías","pdfDescription":"pack aquadeus 6 botellas 1.5l"},
  {"id":94,"code":"00358","name":"Vitamin Well Boost Arándanos Y Frambuesa","category":"Bebidas","price":2.5,"stock":12,"badge":null,"badgeColor":"","featured":false,"image":null,"emoji":"🥤","customizable":false,"brand":"Vitamin Well","description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"070 - Bebidas frías","pdfDescription":"Vitamin well boost ARÁNDANOS Y FRAMBUESA"},
  {"id":95,"code":"00357","name":"Vitamin Well Refresh Limonada/kiwi","category":"Bebidas","price":2.5,"stock":12,"badge":null,"badgeColor":"","featured":false,"image":null,"emoji":"🥤","customizable":false,"brand":"Vitamin Well","description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"070 - Bebidas frías","pdfDescription":"Vitamin well refresh LIMONADA/KIWI"},

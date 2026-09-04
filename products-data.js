@@ -10,7 +10,7 @@
 //   · stock                                         → npm run stock
 //   · incorporar fotos del buzón                    → npm run fotos
 //
-// Actualizado el 4/9/2026: 152 productos, 152 publicados (130 disponibles, 22 agotados).
+// Actualizado el 4/9/2026: 152 productos, 151 publicados (129 disponibles, 22 agotados).
 //
 // Reglas aplicadas (ver AUDITORIA_CATALOGO.md):
 //   1. Fuente única de precios: columna P.Venta del listado oficial, sin recalcular.
@@ -68,7 +68,7 @@ NUTRETIUM_RAIZ.NUTRETIUM_CATEGORIES = [
 
 NUTRETIUM_RAIZ.NUTRETIUM_PRODUCTS = [
  {"id":1,"code":"ABB-1000","name":"Açaí Berry Brutal 1000 ml","category":"Bowls","price":18.5,"stock":null,"badge":null,"badgeColor":"","featured":false,"image":null,"emoji":"🍧","customizable":false,"brand":null,"description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"010 - Bowls estrella","pdfDescription":"Açaí Berry Brutal 1000 ml"},
- {"id":2,"code":"ABB-500","name":"Açaí Berry Brutal 500 ml","category":"Bowls","price":10.5,"stock":null,"badge":null,"badgeColor":"","featured":false,"image":"sources/productos/BOWLS/ABB-500__ACAI_BERRY_BRUTAL_500_ML.webp","emoji":"🍧","customizable":false,"brand":null,"description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"010 - Bowls estrella","pdfDescription":"Açaí Berry Brutal 500 ml"},
+ {"id":2,"code":"ABB-500","name":"Açaí Berry Brutal 500 ml","category":"Bowls","price":10.5,"stock":null,"badge":null,"badgeColor":"","featured":false,"image":"sources/productos/BOWLS/ABB-500__ACAI_BERRY_BRUTAL_500_ML.webp","emoji":"🍧","customizable":false,"brand":null,"description":null,"rating":0,"reviews":0,"active":false,"sourceFamily":"010 - Bowls estrella","pdfDescription":"Açaí Berry Brutal 500 ml"},
  {"id":3,"code":"ABB-750","name":"Açaí Berry Brutal 750 ml","category":"Bowls","price":13.5,"stock":null,"badge":null,"badgeColor":"","featured":false,"image":null,"emoji":"🍧","customizable":false,"brand":null,"description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"010 - Bowls estrella","pdfDescription":"Açaí Berry Brutal 750 ml"},
  {"id":4,"code":"BG-1000","name":"Bahía Gold 1000 ml","category":"Bowls","price":18.5,"stock":null,"badge":null,"badgeColor":"","featured":false,"image":null,"emoji":"🍧","customizable":false,"brand":null,"description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"010 - Bowls estrella","pdfDescription":"Bahía Gold 1000 ml"},
  {"id":5,"code":"BG-500","name":"Bahía Gold 500 ml","category":"Bowls","price":10.5,"stock":null,"badge":null,"badgeColor":"","featured":false,"image":null,"emoji":"🍧","customizable":false,"brand":null,"description":null,"rating":0,"reviews":0,"active":true,"sourceFamily":"010 - Bowls estrella","pdfDescription":"Bahía Gold 500 ml"},

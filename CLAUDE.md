@@ -62,10 +62,10 @@ nada de `cd /d`.
 | | |
 |---|---|
 | `npm test` | precios y carrito — 18 casos, incluidos intentos de manipular el importe |
-| `npm run test:redsys` | el TPV por dentro, sin tocar el banco — 19 casos |
+| `npm run test:redsys` | el TPV por dentro, sin tocar el banco — 24 casos |
 | `npm run test:catalogo` | la hoja de catálogo: lo que NO deja publicar — 43 casos |
 | `npm run test:admin` | el panel online: quién entra y qué se sube — 44 casos |
-| `npm run test:cuentas` | cuentas de cliente: rol, ficha y freno al login — 25 casos |
+| `npm run test:cuentas` | cuentas: rol, ficha, dirección y freno al login — 39 casos |
 | `npm run dev` | servidor estático en `localhost:4173` (sin funciones: los `/.netlify/functions/*` dan 404, es normal) |
 | `npm run build:css` | recompila `styles.css` con Tailwind |
 | `npm run stock` | actualiza el stock desde CSV (ensayo; `-- --aplicar` para escribir) |
@@ -147,6 +147,31 @@ Y no daba error porque el validador descarta una foto con un **aviso**, no con
 un error, y los avisos no se enseñaban después de publicar. Ahora sí, en los dos
 modos: un aviso es justo lo que NO se ha aplicado, y callarlo fue la mitad del
 problema. **Si añades avisos nuevos, comprueba que se ven.**
+
+### Cada publicación es un despliegue, y los despliegues se pagan
+
+Quien lleva la tienda **no usa la consola**: mete las fotos por `/admin.html`.
+Y el panel tenía un tope de 12 fotos por publicación, así que las subía de una
+en una y publicaba cada vez. Eso son **30 despliegues para 30 fotos**, y agotó
+el cupo de Netlify: la web se quedó **31 commits sin desplegar**, congelada,
+mientras GitHub seguía al día. El síntoma engaña —parece que el panel no
+guarda— y no lo es.
+
+Por eso:
+
+* el tope son **150 fotos**, no 12. El que manda de verdad es el de bytes
+  (`MAX_BYTES_FOTOS`, 4 MB), porque el límite real es que Netlify corta la
+  petición a 6 MB y la foto viaja en base64;
+* el panel aprieta cada foto a **35 KB** (`MAX_KB` en `admin.js`) bajando la
+  calidad, como ya hacía sharp. Medido con packshots reales: 18–27 KB, así que
+  **las 95 que faltan entran en un solo envío** (~2,3 MB). `npm run test:admin`
+  lo comprueba con las 95 de verdad;
+* antes de publicar, el panel enseña cuántas van y cuánto pesan.
+
+**Si tocas estos topes, haz la cuenta completa**: nº de fotos × KB × 1,33 del
+base64 + el catálogo, y que quepa en 6 MB. Y no prometas en los comentarios que
+35 KB se cumple siempre: es un objetivo, y con una imagen que no comprima
+(probado con ruido: 103 KB) se manda como esté y el servidor decide.
 
 ### Quién es administrador lo dice una variable de entorno
 
@@ -232,6 +257,57 @@ si tocas uno, toca el otro.
 **Si regeneras el catálogo desde un listado nuevo del ERP, el PDF trae su propia
 columna de stock y esos 52 vuelven a 0.** Después de regenerar hay que volver a
 pasar el CSV. Detalle en `AUDITORIA_CATALOGO.md` § 10.
+
+## Sin cuenta y sin dirección no se cobra
+
+Se acabaron los pedidos de invitado. `redsys.js` comprueba **antes de valorar el
+carrito y antes de firmar nada**: sin sesión responde 401 (`motivo: 'sin-sesion'`)
+y sin dirección de envío completa, 422 (`motivo: 'sin-direccion'`). El `motivo`
+existe para que la tienda sepa qué abrir —el registro o «Mi perfil»—, porque
+enseñar el error y dejar al cliente mirando el botón no le resuelve nada.
+
+La tienda avisa antes por comodidad, pero **esa comprobación no protege**:
+`app.js` corre en el navegador y cualquiera puede llamar a la función a mano.
+Quien decide es el servidor, igual que con los precios.
+
+El carrito **no** se cierra a quien no tiene cuenta: puede llenarlo entero y se
+le pide la cuenta al pulsar «Pagar». Cortarlo antes espanta a quien está
+mirando, y el efecto es el mismo porque nadie llega a pagar sin cuenta.
+
+### La dirección: un solo validador, y una copia en cada pedido
+
+`netlify/lib/direccion.js` dice qué campos hay, cuáles son obligatorios (todos
+menos el piso) y qué es un código postal válido. Lo usan **auth.js** (alta y
+edición de ficha) y **redsys.js** (al cobrar). Igual que con el catálogo: un
+validador por vía acabaría dejando pasar en el alta lo que el cobro rechaza.
+
+El pedido guarda **una copia** de la dirección (`envio`), no una referencia al
+usuario: si guardara la referencia, cambiar la dirección reescribiría a dónde se
+mandaron los pedidos ya enviados. Y va al correo del pedido — sin eso llega
+cobrado y sin saber a dónde mandarlo.
+
+`netlify/lib/usuarios.js` es de dónde se lee la ficha. Estaba dentro de auth.js
+y se sacó porque redsys.js también la necesita.
+
+**Las cuentas anteriores no tienen dirección.** No se rompen: entran y navegan
+igual, y se les pide al ir a pagar (`direccionCompleta: false` en la ficha que
+devuelve auth.js). Si tocas esto, `npm run test:cuentas` y `npm run test:redsys`
+cubren los dos caminos.
+
+## Cookies: no hay ninguna de terceros, y el banner está para el día que las haya
+
+La web no usa analítica ni publicidad. Solo guarda `nutretium_user`,
+`nutretium_last_order` y `nutretium_cookies`, que son almacenamiento
+estrictamente necesario y están **exentos de consentimiento** (LSSI art. 22.2).
+El texto legal decía que usábamos cookies de terceros y que analizábamos el
+tráfico; era falso y está reescrito.
+
+El banner existe igualmente porque el día que se añada medición, el
+consentimiento tiene que estar ANTES. **Regla: todo script de analítica o
+publicidad va dentro de `aplicaConsentimiento()` en `app.js`, en la rama del sí.
+Ni una línea fuera.** «Rechazar» y «Aceptar» tienen el mismo tamaño a propósito
+(la AEPD no admite que rechazar cueste más), y el pie lleva «Configurar cookies»
+porque retirar el consentimiento tiene que ser tan fácil como darlo.
 
 ## El precio lo pone el servidor, nunca el navegador
 

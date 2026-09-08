@@ -6,6 +6,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["scripts/dev-server.js"],
       "port": 4173
+    },
+    {
+      "name": "panel",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/panel-servidor.js"],
+      "port": 4180
     }
   ]
 }

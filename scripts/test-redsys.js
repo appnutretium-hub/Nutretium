@@ -100,11 +100,52 @@ const ENTORNO_OK = {
   REDSYS_ENV: 'test',
 };
 
+// ─── Quién compra ────────────────────────────────────────────────────────────
+//
+// Desde que no hay pedidos de invitado, una petición de pago sin sesión
+// responde 401 y una sin dirección de envío responde 422. Así que todas las
+// pruebas de pago necesitan una cuenta detrás.
+
+process.env.JWT_SECRET = 'secreto-de-pruebas-con-mas-de-32-caracteres';
+
+const EMAIL_CLIENTE = 'cliente@ejemplo.com';
+const DIRECCION_OK = {
+  calle: 'Calle la Albericia 1', piso: '3B', cp: '39012',
+  localidad: 'Santander', provincia: 'Cantabria', pais: 'España',
+};
+
+// El token se genera una vez: es una cadena, y sigue valiendo aunque después se
+// recargue el módulo, porque JWT_SECRET no cambia en toda la prueba.
+const { signJWT } = require('../netlify/lib/jwt');
+const SESION = signJWT({
+  sub: 'u-prueba', email: EMAIL_CLIENTE, exp: Math.floor(Date.now() / 1000) + 3600,
+});
+
+/**
+ * Carga redsys.js y deja una cuenta con dirección en el almacén.
+ *
+ * La siembra va DESPUÉS de cargar a propósito: cargaFuncion() limpia el require
+ * de todo lo que hay bajo netlify/, y con él la memoria donde viven los
+ * usuarios cuando no hay Blobs. Sembrar antes no serviría de nada.
+ */
+async function cargaPago(entorno, direccion = DIRECCION_OK) {
+  const handler = cargaFuncion('redsys', entorno);
+  const usuarios = require(path.join(__dirname, '..', 'netlify', 'lib', 'usuarios.js'));
+  await usuarios.escribe(EMAIL_CLIENTE, {
+    id: 'u-prueba', name: 'Ana', surname: 'Garcia', email: EMAIL_CLIENTE,
+    phone: '600 123 456', direccion,
+    passwordHash: 'da-igual', createdAt: new Date().toISOString(),
+  });
+  return handler;
+}
+
+/** `sinSesion: true` omite el token, para poder probar justo ese caso. */
 function peticion(cuerpo) {
+  const { sinSesion, ...resto } = cuerpo;
   return {
     httpMethod: 'POST',
     headers: { host: 'nutretium.com', 'content-type': 'application/json' },
-    body: JSON.stringify(cuerpo),
+    body: JSON.stringify(sinSesion ? resto : { token: SESION, ...resto }),
   };
 }
 
@@ -132,7 +173,7 @@ async function main() {
   console.log('\n── 1. Sin credenciales no se firma nada ──');
 
   await (async () => {
-    const handler = cargaFuncion('redsys', {});           // sin REDSYS_*
+    const handler = await cargaPago({});                  // sin REDSYS_*
     const { valor: res } = await capturandoConsola(() => handler(peticion({ items: carrito })));
     compruebo('sin REDSYS_SECRET_KEY responde 500 y no firma', () => {
       igual(res.statusCode, 500, 'código');
@@ -141,9 +182,50 @@ async function main() {
     });
   })();
 
-  console.log('\n── 2. La petición de pago ──');
+  console.log('\n── 2. Sin cuenta o sin dirección no se cobra ──');
 
-  const handlerPago = cargaFuncion('redsys', ENTORNO_OK);
+  await (async () => {
+    const handler = await cargaPago(ENTORNO_OK);
+
+    const sin = await handler(peticion({ items: carrito, sinSesion: true }));
+    compruebo('sin sesión: 401 y ni una firma', () => {
+      igual(sin.statusCode, 401, 'código');
+      igual(JSON.parse(sin.body).motivo, 'sin-sesion', 'motivo');
+      cierto(!JSON.parse(sin.body).Ds_Signature, 'no debe firmarse nada');
+    });
+
+    const otroSecreto = signJWT(
+      { sub: 'x', email: EMAIL_CLIENTE, exp: Math.floor(Date.now() / 1000) + 3600 },
+      'otro-secreto-cualquiera-de-32-caracteres');
+    const falso = await handler(peticion({ items: carrito, token: otroSecreto }));
+    compruebo('un token firmado con otro secreto no cuela', () => igual(falso.statusCode, 401, 'código'));
+
+    const desconocido = signJWT(
+      { sub: 'x', email: 'nadie@ejemplo.com', exp: Math.floor(Date.now() / 1000) + 3600 });
+    const huerfano = await handler(peticion({ items: carrito, token: desconocido }));
+    compruebo('token válido de una cuenta que no existe: 401', () => igual(huerfano.statusCode, 401, 'código'));
+  })();
+
+  await (async () => {
+    // Las cuentas de antes de que la dirección fuese obligatoria llegan así.
+    // `null` y no `undefined`: undefined dispararía el valor por defecto del
+    // parámetro y sembraría una dirección buena, que es justo lo contrario.
+    const handler = await cargaPago(ENTORNO_OK, null);
+    const r = await handler(peticion({ items: carrito }));
+    compruebo('con cuenta pero SIN dirección: 422 y no se firma', () => {
+      igual(r.statusCode, 422, 'código');
+      igual(JSON.parse(r.body).motivo, 'sin-direccion', 'motivo');
+      cierto(!JSON.parse(r.body).Ds_Signature, 'no debe firmarse nada');
+    });
+
+    const mediaDireccion = await cargaPago(ENTORNO_OK, { ...DIRECCION_OK, cp: '' });
+    const r2 = await mediaDireccion(peticion({ items: carrito }));
+    compruebo('una dirección a medias tampoco vale', () => igual(r2.statusCode, 422, 'código'));
+  })();
+
+  console.log('\n── 3. La petición de pago ──');
+
+  const handlerPago = await cargaPago(ENTORNO_OK);
   const res = await handlerPago(peticion({ items: carrito }));
   const cuerpo = JSON.parse(res.body);
   const parametros = JSON.parse(Buffer.from(cuerpo.Ds_MerchantParameters, 'base64').toString('utf8'));
@@ -205,7 +287,7 @@ async function main() {
     igual(ordenes.size, 40, 'números únicos');
   });
 
-  console.log('\n── 3. El navegador no pone el precio ──');
+  console.log('\n── 4. El navegador no pone el precio ──');
 
   await (async () => {
     const { valor: r } = await capturandoConsola(() =>
@@ -232,7 +314,7 @@ async function main() {
     });
   })();
 
-  console.log('\n── 4. La notificación del banco ──');
+  console.log('\n── 5. La notificación del banco ──');
 
   // Una notificación de Redsys tal cual la manda: formulario urlencoded con los
   // parámetros en Base64 y la firma en Base64 URL-safe.

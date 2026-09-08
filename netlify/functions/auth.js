@@ -46,31 +46,16 @@ function verifyPassword(password, stored) {
 // We wrap it so the function degrades gracefully if the package isn't present
 // (e.g. local dev without netlify dev).
 
+// La lectura y escritura viven en ../lib/usuarios.js porque redsys.js también
+// necesita la ficha: antes de cobrar comprueba que hay cuenta y dirección.
+const usuarios = require('../lib/usuarios');
+const direccion = require('../lib/direccion');
+
+// El freno a la fuerza bruta guarda sus propios contadores, en otro store.
 const { getBlobStore } = require('../lib/blob-store');
 
-async function getStore() {
-  return getBlobStore('users'); // null en local sin `netlify dev` → memoria
-}
-
-const IN_MEMORY_USERS = {}; // fallback for local dev
-
-async function readUser(email) {
-  const store = await getStore();
-  if (store) {
-    const raw = await store.get(email, { type: 'json' }).catch(() => null);
-    return raw;
-  }
-  return IN_MEMORY_USERS[email] || null;
-}
-
-async function writeUser(email, data) {
-  const store = await getStore();
-  if (store) {
-    await store.setJSON(email, data);
-  } else {
-    IN_MEMORY_USERS[email] = data;
-  }
-}
+const readUser = usuarios.lee;
+const writeUser = usuarios.escribe;
 
 // ─── Freno a los intentos de contraseña ──────────────────────────────────────
 //
@@ -99,6 +84,29 @@ function revisaFicha({ name, surname, phone }) {
     return 'Ni el nombre ni los apellidos ni el teléfono pueden llevar «<» ni «>».';
   }
   return null;
+}
+
+/**
+ * La ficha tal y como se le devuelve al navegador. En un solo sitio a
+ * propósito: estaba copiada en register, login y profile, y una copia que se
+ * quede corta es un campo que la tienda no ve —la dirección, sin ir más lejos—.
+ *
+ * `role` se calcula SIEMPRE aquí (rolDe) y nunca se lee de la petición: nadie
+ * se asciende a administrador registrándose.
+ */
+function fichaPublica(user, extra) {
+  return Object.assign({
+    id: user.id,
+    name: user.name,
+    surname: user.surname,
+    email: user.email,
+    phone: user.phone,
+    direccion: direccion.normaliza(user.direccion),
+    // Las cuentas creadas antes de que la dirección fuese obligatoria no la
+    // tienen. La tienda mira esto para pedirla antes de dejar pagar.
+    direccionCompleta: direccion.completa(user.direccion),
+    role: rolDe(user.email),
+  }, extra || {});
 }
 
 const MAX_INTENTOS = 5;
@@ -176,6 +184,22 @@ exports.handler = async function (event) {
     if (password.length < 8)
       return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'La contraseña debe tener al menos 8 caracteres.' }) };
 
+    // El alta no comprobaba el nombre ni el teléfono: se podía registrar un
+    // nombre de 500 caracteres o con etiquetas, y ese nombre se pinta en la
+    // cabecera y viaja al correo del pedido. Ahora pasa por el mismo filtro que
+    // la edición de la ficha.
+    const ficha = { name: name.trim(), surname: surname.trim(), phone: phone.trim() };
+    const problemaFicha = revisaFicha(ficha);
+    if (problemaFicha)
+      return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: problemaFicha }) };
+
+    // La dirección de envío es obligatoria desde el alta: sin ella el pedido no
+    // se puede enviar, y pedirla al final —con el pago ya empezado— es peor.
+    const dir = direccion.normaliza(body.direccion);
+    const problemaDir = direccion.revisa(dir);
+    if (problemaDir)
+      return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: problemaDir }) };
+
     const emailLower = email.toLowerCase().trim();
     const existing   = await readUser(emailLower);
     if (existing)
@@ -183,20 +207,18 @@ exports.handler = async function (event) {
 
     const id   = crypto.randomUUID();
     const user = {
-      id, name: name.trim(), surname: surname.trim(),
-      email: emailLower, phone: phone.trim(),
+      id, name: ficha.name, surname: ficha.surname,
+      email: emailLower, phone: ficha.phone,
+      direccion: dir,
       passwordHash: hashPassword(password),
       createdAt: new Date().toISOString(),
     };
 
     await writeUser(emailLower, user);
 
-    const token   = signJWT({ sub: id, email: emailLower, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30 });
-    // 'role' se calcula, no se lee del cuerpo de la petición: nadie se da de
-    // alta como administrador.
-    const profile = { id, name: user.name, surname: user.surname, email: emailLower, phone: user.phone, role: rolDe(emailLower), token };
+    const token = signJWT({ sub: id, email: emailLower, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30 });
 
-    return { statusCode: 201, headers: CORS, body: JSON.stringify({ user: profile }) };
+    return { statusCode: 201, headers: CORS, body: JSON.stringify({ user: fichaPublica(user, { token }) }) };
   }
 
   // ── LOGIN ──────────────────────────────────────────────────────────────────
@@ -228,10 +250,9 @@ exports.handler = async function (event) {
 
     await olvidaIntentos(emailLower);
 
-    const token   = signJWT({ sub: user.id, email: emailLower, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30 });
-    const profile = { id: user.id, name: user.name, surname: user.surname, email: emailLower, phone: user.phone, role: rolDe(emailLower), token };
+    const token = signJWT({ sub: user.id, email: emailLower, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30 });
 
-    return { statusCode: 200, headers: CORS, body: JSON.stringify({ user: profile }) };
+    return { statusCode: 200, headers: CORS, body: JSON.stringify({ user: fichaPublica(user, { token }) }) };
   }
 
   // ── PROFILE (GET via POST with token) ─────────────────────────────────────
@@ -248,8 +269,7 @@ exports.handler = async function (event) {
     if (!user)
       return { statusCode: 404, headers: CORS, body: JSON.stringify({ error: 'Usuario no encontrado.' }) };
 
-    const profile = { id: user.id, name: user.name, surname: user.surname, email: user.email, phone: user.phone, role: rolDe(user.email) };
-    return { statusCode: 200, headers: CORS, body: JSON.stringify({ user: profile }) };
+    return { statusCode: 200, headers: CORS, body: JSON.stringify({ user: fichaPublica(user) }) };
   }
 
   // ── ACTUALIZAR FICHA ──────────────────────────────────────────────────────
@@ -279,22 +299,30 @@ exports.handler = async function (event) {
     if (problema)
       return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: problema }) };
 
-    // Se escriben SOLO estos tres campos: el hash de la contraseña, el id y la
-    // fecha de alta se conservan tal cual, vengan como vengan en la petición.
+    // La dirección se manda entera o no se toca. Mandar media dirección sería
+    // dejar la ficha en un estado que el cobro rechaza sin que nadie lo pida.
+    let dir = direccion.normaliza(user.direccion);
+    if (body.direccion !== undefined) {
+      dir = direccion.normaliza(body.direccion);
+      const problemaDir = direccion.revisa(dir);
+      if (problemaDir)
+        return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: problemaDir }) };
+    }
+
+    // Se escriben SOLO estos campos: el correo, el hash de la contraseña, el id
+    // y la fecha de alta se conservan tal cual, vengan como vengan en la
+    // petición. Es lo que impide que se ascienda o se suplante nadie por aquí.
     const actualizado = {
       ...user,
       name: ficha.name,
       surname: ficha.surname,
       phone: ficha.phone,
+      direccion: dir,
       updatedAt: new Date().toISOString(),
     };
     await writeUser(claims.email, actualizado);
 
-    const profile = {
-      id: actualizado.id, name: actualizado.name, surname: actualizado.surname,
-      email: actualizado.email, phone: actualizado.phone, role: rolDe(actualizado.email),
-    };
-    return { statusCode: 200, headers: CORS, body: JSON.stringify({ user: profile }) };
+    return { statusCode: 200, headers: CORS, body: JSON.stringify({ user: fichaPublica(actualizado) }) };
   }
 
   return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Acción no reconocida.' }) };

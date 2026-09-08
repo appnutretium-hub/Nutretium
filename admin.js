@@ -455,6 +455,33 @@ const LIENZO = 800;   // lado del cuadrado final, igual que scripts/fotos-incorp
 const AIRE = 44;      // margen alrededor del producto
 
 /**
+ * Tope de peso por foto. Es más apretado que el de `npm run fotos` (150 KB) y
+ * por una razón que aquí sí importa: estas fotos viajan TODAS dentro del mismo
+ * envío que el catálogo, y Netlify corta la petición a 6 MB.
+ *
+ * Sin el tope, una foto salía entre 14 y 60 KB según la original, y una tanda
+ * grande no cabía: había que publicar en varias veces, y **cada publicación es
+ * un despliegue entero**. Así entran las que faltan de una sola vez.
+ *
+ * 35 KB está por encima de la media que ya tenían las fotos publicadas
+ * (28 KB), así que a la mayoría ni las toca: solo aprieta las más pesadas.
+ * Con packshots reales sale por debajo de sobra —medido: 18, 24, 25, 27 KB—.
+ *
+ * Es un OBJETIVO, no una garantía: si ni bajando la calidad se llega, se manda
+ * como esté. Quien tiene la última palabra es el servidor, que rechaza el envío
+ * entero si se pasa de MAX_BYTES_FOTOS y dice cuántas fotos han entrado.
+ */
+const MAX_KB = 35;
+
+/**
+ * Aviso al usuario antes de publicar. Quien manda de verdad es el servidor
+ * (MAX_BYTES_FOTOS en netlify/functions/admin-catalogo.js); esto solo evita
+ * gastar el viaje para que lo rechacen. Va algo por debajo a propósito: en el
+ * envío viaja también el catálogo entero.
+ */
+const TOPE_ENVIO_KB = 3.5 * 1024;
+
+/**
  * Deja la foto como las del catálogo: centrada sobre fondo blanco en un cuadrado
  * de 800 × 800, y en webp. Se hace aquí y no en el servidor porque el panel
  * online corre dentro de una función de Netlify, donde no hay sitio donde
@@ -481,13 +508,23 @@ async function preparaFoto(archivo) {
   pincel.drawImage(imagen, (LIENZO - ancho) / 2, (LIENZO - alto) / 2, ancho, alto);
   imagen.close();
 
+  const exporta = (tipo, calidad) => new Promise((listo) => lienzo.toBlob(listo, tipo, calidad));
+
   // Safari no supo exportar webp hasta hace poco: cuando no puede, devuelve un
   // PNG sin avisar. Se mira el tipo real y se cae a JPEG, que pesa parecido.
-  let blob = await new Promise((listo) => lienzo.toBlob(listo, 'image/webp', 0.86));
-  if (!blob || blob.type !== 'image/webp') {
-    blob = await new Promise((listo) => lienzo.toBlob(listo, 'image/jpeg', 0.85));
-  }
+  let calidad = 0.86;
+  let blob = await exporta('image/webp', calidad);
+  const tipo = blob && blob.type === 'image/webp' ? 'image/webp' : 'image/jpeg';
+  if (tipo === 'image/jpeg') { calidad = 0.85; blob = await exporta(tipo, calidad); }
   if (!blob) throw new Error('Este navegador no ha podido preparar la imagen.');
+
+  // Y se aprieta hasta que cabe, como hace sharp en scripts/fotos-incorporar.js.
+  while (blob.size > MAX_KB * 1024 && calidad > 0.5) {
+    calidad -= 0.08;
+    const menor = await exporta(tipo, calidad);
+    if (!menor) break;
+    blob = menor;
+  }
 
   const extension = blob.type === 'image/webp' ? 'webp' : 'jpg';
   const base64 = await new Promise((listo, falla) => {
@@ -555,9 +592,22 @@ function pintaInforme(informe) {
         c.diferencias.map((d) => '<li>' + escapa(d) + '</li>').join('') + '</ul></li>').join('') + '</ul>');
   }
   if (fotosPendientes.size) {
-    trozos.push('<h3>Fotos — ' + fotosPendientes.size + '</h3><ul>' +
-      [...fotosPendientes.entries()].map(([codigo, f]) =>
-        '<li>' + escapa(codigo) + ' · ' + f.kb + ' KB · ' + f.extension + '</li>').join('') + '</ul>');
+    const lista = [...fotosPendientes.entries()];
+    const kb = lista.reduce((suma, [, f]) => suma + f.kb, 0);
+    const filas = lista.slice(0, 10).map(([codigo, f]) =>
+      '<li>' + escapa(codigo) + ' · ' + f.kb + ' KB · ' + f.extension + '</li>');
+    if (lista.length > filas.length) filas.push('<li>… y ' + (lista.length - filas.length) + ' más</li>');
+
+    trozos.push('<h3>Fotos — ' + lista.length + ' · ' + (kb / 1024).toFixed(1) + ' MB</h3><ul>' +
+      filas.join('') + '</ul>');
+
+    // Todas viajan en el mismo envío que el catálogo, y el servidor lo rechaza
+    // si se pasa (MAX_BYTES_FOTOS en admin-catalogo.js, que es quien manda).
+    // Aquí solo se avisa antes, para no gastar el viaje.
+    if (kb > TOPE_ENVIO_KB) {
+      trozos.push('<p class="error">Son demasiadas para un solo envío. Quita unas cuantas, ' +
+        'publica, y vuelve luego a por el resto.</p>');
+    }
   }
   if (datos.avisos.length) {
     trozos.push('<h3>Avisos</h3><ul>' + datos.avisos.map((a) => '<li>' + escapa(a) + '</li>').join('') + '</ul>');

@@ -44,6 +44,16 @@ async function llama(cuerpo) {
   return { estado: respuesta.statusCode, datos: JSON.parse(respuesta.body || '{}') };
 }
 
+// Una dirección de envío válida, para no repetirla en cada llamada.
+const DIRECCION = {
+  calle: 'Calle la Albericia 1',
+  piso: '3º B',
+  cp: '39012',
+  localidad: 'Santander',
+  provincia: 'Cantabria',
+  pais: 'España',
+};
+
 (async () => {
   console.log('\n── Alta ──');
   let token;
@@ -51,16 +61,51 @@ async function llama(cuerpo) {
     const alta = await llama({
       action: 'register', name: 'Ana', surname: 'García',
       email: CLIENTE, password: CLAVE, phone: '600 123 456',
+      direccion: DIRECCION,
       // Un cliente listo probando a colarse:
       role: 'admin',
     });
     comprueba('el registro funciona', alta.estado === 201, JSON.stringify(alta.datos).slice(0, 120));
     comprueba('mandar role en el registro NO asciende a nadie', alta.datos.user.role === 'cliente',
       alta.datos.user.role);
+    comprueba('el alta devuelve la dirección', alta.datos.user.direccionCompleta === true,
+      JSON.stringify(alta.datos.user.direccion));
     token = alta.datos.user.token;
 
-    const repetido = await llama({ action: 'register', name: 'Otra', email: CLIENTE, password: CLAVE });
+    const repetido = await llama({
+      action: 'register', name: 'Otra', email: CLIENTE, password: CLAVE, direccion: DIRECCION,
+    });
     comprueba('no se puede repetir el correo', repetido.estado === 409);
+  }
+
+  console.log('\n── La dirección de envío es obligatoria al darse de alta ──');
+  {
+    // Sin dirección no se puede enviar el pedido, así que no hay cuenta.
+    const casos = [
+      ['sin dirección ninguna', undefined],
+      ['sin calle', { ...DIRECCION, calle: '' }],
+      ['sin código postal', { ...DIRECCION, cp: '' }],
+      ['código postal de 4 cifras', { ...DIRECCION, cp: '3901' }],
+      ['código postal con letras', { ...DIRECCION, cp: '39O12' }],
+      ['sin localidad', { ...DIRECCION, localidad: '' }],
+      ['sin provincia', { ...DIRECCION, provincia: '' }],
+      ['calle con etiquetas HTML', { ...DIRECCION, calle: '<img src=x onerror=alert(1)>' }],
+      ['calle kilométrica', { ...DIRECCION, calle: 'x'.repeat(121) }],
+    ];
+    for (const [descripcion, dir] of casos) {
+      const r = await llama({
+        action: 'register', name: 'Nuevo', email: 'nuevo' + Math.random() + '@ejemplo.com',
+        password: CLAVE, direccion: dir,
+      });
+      comprueba(`${descripcion}: no se registra`, r.estado === 400, `${r.estado} ${r.datos.error || ''}`);
+    }
+
+    // El piso sí es opcional: no todo el mundo vive en uno.
+    const sinPiso = await llama({
+      action: 'register', name: 'Chalet', email: 'chalet@ejemplo.com', password: CLAVE,
+      direccion: { ...DIRECCION, piso: '' },
+    });
+    comprueba('el piso es opcional', sinPiso.estado === 201, `${sinPiso.estado} ${sinPiso.datos.error || ''}`);
   }
 
   console.log('\n── El rol sale de ADMIN_EMAILS ──');
@@ -112,6 +157,29 @@ async function llama(cuerpo) {
     });
     comprueba('no se puede cambiar el correo desde la petición',
       colandose.datos.user.email === CLIENTE, colandose.datos.user.email);
+
+    // La dirección se edita por aquí, y se valida igual que en el alta.
+    const dirMala = await llama({
+      action: 'update', token, name: 'Ana', surname: '', phone: '',
+      direccion: { ...DIRECCION, cp: 'no' },
+    });
+    comprueba('una dirección inválida en la edición: 400', dirMala.estado === 400,
+      `${dirMala.estado} ${dirMala.datos.error || ''}`);
+
+    const dirNueva = await llama({
+      action: 'update', token, name: 'Ana', surname: '', phone: '',
+      direccion: { ...DIRECCION, localidad: 'Torrelavega', cp: '39300' },
+    });
+    comprueba('se puede cambiar la dirección',
+      dirNueva.estado === 200 && dirNueva.datos.user.direccion.localidad === 'Torrelavega',
+      JSON.stringify(dirNueva.datos.user.direccion));
+
+    // Y si no se manda, se conserva: media dirección dejaría la ficha en un
+    // estado que el cobro rechaza sin que nadie lo haya pedido.
+    const sinTocarla = await llama({ action: 'update', token, name: 'Ana', surname: '', phone: '' });
+    comprueba('no mandar dirección la conserva',
+      sinTocarla.datos.user.direccion.localidad === 'Torrelavega',
+      JSON.stringify(sinTocarla.datos.user.direccion));
     comprueba('no se puede ascender a administrador editando la ficha',
       colandose.datos.user.role === 'cliente', colandose.datos.user.role);
     comprueba('el id no se toca', colandose.datos.user.id !== 'otro-id');

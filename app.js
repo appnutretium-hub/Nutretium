@@ -122,14 +122,21 @@ async function submitRegister() {
   const errEl    = document.getElementById('regError');
   errEl.classList.add('hidden');
 
+  const direccion = leeDireccion('reg');
+
   if (!name || !email || !password) { showFieldError(errEl, 'Nombre, email y contraseña son obligatorios.'); return; }
   if (password.length < 8)          { showFieldError(errEl, 'La contraseña debe tener al menos 8 caracteres.'); return; }
+
+  // Se avisa aquí para no gastar el viaje, pero quien decide es el servidor:
+  // netlify/lib/direccion.js vuelve a comprobarlo todo.
+  const faltaAlgo = revisaDireccionEnPantalla(direccion);
+  if (faltaAlgo) { showFieldError(errEl, faltaAlgo); return; }
 
   try {
     const res  = await fetch('/.netlify/functions/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'register', name, surname, email, password, phone }),
+      body: JSON.stringify({ action: 'register', name, surname, email, password, phone, direccion }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error al registrarse.');
@@ -154,6 +161,46 @@ function logout() {
 function showFieldError(el, msg) {
   el.textContent = msg;
   el.classList.remove('hidden');
+}
+
+// ─── DIRECCIÓN DE ENVÍO ───────────────────────────────────────────────────────
+//
+// Los formularios de alta y de perfil usan los mismos campos con distinto
+// prefijo (`reg` y `perfil`), así que se leen y se pintan con las mismas dos
+// funciones. Quien valida de verdad es el servidor (netlify/lib/direccion.js):
+// esto solo evita un viaje para que le digan que falta el código postal.
+
+const CAMPOS_DIRECCION = ['calle', 'piso', 'cp', 'localidad', 'provincia', 'pais'];
+
+const idCampo = (prefijo, campo) => prefijo + campo.charAt(0).toUpperCase() + campo.slice(1);
+
+function leeDireccion(prefijo) {
+  const dir = {};
+  CAMPOS_DIRECCION.forEach((campo) => {
+    dir[campo] = (document.getElementById(idCampo(prefijo, campo))?.value || '').trim();
+  });
+  return dir;
+}
+
+function pintaDireccion(prefijo, direccion) {
+  const dir = direccion || {};
+  CAMPOS_DIRECCION.forEach((campo) => {
+    const el = document.getElementById(idCampo(prefijo, campo));
+    if (el) el.value = dir[campo] || (campo === 'pais' ? 'España' : '');
+  });
+}
+
+/** El mismo criterio que el servidor, en corto. Devuelve el aviso o null. */
+function revisaDireccionEnPantalla(dir) {
+  const etiquetas = {
+    calle: 'la calle y el número', cp: 'el código postal',
+    localidad: 'la localidad', provincia: 'la provincia', pais: 'el país',
+  };
+  for (const campo of Object.keys(etiquetas)) {
+    if (!dir[campo]) return 'Falta ' + etiquetas[campo] + ' de la dirección de envío.';
+  }
+  if (!/^[0-9]{5}$/.test(dir.cp)) return 'El código postal tiene que ser de cinco cifras.';
+  return null;
 }
 
 // ─── CART STATE ───────────────────────────────────────────────────────────────
@@ -1250,12 +1297,53 @@ function openProfile() {
         <p class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-brand-muted">${escapeHTML(currentUser.email)}</p>
         <p class="text-xs mt-2">El correo no se puede cambiar. Si necesitas otro, escríbenos desde el formulario de contacto.</p>
       </div>
+
+      <div class="pt-2 border-t border-brand-border">
+        <p class="${ETIQUETA_PERFIL} mb-3">Dirección de envío</p>
+        ${currentUser.direccionCompleta === false
+          ? '<p class="text-sm text-amber-400 mb-3">Tu cuenta es anterior a que pidiéramos la dirección. Complétala para poder hacer pedidos.</p>'
+          : ''}
+        <div class="space-y-4">
+          <div>
+            <label for="perfilCalle" class="${ETIQUETA_PERFIL}">Calle y número</label>
+            <input id="perfilCalle" type="text" autocomplete="street-address" maxlength="120" class="${CAMPO_PERFIL}"/>
+          </div>
+          <div>
+            <label for="perfilPiso" class="${ETIQUETA_PERFIL}">Piso, puerta <span class="normal-case font-normal">(opcional)</span></label>
+            <input id="perfilPiso" type="text" autocomplete="address-line2" maxlength="40" class="${CAMPO_PERFIL}"/>
+          </div>
+          <div class="grid grid-cols-2 gap-3 sm:gap-4">
+            <div>
+              <label for="perfilCp" class="${ETIQUETA_PERFIL}">C. postal</label>
+              <input id="perfilCp" type="text" inputmode="numeric" maxlength="5" autocomplete="postal-code" class="${CAMPO_PERFIL}"/>
+            </div>
+            <div>
+              <label for="perfilLocalidad" class="${ETIQUETA_PERFIL}">Localidad</label>
+              <input id="perfilLocalidad" type="text" autocomplete="address-level2" maxlength="60" class="${CAMPO_PERFIL}"/>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3 sm:gap-4">
+            <div>
+              <label for="perfilProvincia" class="${ETIQUETA_PERFIL}">Provincia</label>
+              <input id="perfilProvincia" type="text" autocomplete="address-level1" maxlength="60" class="${CAMPO_PERFIL}"/>
+            </div>
+            <div>
+              <label for="perfilPais" class="${ETIQUETA_PERFIL}">País</label>
+              <input id="perfilPais" type="text" autocomplete="country-name" maxlength="60" class="${CAMPO_PERFIL}"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <p id="perfilAviso" class="hidden text-sm"></p>
       <button id="perfilGuardar" onclick="saveProfile()"
         class="w-full bg-brand-gold text-black font-black py-3 rounded-xl hover:bg-brand-goldlight transition-colors">
         Guardar cambios
       </button>
     </div>`);
+  // Los campos de la dirección se rellenan por JS y no con value="…" en la
+  // plantilla: así el texto del usuario nunca se reinyecta como HTML.
+  pintaDireccion('perfil', currentUser.direccion);
   openModal('infoModal');
 }
 
@@ -1274,7 +1362,11 @@ async function saveProfile() {
     name:    document.getElementById('perfilNombre').value.trim(),
     surname: document.getElementById('perfilApellidos').value.trim(),
     phone:   document.getElementById('perfilTelefono').value.trim(),
+    direccion: leeDireccion('perfil'),
   };
+
+  const faltaAlgo = revisaDireccionEnPantalla(datos.direccion);
+  if (faltaAlgo) { setProfileNotice(faltaAlgo, true); return; }
 
   boton.disabled = true;
   boton.textContent = 'Guardando…';
@@ -1420,6 +1512,20 @@ async function initiateRedsysPayment() {
   const btn = document.getElementById('redsysBtn');
   const btnText = document.getElementById('redsysBtnText');
 
+  // Sin cuenta no se compra. Se corta AQUÍ y no al añadir al carrito para no
+  // espantar a quien todavía está mirando: puede llenarlo entero y se le pide
+  // la cuenta justo al final. El carrito no se toca, así que al volver de
+  // registrarse sigue tal cual estaba.
+  //
+  // Esto es comodidad, no la barrera: quien decide es netlify/functions/redsys.js,
+  // que responde 401 sin sesión y 422 sin dirección antes de firmar nada.
+  if (!currentUser) {
+    showToast('Para finalizar la compra necesitas una cuenta. Tu carrito no se pierde.');
+    closeCart?.();
+    openModal('registerModal');
+    return;
+  }
+
   // Set loading state
   btn.disabled = true;
   btnText.innerHTML = '<span class="spinner"></span> Procesando...';
@@ -1448,6 +1554,27 @@ async function initiateRedsysPayment() {
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
+
+      // El servidor distingue por qué no puede cobrar, y cada motivo se resuelve
+      // en un sitio distinto: no vale con enseñar el error y dejar al cliente
+      // mirando el botón sin saber qué hacer.
+      if (errData.motivo === 'sin-sesion') {
+        clearSession();
+        updateAuthUI();
+        restauraBotonPago();
+        closeCart?.();
+        showToast('Tu sesión ha caducado. Vuelve a entrar y el carrito sigue donde estaba.');
+        openModal('loginModal');
+        return;
+      }
+      if (errData.motivo === 'sin-direccion') {
+        restauraBotonPago();
+        closeCart?.();
+        showToast('Nos falta tu dirección de envío para poder mandarte el pedido.');
+        openProfile();
+        return;
+      }
+
       throw new Error(errData.error || `Error del servidor: ${response.status}`);
     }
 
@@ -1649,7 +1776,83 @@ async function handlePaymentReturn() {
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 
+// ════════════════════════════════════════════════════════════════════════════
+//  CONSENTIMIENTO DE COOKIES
+// ════════════════════════════════════════════════════════════════════════════
+//
+// Hoy la web NO usa analítica ni publicidad. Lo único que deja en el navegador
+// es la sesión (`nutretium_user`) y el último pedido (`nutretium_last_order`),
+// que son almacenamiento **estrictamente necesario** y están exentos de
+// consentimiento (LSSI art. 22.2). Con solo eso, la ley pide informar, no pedir
+// permiso — y el texto que había decía que usábamos cookies de terceros y de
+// analítica, que era sencillamente falso.
+//
+// El banner está de todas formas porque el día que se añada analítica —en una
+// tienda se acaba queriendo, para saber qué se vende— el consentimiento tiene
+// que existir ANTES de que se cargue nada. Ponerlo con prisas ese día es como
+// salen mal estas cosas.
+//
+// REGLA: todo script de analítica o publicidad va DENTRO de
+// aplicaConsentimiento(), en la rama del sí. Ni una línea fuera de ahí.
+
+const CLAVE_COOKIES = 'nutretium_cookies';
+
+// Súbela si cambian las categorías que se preguntan: una decisión tomada sobre
+// otras categorías distintas ya no vale, y hay que volver a preguntar.
+const VERSION_COOKIES = 1;
+
+function leeConsentimiento() {
+  try {
+    const guardado = JSON.parse(localStorage.getItem(CLAVE_COOKIES) || 'null');
+    return guardado && guardado.version === VERSION_COOKIES ? guardado : null;
+  } catch {
+    return null;   // modo incógnito, almacenamiento bloqueado… se vuelve a preguntar
+  }
+}
+
+function guardaConsentimiento(analitica) {
+  const estado = {
+    version: VERSION_COOKIES,
+    analitica: analitica === true,
+    fecha: new Date().toISOString(),
+  };
+  try { localStorage.setItem(CLAVE_COOKIES, JSON.stringify(estado)); } catch {}
+  muestraBannerCookies(false);
+  aplicaConsentimiento(estado);
+}
+
+/** El único sitio por donde puede entrar un script de analítica. */
+function aplicaConsentimiento(estado) {
+  if (!estado || estado.analitica !== true) return;
+  // AQUÍ va la analítica cuando se ponga, y solo aquí.
+}
+
+function muestraBannerCookies(visible) {
+  const banner = document.getElementById('cookieBanner');
+  if (!banner) return;
+  // Se conmuta `hidden` a secas: este bloque no lleva ninguna clase de display
+  // con prefijo responsive, que es la trampa que documenta CLAUDE.md (§ CSS).
+  banner.classList.toggle('hidden', visible === false);
+}
+
+function iniciaConsentimiento() {
+  const estado = leeConsentimiento();
+  if (estado) { aplicaConsentimiento(estado); return; }
+  muestraBannerCookies(true);
+}
+
+// Retirar el consentimiento tiene que ser tan fácil como darlo: el pie de
+// página llama aquí para volver a mostrar el banner y cambiar la decisión.
+window.NUTRETIUM_CONSENT = {
+  estado: leeConsentimiento,
+  analitica: () => leeConsentimiento()?.analitica === true,
+  acepta: () => guardaConsentimiento(true),
+  rechaza: () => guardaConsentimiento(false),
+  revisa: () => muestraBannerCookies(true),
+};
+
 document.addEventListener('DOMContentLoaded', () => {
+  iniciaConsentimiento();
   loadSession();
   updateAuthUI();
   loadProducts();   // pinta el catálogo de products-data.js
@@ -2002,7 +2205,7 @@ function chatReply(userText) {
 
   // Contacto
   if (_hasAny(t, ['contacto', 'telefono', 'llamar', 'email', 'correo', 'whatsapp', 'hablar con', 'asesor', 'persona', 'humano', 'agente'])) {
-    chatAddBot('📞 Puedes llamarnos al <strong>633 753 517</strong> (Lun–Sáb 09:00–21:00) o escribir a <strong>info@nutretium.com</strong>.' +
+    chatAddBot('📞 Puedes llamarnos al <strong>633 753 517</strong> (Lun–Sáb 09:00–21:00) o escribir a <strong>appnutretium@gmail.com</strong>.' +
       chatBtn('✉️ Enviar un mensaje', "document.getElementById('contact').scrollIntoView({behavior:'smooth'}); toggleChat()"));
     return;
   }
@@ -2128,7 +2331,7 @@ const INFO_CONTENT = {
       <p>Gana mientras compartes lo que te gusta. Con el <strong class="text-brand-gold">Club Nutretium</strong> sumas puntos en cada compra que canjeas por descuentos exclusivos.</p>
       <p><strong class="text-white">Fidelización:</strong> 1€ gastado = 1 punto. 100 puntos = 5€ de descuento.</p>
       <p><strong class="text-white">Afiliación:</strong> recomienda a tus amigos con tu código personal y gana un 10% de comisión por cada pedido que realicen.</p>
-      <p>Escríbenos a <a href="mailto:info@nutretium.com" class="text-brand-gold hover:underline">info@nutretium.com</a> para unirte.</p>`
+      <p>Escríbenos a <a href="mailto:appnutretium@gmail.com" class="text-brand-gold hover:underline">appnutretium@gmail.com</a> para unirte.</p>`
   },
   faqs: {
     title: 'Preguntas frecuentes (FAQs)',
@@ -2158,21 +2361,27 @@ const INFO_CONTENT = {
     html: `
       <p>En NUTRETIUM tratamos tus datos conforme al RGPD (UE) 2016/679 y la LOPDGDD.</p>
       <p><strong class="text-white">Responsable:</strong> NUTRETIUM S.L. · <strong class="text-white">Finalidad:</strong> gestión de pedidos, cuenta y comunicaciones.</p>
-      <p>Puedes ejercer tus derechos de acceso, rectificación y supresión escribiendo a <a href="mailto:info@nutretium.com" class="text-brand-gold hover:underline">info@nutretium.com</a>.</p>`
+      <p>Puedes ejercer tus derechos de acceso, rectificación y supresión escribiendo a <a href="mailto:appnutretium@gmail.com" class="text-brand-gold hover:underline">appnutretium@gmail.com</a>.</p>`
   },
   cookies: {
     title: 'Uso de cookies',
     html: `
-      <p>Utilizamos cookies propias y de terceros para mejorar tu experiencia, analizar el tráfico y personalizar contenidos.</p>
-      <p>Puedes aceptar, rechazar o configurar las cookies en cualquier momento desde tu navegador.</p>
-      <p>Las cookies técnicas son necesarias para el funcionamiento de la tienda y no requieren consentimiento.</p>`
+      <p><strong class="text-white">Esta web no usa cookies de analítica ni de publicidad, y no comparte datos con terceros.</strong></p>
+      <p>Lo único que guardamos en tu navegador es lo imprescindible para que la tienda funcione:</p>
+      <ul class="list-disc pl-5 space-y-1">
+        <li><strong class="text-white">Tu sesión</strong> — para no pedirte la contraseña en cada página.</li>
+        <li><strong class="text-white">Tu carrito y tu último pedido</strong> — para poder enseñarte el resultado del pago.</li>
+      </ul>
+      <p>Son almacenamiento <strong class="text-white">estrictamente necesario</strong>: sin ellos no podríamos prestarte el servicio que nos pides, y por eso están exentos de consentimiento (art. 22.2 LSSI-CE). Se borran al cerrar sesión o desde tu navegador.</p>
+      <p>Si en el futuro añadimos medición de visitas, <strong class="text-white">no se activará salvo que la aceptes</strong>. Puedes cambiar tu decisión cuando quieras desde «Configurar cookies», en el pie de página.</p>
+      <p>El pago se hace en la pasarela de Redsys, fuera de esta web: allí se aplica la política de cookies de la entidad bancaria.</p>`
   },
   aviso: {
     title: 'Aviso legal',
     html: `
       <p><strong class="text-white">Titular:</strong> NUTRETIUM S.L. · CIF B-27659754.</p>
       <p><strong class="text-white">Domicilio:</strong> Calle la Albericia Nº1, 39012 Santander, España.</p>
-      <p><strong class="text-white">Contacto:</strong> <a href="mailto:info@nutretium.com" class="text-brand-gold hover:underline">info@nutretium.com</a> · 633 753 517.</p>
+      <p><strong class="text-white">Contacto:</strong> <a href="mailto:appnutretium@gmail.com" class="text-brand-gold hover:underline">appnutretium@gmail.com</a> · 633 753 517.</p>
       <p>El acceso y uso de este sitio web atribuye la condición de usuario y la aceptación de las presentes condiciones.</p>`
   }
 };

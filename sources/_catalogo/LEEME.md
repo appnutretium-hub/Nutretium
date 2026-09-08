@@ -129,7 +129,19 @@ npm run catalogo -- --aplicar
 
 ## Las fotos
 
-Lo más cómodo es ponerlas desde el panel, una a una.
+Se ponen desde el panel: clic en el cuadrito de cada fila y elige la foto.
+
+**Pero no publiques después de cada una.** Mete todas las que tengas, una detrás
+de otra sin tocar «Publicar cambios», y publica **una sola vez al final**.
+
+El motivo: cada vez que pulsas «Publicar cambios» la web entera se vuelve a
+construir, y eso lo limita el plan de Netlify. Subiéndolas de una en una se
+agotó el cupo de un mes entero y la tienda se quedó semanas sin actualizarse.
+**Noventa fotos publicadas juntas cuestan lo mismo que una.**
+
+Antes de publicar, el panel te dice cuántas fotos van y cuánto pesan. Si avisa
+de que no caben en un envío, quita unas cuantas, publica, y vuelve luego a por
+el resto: serán dos veces, no noventa.
 
 Si te llegan muchas de golpe, déjalas todas en `sources/_nuevas/` con el código
 del producto delante (`00347__milkshake banana.jpg`) y lanza `npm run fotos`

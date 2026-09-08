@@ -35,9 +35,16 @@ const CORS = cabecerasCORS('POST, OPTIONS');
 const RUTA_CATALOGO = 'products-data.js';
 const RUTA_VETADOS = 'netlify/lib/no-vendibles.js';
 
-// Netlify corta las peticiones a 6 MB. Una foto ya tratada pesa ~150 KB, así
-// que con este tope caben de sobra las de una tanda y sigue habiendo margen.
-const MAX_FOTOS = 12;
+// Netlify corta las peticiones a 6 MB, y la foto viaja en base64 (+33 %). El
+// tope que manda es el de BYTES; el de número solo está para que un envío
+// absurdo no se ponga a recorrer una lista sin fin.
+//
+// Antes el tope eran 12 fotos, y era el que estorbaba: con 95 productos sin
+// foto obligaba a publicar ocho veces, y **cada publicación es un despliegue
+// entero**. Se agotó así la asignación de Netlify (30 despliegues para 30
+// fotos, una a una). El panel aprieta ahora cada foto a 35 KB (MAX_KB en
+// admin.js), así que 4 MB dan para más de cien y entran todas de una vez.
+const MAX_FOTOS = 150;
 const MAX_BYTES_FOTOS = 4 * 1024 * 1024;
 const MAX_PRODUCTOS = 1000;
 const EXTENSIONES = new Set(['webp', 'jpg', 'jpeg', 'png']);
@@ -112,7 +119,7 @@ function revisaFotos(fotos) {
   if (!Array.isArray(fotos) || !fotos.length) return { fotos: [] };
   if (fotos.length > MAX_FOTOS) {
     return { error: 'Van ' + fotos.length + ' fotos y el máximo por publicación es ' + MAX_FOTOS +
-      '. Publica en dos tandas, o mételas todas de golpe con `npm run fotos`.' };
+      '. Quita algunas y publica el resto después.' };
   }
 
   let bytes = 0;
@@ -130,7 +137,8 @@ function revisaFotos(fotos) {
     bytes += Math.ceil(base64.length * 3 / 4);
     if (bytes > MAX_BYTES_FOTOS) {
       return { error: 'Las fotos suman más de ' + Math.round(MAX_BYTES_FOTOS / 1024 / 1024) +
-        ' MB. Publica en dos tandas.' };
+        ' MB y no caben en un envío. Han entrado ' + limpias.length + ' de ' + fotos.length +
+        ': quita las que sobran, publica, y luego vuelve a por el resto.' };
     }
     limpias.push({ codigo: codigo.toUpperCase(), extension, base64 });
   }

@@ -294,6 +294,39 @@ function listaActual(texto = CATALOGO) {
       fotos: [{ codigo: '00347', extension: 'exe', base64: imagen }],
     }, { token });
     comprueba('una «foto» .exe: 400', formatoRaro.estado === 400, String(formatoRaro.estado));
+
+    // La tanda entera de una vez. Quien lleva la tienda no usa la consola: sube
+    // todas las fotos por el panel y publica UNA vez. El tope anterior de 12
+    // obligaba a publicar ocho veces, y cada publicación es un despliegue
+    // entero — así se agotó la cuota de Netlify (30 despliegues, 30 fotos).
+    const sinFoto = hoja.parsea(CATALOGO).productos.filter((p) => !p.image);
+    const deTope = Buffer.alloc(35 * 1024, 7).toString('base64');   // el MAX_KB del panel
+
+    montaGitHub();
+    const tanda = await llama({
+      action: 'publicar', productos: listaActual(),
+      fotos: sinFoto.map((p) => ({ codigo: p.code, extension: 'webp', base64: deTope })),
+    }, { token });
+
+    comprueba(`las ${sinFoto.length} fotos que faltan entran en UNA sola publicación`,
+      tanda.estado === 200 && tanda.datos.ok === true,
+      JSON.stringify(tanda.datos).slice(0, 200));
+    comprueba('y salen en un único commit',
+      subido.commits.length === 1 &&
+      subido.arboles[0].tree.filter((t) => t.path.endsWith('.webp')).length === sinFoto.length,
+      'commits: ' + subido.commits.length);
+
+    // Pero el envío sigue teniendo un techo: Netlify corta a 6 MB.
+    montaGitHub();
+    const demasiado = Buffer.alloc(60 * 1024, 7).toString('base64');
+    const pasada = await llama({
+      action: 'publicar', productos: listaActual(),
+      fotos: sinFoto.map((p) => ({ codigo: p.code, extension: 'webp', base64: demasiado })),
+    }, { token });
+    comprueba('una tanda que no cabe en el envío: 400', pasada.estado === 400, String(pasada.estado));
+    comprueba('y el mensaje dice cuántas han entrado',
+      /Han entrado \d+ de \d+/.test(pasada.datos.error || ''), pasada.datos.error);
+    comprueba('y no se ha tocado GitHub', subido.commits.length === 0);
   }
 
   console.log('\n── La lista de no vendibles manda también aquí ──');

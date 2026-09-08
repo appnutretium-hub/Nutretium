@@ -17,6 +17,10 @@
 
 'use strict';
 
+// La dirección se pinta con el mismo formato que en «Mi perfil»: una sola
+// función para que el correo y la pantalla no digan la dirección de dos formas.
+const direccion = require('./direccion');
+
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
 /**
@@ -95,9 +99,17 @@ function buildOrderEmail(record) {
       </table>
 
       <p style="font-size:14px;line-height:1.6;margin-top:18px;">
-        <strong>Cliente:</strong> ${esc(record.email || 'Compra sin cuenta (invitado)')}<br/>
+        <strong>Cliente:</strong> ${esc([record.cliente, record.email].filter(Boolean).join(' — ') || 'Sin datos')}<br/>
+        ${record.telefono ? `<strong>Tel&eacute;fono:</strong> ${esc(record.telefono)}<br/>` : ''}
         <strong>Autorizaci&oacute;n:</strong> ${esc(record.authCode || '—')}<br/>
         <strong>Fecha:</strong> ${esc(record.receivedAt || record.createdAt || '')}
+      </p>
+
+      <!-- Sin esto el pedido llega cobrado y sin saber a dónde mandarlo. Los
+           pedidos anteriores a que la dirección fuese obligatoria no la traen. -->
+      <p style="font-size:14px;line-height:1.6;margin-top:14px;">
+        <strong>Enviar a:</strong><br/>
+        ${record.envio ? esc(direccion.comoTexto(record.envio)) : 'Pedido antiguo, sin direcci&oacute;n guardada.'}
       </p>
     </div>`;
 

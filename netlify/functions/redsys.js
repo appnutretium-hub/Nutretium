@@ -32,6 +32,8 @@ const { cabecerasCORS } = require('../lib/cors');
 const { getBlobStore }   = require('../lib/blob-store');
 const { verifyJWT }      = require('../lib/jwt');
 const { valorarCarrito } = require('../lib/catalogo');
+const usuarios           = require('../lib/usuarios');
+const direccion          = require('../lib/direccion');
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
@@ -144,6 +146,55 @@ exports.handler = async function (event) {
 
   const { amount, items, token } = requestBody;
 
+  // ── Quién compra ───────────────────────────────────────────────────────────
+  // Ya no hay pedidos de invitado. Sin cuenta no se cobra, y sin dirección de
+  // envío tampoco: un pedido cobrado que no se puede entregar es peor que una
+  // venta perdida.
+  //
+  // Se comprueba AQUÍ, antes de valorar el carrito y antes de firmar nada. Y se
+  // comprueba en el servidor porque la tienda avisa antes por comodidad, pero
+  // esa comprobación vive en el navegador y no protege nada: cualquiera puede
+  // llamar a esta función a mano.
+  //
+  // El correo sale del token firmado, nunca de lo que mande el navegador.
+  let email = null;
+  if (token) {
+    try { email = verifyJWT(token).email || null; }
+    catch { email = null; }   // caducado o falso: se trata como si no hubiera
+  }
+
+  if (!email) {
+    return {
+      statusCode: 401,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ error: 'Para finalizar la compra necesitas iniciar sesión.', motivo: 'sin-sesion' }),
+    };
+  }
+
+  const comprador = await usuarios.lee(email);
+  if (!comprador) {
+    return {
+      statusCode: 401,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ error: 'No encontramos tu cuenta. Vuelve a iniciar sesión.', motivo: 'sin-sesion' }),
+    };
+  }
+
+  // Las cuentas creadas antes de que la dirección fuese obligatoria llegan aquí
+  // sin ella: se les pide entonces, que es el único momento en que hace falta.
+  const envio = direccion.normaliza(comprador.direccion);
+  const faltaDireccion = direccion.revisa(envio);
+  if (faltaDireccion) {
+    return {
+      statusCode: 422,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({
+        error: 'Antes de pagar tienes que completar tu dirección de envío. ' + faltaDireccion,
+        motivo: 'sin-direccion',
+      }),
+    };
+  }
+
   // ── Poner precio al pedido ─────────────────────────────────────────────────
   // El importe NO se acepta del navegador: se calcula aquí con los precios del
   // catálogo. `items` solo aporta qué producto (id) y cuántas unidades.
@@ -254,18 +305,19 @@ exports.handler = async function (event) {
   // conservar los artículos: la notificación de Redsys no incluye nada de eso,
   // solo el importe y el resultado.
   try {
-    // El email sale del token firmado, nunca de lo que envíe el navegador.
-    let email = null;
-    if (token) {
-      try { email = verifyJWT(token).email || null; }
-      catch { email = null; } // sesión caducada → pedido de invitado
-    }
-
+    // `email` y `envio` ya están comprobados arriba: sin cuenta y sin dirección
+    // no se llega hasta aquí.
     const store = getBlobStore('redsys-orders');
     if (store) {
       await store.setJSON(orderNumber, {
         order:     orderNumber,
         email,
+        // Copia de la dirección tal y como estaba AL COMPRAR. Si se guardara
+        // solo la referencia al usuario, cambiar la dirección más adelante
+        // reescribiría a dónde se mandaron los pedidos ya enviados.
+        envio,
+        cliente:   [comprador.name, comprador.surname].filter(Boolean).join(' '),
+        telefono:  comprador.phone || '',
         // Líneas valoradas por el servidor, no las que mandó el navegador.
         items:     pedido.lineas,
         amount:    pedido.totalCents / 100,

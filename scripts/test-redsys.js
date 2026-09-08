@@ -166,7 +166,14 @@ function capturandoConsola(fn) {
 async function main() {
   const { NUTRETIUM_PRODUCTS } = require('../products-data.js');
   // Dos productos con stock de sobra, para que el carrito sea válido siempre.
-  const conStock = NUTRETIUM_PRODUCTS.filter((p) => p.stock === null || p.stock > 3).slice(0, 2);
+  //
+  // `active !== false` no sobra: el catálogo lo cambia quien lleva la tienda
+  // desde /admin.html, y el día que despublicó el que aquí salía elegido, esta
+  // prueba se puso roja como si fallara la pasarela. La elección tiene que
+  // aguantar que el catálogo cambie por debajo.
+  const conStock = NUTRETIUM_PRODUCTS
+    .filter((p) => p.active !== false && (p.stock === null || p.stock > 3))
+    .slice(0, 2);
   const carrito = conStock.map((p) => ({ id: p.id, code: p.code, qty: 2 }));
   const totalEsperado = conStock.reduce((s, p) => s + Math.round(p.price * 100) * 2, 0);
 

@@ -103,6 +103,34 @@ ese mensaje se cierra en un minuto.
 
 ---
 
+## 6. ⚠️ El correo de administrador está publicado en la web — ANTES DEL PASE A REAL
+
+`ADMIN_EMAILS` vale `appnutretium@gmail.com`, y ese mismo correo es el de
+contacto público: sale en el pie, en el chat y en los tres textos legales, ocho
+veces entre `app.js` e `index.html`. La web está diciendo **qué cuenta hay que
+atacar** para cambiar los precios que cobra el TPV.
+
+No pasaba hasta el 08/09/2026: el contacto era `info@nutretium.com` y no
+coincidían. Al cambiar el correo público a `appnutretium@gmail.com` se juntaron
+los dos, y el escáner de secretos de Netlify tumbó el despliegue avisando de
+ello. **Está silenciado** con `SECRETS_SCAN_OMIT_KEYS` en `netlify.toml`, para
+poder desplegar. Silenciado, no resuelto.
+
+Lo único que hoy separa esa cuenta del catálogo es la contraseña y el freno de
+5 intentos por cada 15 minutos.
+
+**Qué hay que hacer:**
+
+1. registrar en la tienda otra dirección que **no aparezca en la web** — una
+   propia, no un alias `+algo` del correo público, que se adivina solo;
+2. ponerla en `ADMIN_EMAILS` (Netlify → Environment variables) y **redesplegar**,
+   que es cuando entran las variables;
+3. comprobar que se entra en `/admin.html` con la nueva y que la vieja ya no;
+4. **borrar `SECRETS_SCAN_OMIT_KEYS` de `netlify.toml`**: si el escáner vuelve a
+   pasar limpio, es que de verdad está arreglado. Ese es el examen.
+
+---
+
 ## 3. Stock de los 22 productos de almacén
 
 Siguen agotados porque no se sabe la cifra real: 12 helados Protzen, aguas

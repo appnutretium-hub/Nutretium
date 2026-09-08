@@ -3,35 +3,19 @@
 > Generado por `scripts/fotos-incorporar.js`. No editar a mano: se rehace
 > solo cada vez que se incorporan fotos nuevas.
 
-**95 de 153 productos siguen sin foto** (58 ya la tienen).
+**83 de 152 productos siguen sin foto** (69 ya la tienen).
 
 Se parten en dos grupos que se resuelven de forma distinta. Para meter las
 fotos una vez conseguidas, ver `sources/_nuevas/LEEME.md`.
 
 ---
 
-## A. Pedir el packshot al distribuidor — 44 productos
+## A. Pedir el packshot al distribuidor — 32 productos
 
 Producto de marca envasado: el fabricante tiene foto oficial y material de
 punto de venta, y con él viene el permiso de uso. Es de donde salieron las
 30 fotos AMRO que ya están publicadas. Cada apartado de abajo es la lista
 que hay que pedirle a ese proveedor.
-
-### Protella — 11
-
-| Código | Producto | Categoría |
-|---|---|---|
-| `00302` | Crema De Proteina Bonbon Crisp Protella 200g | Alimentación proteica |
-| `00300` | Crema De Proteina Chocolate Blanco Protella 200g | Alimentación proteica |
-| `00303` | Crema De Proteina Cookie Dough Protella 200g | Alimentación proteica |
-| `00331` | Colageno Mango 180g Protella | Colágeno y bienestar |
-| `00335` | Creatina Monohydrate Melon Gum,300g Protella | Creatinas |
-| `00345` | Creatina Monohydrate 300g Protella | Creatinas |
-| `00337` | Crema De Arroz Cookie Dough 500g Protella | Alimentación proteica |
-| `00336` | Crema De Arroz Speculoos 500g Protella | Alimentación proteica |
-| `00338` | Crema De Arroz Peanut 500g Protella | Alimentación proteica |
-| `00298` | Mermelada Melocoton Protella 170g | Alimentación proteica |
-| `00299` | Mermelada Strawberry Protella 170g | Alimentación proteica |
 
 ### Protzen — 8
 
@@ -46,16 +30,16 @@ que hay que pedirle a ese proveedor.
 | `00495` | Helado Vainilla 100ml Protzen | Helados |
 | `00489` | Helado Vainilla 460ml Protzen | Helados |
 
-### Nocco — 6
+### Protella — 6
 
 | Código | Producto | Categoría |
 |---|---|---|
-| `00353` | Nocco BCAA Mango 355ml | Bebidas |
-| `00352` | Nocco BCAA+ Manzana 355ml | Bebidas |
-| `00355` | Nocco Electrolyte Blood Orange 355ml | Bebidas |
-| `00351` | Nocco Electrolyte Lima/limon 355ml | Bebidas |
-| `00354` | Nocco Focus Grand Sour Limon/manzana 330ml | Bebidas |
-| `00356` | Nocco Focus Ramonade 330ml | Bebidas |
+| `00302` | Crema De Proteina Bonbon Crisp Protella 200g | Alimentación proteica |
+| `00300` | Crema De Proteina Chocolate Blanco Protella 200g | Alimentación proteica |
+| `00303` | Crema De Proteina Cookie Dough Protella 200g | Alimentación proteica |
+| `00331` | Colageno Mango 180g Protella | Colágeno y bienestar |
+| `00298` | Mermelada Melocoton Protella 170g | Alimentación proteica |
+| `00299` | Mermelada Strawberry Protella 170g | Alimentación proteica |
 
 ### Barebells — 5
 
@@ -86,13 +70,12 @@ que hay que pedirle a ese proveedor.
 | `00480` | Oferta Pack Aqua Deus 6 Botellas 1.5l | Bebidas |
 | `00539` | Pack Aquadeus 6 Botellas 1.5l | Bebidas |
 
-### Solares — 3
+### Solares — 2
 
 | Código | Producto | Categoría |
 |---|---|---|
 | `00531` | Agua Solares Pequeña 0.50ml | Bebidas |
 | `00533` | Agua Solares 1.5l | Bebidas |
-| `00479` | Oferta Pack Solares 6 Botellas 1.5l | Bebidas |
 
 ### NABE — 1
 

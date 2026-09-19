@@ -2,7 +2,7 @@
 const fs=require('fs');
 const required=[
   'index.html','commerce-pro.js','commerce-suite.js','commercial-finish.js','commercial-finish.css','compare-suite.js','pro-qa-fixes.js','production-finish.js','mobile-commerce-pro.js','mobile-commerce-pro.css','comparar.html','comparar.js','producto.html','producto.js','product-education.js','aprende.html','checkout.html','checkout.js','cuenta.html','cuenta.js','smart-shop.html','smart-shop.js','backoffice.html','backoffice.js','control.html','control.js','ayuda.html',
-  'netlify/functions/checkout.js','netlify/functions/commerce.js','netlify/functions/orders.js','netlify/functions/admin-orders.js','netlify/functions/saved-cart.js','netlify/functions/analytics-event.js','netlify/functions/admin-analytics.js','netlify/functions/system-health.js','netlify/functions/reviews.js','netlify/functions/redsys-notify.js','netlify/functions/contact.js','netlify/lib/promotions.js','netlify/lib/staff.js','netlify/lib/email.js'
+  'netlify/functions/checkout.js','netlify/functions/commerce.js','netlify/functions/orders.js','netlify/functions/admin-orders.js','netlify/functions/saved-cart.js','netlify/functions/analytics-event.js','netlify/functions/admin-analytics.js','netlify/functions/system-health.js','netlify/functions/reviews.js','netlify/functions/redsys-notify.js','netlify/functions/contact.js','netlify/lib/promotions.js','netlify/lib/staff.js','netlify/lib/email.js','netlify/lib/shipping.js'
 ];
 const missing=required.filter(f=>!fs.existsSync(f));
 if(missing.length)throw new Error('Arquitectura incompleta. Faltan: '+missing.join(', '));
@@ -21,10 +21,18 @@ has('checkout.js','/.netlify/functions/checkout');
 has('checkout.js','raw.version===1&&raw.analitica===true');
 has('netlify/functions/checkout.js','valorarCarrito');
 has('netlify/functions/checkout.js','promotions.calcula');
+has('netlify/functions/checkout.js','shipping.quote');
 has('netlify/functions/checkout.js','COMMERCE_LIVE');
 has('netlify/functions/checkout.js','publicProductionHost');
 has('netlify/functions/checkout.js','persistencia obligatoria');
 has('netlify/functions/checkout.js','store.get(order,{type:\'json\'})');
+has('netlify/lib/shipping.js','SHIPPING_RATE_CENTS');
+has('netlify/lib/shipping.js','shipping-not-configured');
+has('netlify/functions/system-health.js','adminIsolation');
+has('netlify/functions/system-health.js','redsysProduction');
+has('netlify/functions/system-health.js','emailDomain');
+has('netlify/functions/system-health.js','shipping.configured');
+has('netlify/lib/email.js','missing-sender');
 has('netlify/functions/redsys-notify.js','missingOrderRecord');
 has('netlify/functions/redsys-notify.js','Storage unavailable');
 has('netlify/functions/redsys-notify.js','REVIEW_REQUIRED');
@@ -67,8 +75,8 @@ has('mobile-commerce-pro.js','data-product-id');
 has('mobile-commerce-pro.js','ntDockCartBadge');
 has('mobile-commerce-pro.css','min-height:50px');
 has('mobile-commerce-pro.css','env(safe-area-inset-bottom');
-['franchise-trust.js','commercial-finish.js','product-education.js','compare-suite.js','comparar.js','pro-qa-fixes.js','production-finish.js','mobile-commerce-pro.js','commerce-suite.js','checkout.js','cuenta.js','backoffice.js','netlify/functions/checkout.js','netlify/functions/commerce.js','netlify/functions/admin-orders.js','netlify/functions/redsys-notify.js','netlify/functions/contact.js'].forEach(parse);
+['franchise-trust.js','commercial-finish.js','product-education.js','compare-suite.js','comparar.js','pro-qa-fixes.js','production-finish.js','mobile-commerce-pro.js','commerce-suite.js','checkout.js','cuenta.js','backoffice.js','netlify/functions/checkout.js','netlify/functions/commerce.js','netlify/functions/admin-orders.js','netlify/functions/redsys-notify.js','netlify/functions/contact.js','netlify/functions/system-health.js','netlify/lib/shipping.js','netlify/lib/email.js'].forEach(parse);
 const points=[
  'seguridad/configuración','fotos/catálogo','navegación/buscador','URLs limpias','filtros','ficha producto','compra rápida','carrito/cross-sell','checkout invitado','Redsys','pedidos','envíos/tracking','clientes','favoritos/recompra','points','reseñas verificadas','packs','cupones','emails','SEO','analítica','carrito guardado','recomendador','roles','responsive/build audit'
 ];
-console.log(`[audit-architecture] OK — ${points.length}/25 bloques + educación + comparador + QA móvil + SKU estable + backoffice + tracking + points fail-closed + protecciones de producción`);
+console.log(`[audit-architecture] OK — ${points.length}/25 bloques + envíos fail-closed + readiness estricto + email corporativo + protecciones de producción`);

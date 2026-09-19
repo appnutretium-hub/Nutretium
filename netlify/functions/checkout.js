@@ -8,6 +8,7 @@ const { valorarCarrito } = require('../lib/catalogo');
 const usuarios = require('../lib/usuarios');
 const direccion = require('../lib/direccion');
 const promotions = require('../lib/promotions');
+const shipping = require('../lib/shipping');
 
 const CORS = cabecerasCORS('POST, OPTIONS');
 const URLS={test:'https://sis-t.redsys.es:25443/sis/realizarPago',production:'https://sis.redsys.es/sis/realizarPago'};
@@ -52,8 +53,15 @@ exports.handler=async function(event){
   if(!pedido.ok)return json(400,{error:pedido.errores[0],detalles:pedido.errores});
   const promo=body.coupon?promotions.calcula(pedido.totalCents,body.coupon):{ok:false,subtotalCents:pedido.totalCents,discountCents:0,totalCents:pedido.totalCents};
   if(body.coupon&&!promo.ok)return json(422,{error:promo.reason==='minimum'?'El pedido no alcanza el mínimo del cupón.':'Cupón no válido o no activo.',promotion:promo});
-  const totalCents=promo.ok?promo.totalCents:pedido.totalCents;
-  if(totalCents<=0)return json(400,{error:'El importe final no puede ser cero.'});
+  const merchandiseCents=promo.ok?promo.totalCents:pedido.totalCents;
+  if(merchandiseCents<=0)return json(400,{error:'El importe final no puede ser cero.'});
+
+  const shipment=shipping.quote({subtotalCents:merchandiseCents,address:identidad.envio});
+  if(!shipment.ok){
+    console.error('[checkout] envío bloqueado:',shipment.reason);
+    return json(503,{error:shipment.error,motivo:shipment.reason});
+  }
+  const totalCents=merchandiseCents+shipment.shippingCents;
 
   const secret=process.env.REDSYS_SECRET_KEY,merchant=process.env.REDSYS_MERCHANT_CODE,terminal=process.env.REDSYS_TERMINAL||'1',env=process.env.REDSYS_ENV||'test';
   if(!secret||!merchant)return json(503,{error:'Pasarela de pago no configurada.'});
@@ -69,7 +77,7 @@ exports.handler=async function(event){
   const encoded=Buffer.from(JSON.stringify(params)).toString('base64');
   let signature;try{signature=sign(encoded,key(secret,order))}catch(e){console.error('[checkout] firma',e);return json(500,{error:'No se pudo preparar el pago.'})}
 
-  const record={order,email:identidad.email,envio:identidad.envio,cliente:[identidad.comprador.name,identidad.comprador.surname].filter(Boolean).join(' '),telefono:identidad.comprador.phone||'',guest:Boolean(identidad.guest),items:pedido.lineas,subtotal:pedido.totalCents/100,discount:promo.ok?promo.discountCents/100:0,promotion:promo.ok?{code:promo.code,label:promo.label}:null,amount:totalCents/100,currency:'978',status:'PENDING',createdAt:new Date().toISOString()};
+  const record={order,email:identidad.email,envio:identidad.envio,cliente:[identidad.comprador.name,identidad.comprador.surname].filter(Boolean).join(' '),telefono:identidad.comprador.phone||'',guest:Boolean(identidad.guest),items:pedido.lineas,subtotal:pedido.totalCents/100,discount:promo.ok?promo.discountCents/100:0,promotion:promo.ok?{code:promo.code,label:promo.label}:null,shipping:{amount:shipment.shippingCents/100,label:shipment.label,country:shipment.country,free:shipment.free},amount:totalCents/100,currency:'978',status:'PENDING',createdAt:new Date().toISOString()};
   try{
     const store=getBlobStore('redsys-orders');
     if(!store)throw new Error('redsys-orders no disponible');
@@ -85,5 +93,5 @@ exports.handler=async function(event){
     return json(503,{error:'No se ha podido guardar el pedido de forma segura. No se iniciará ningún cobro. Inténtalo de nuevo.'});
   }
 
-  return json(200,{Ds_SignatureVersion:VERSION,Ds_MerchantParameters:encoded,Ds_Signature:signature,redsysUrl:URLS[env]||URLS.test,order,summary:{subtotal:pedido.totalCents/100,discount:promo.ok?promo.discountCents/100:0,total:totalCents/100,coupon:promo.ok?promo.code:null}});
+  return json(200,{Ds_SignatureVersion:VERSION,Ds_MerchantParameters:encoded,Ds_Signature:signature,redsysUrl:URLS[env]||URLS.test,order,summary:{subtotal:pedido.totalCents/100,discount:promo.ok?promo.discountCents/100:0,shipping:shipment.shippingCents/100,shippingLabel:shipment.label,total:totalCents/100,coupon:promo.ok?promo.code:null}});
 };

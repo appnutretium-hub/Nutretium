@@ -1,102 +1,21 @@
 (function () {
   'use strict';
-
-  const KEY = 'nutretium_user';
-  const $ = (id) => document.getElementById(id);
-
-  function user() {
-    try { return JSON.parse(localStorage.getItem(KEY) || 'null'); }
-    catch { return null; }
-  }
-
-  function token() { return (user() || {}).token || ''; }
-
-  const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[char]));
-
-  async function api(body, path = 'customer-commerce') {
-    const response = await fetch('/.netlify/functions/' + path, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: 'Bearer ' + token(),
-      },
-      body: JSON.stringify(body),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || 'No se pudo completar la operación');
-    return data;
-  }
-
-  function items(rows, empty = 'Sin registros') {
-    return (rows || []).map((record) => (
-      `<div class="item"><b>${esc(record.subject || record.orderId || record.name || record.cadence || record.type || record.id)}</b>` +
-      `<div class="muted">${esc(record.status || '')}</div></div>`
-    )).join('') || `<div class="muted">${esc(empty)}</div>`;
-  }
-
-  async function load() {
-    if (!token()) {
-      $('login').hidden = false;
-      $('app').hidden = true;
-      return;
-    }
-    try {
-      const data = await api({ action: 'overview' });
-      $('login').hidden = true;
-      $('app').hidden = false;
-      $('loyalty').innerHTML = data.loyalty
-        ? `<strong style="font-size:1.7rem;color:#d4af37">${Number(data.loyalty.balance || 0)}</strong><div class="muted">puntos disponibles</div>`
-        : '<div class="muted">Programa preparado; aún sin saldo.</div>';
-      $('subscriptions').innerHTML = items(data.subscriptions);
-      $('returns').innerHTML = items(data.returns);
-      $('tickets').innerHTML = items(data.tickets);
-      $('carts').innerHTML = items(data.savedCarts);
-      $('privacy').innerHTML = items(data.privacyRequests);
-    } catch (error) {
-      if (/sesión|iniciar/i.test(error.message)) {
-        localStorage.removeItem(KEY);
-        location.reload();
-      } else {
-        alert(error.message);
-      }
-    }
-  }
-
-  $('supportForm').onsubmit = async (event) => {
-    event.preventDefault();
-    try {
-      await api({ action: 'support-ticket', subject: $('subject').value, message: $('message').value });
-      event.target.reset();
-      await load();
-    } catch (error) { alert(error.message); }
-  };
-
-  $('privacyForm').onsubmit = async (event) => {
-    event.preventDefault();
-    try {
-      await api({ action: 'privacy-request', type: $('privacyType').value, details: $('privacyDetails').value });
-      event.target.reset();
-      await load();
-    } catch (error) { alert(error.message); }
-  };
-
-  $('passwordForm').onsubmit = async (event) => {
-    event.preventDefault();
-    $('securityMsg').textContent = '';
-    try {
-      await api({
-        action: 'change-password',
-        oldPassword: $('oldPassword').value,
-        newPassword: $('newPassword').value,
-      }, 'account-security');
-      $('securityMsg').textContent = 'Contraseña actualizada.';
-      event.target.reset();
-    } catch (error) {
-      $('securityMsg').textContent = error.message;
-    }
-  };
-
+  const KEY='nutretium_user',$=(id)=>document.getElementById(id);
+  function user(){try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch{return null}}
+  function token(){return(user()||{}).token||''}
+  const esc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  async function api(body,path='customer-commerce'){const r=await fetch('/.netlify/functions/'+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token()},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'No se pudo completar la operación');return d}
+  function items(rows,empty='Sin registros'){return(rows||[]).map(r=>`<div class="item"><b>${esc(r.subject||r.orderId||r.name||r.cadence||r.type||r.code||r.id)}</b><div class="muted">${esc(r.status||'')}</div></div>`).join('')||`<div class="muted">${esc(empty)}</div>`}
+  function latestConsent(rows,purpose){const m=(rows||[]).filter(r=>r.purpose===purpose).sort((a,b)=>String(b.changedAt||b.updatedAt||'').localeCompare(String(a.changedAt||a.updatedAt||'')))[0];return m?.status==='granted'}
+  async function load(){if(!token()){$('login').hidden=false;$('app').hidden=true;return}try{const d=await api({action:'overview'});$('login').hidden=true;$('app').hidden=false;$('loyalty').innerHTML=d.loyalty?`<strong style="font-size:1.7rem;color:#d4af37">${Number(d.loyalty.balance||0)}</strong><div class="muted">puntos disponibles</div>`:'<div class="muted">Sin saldo todavía.</div>';$('subscriptions').innerHTML=items(d.subscriptions);$('returns').innerHTML=items(d.returns);$('tickets').innerHTML=items(d.tickets);$('carts').innerHTML=items(d.savedCarts);$('privacy').innerHTML=items(d.privacyRequests);$('reviews').innerHTML=items(d.reviews,'Aún no has enviado reseñas.');$('referrals').innerHTML=(d.referrals||[]).length?d.referrals.map(r=>`<div class="item"><div class="code">${esc(r.code)}</div><div class="muted">${Number(r.conversions||0)} conversiones · ${esc(r.status)}</div></div>`).join(''):'<div class="muted">Aún no tienes código.</div>';$('consentAnalytics').checked=latestConsent(d.consents,'analytics');$('consentMarketing').checked=latestConsent(d.consents,'marketing');$('consentPersonalization').checked=latestConsent(d.consents,'personalization')}catch(e){if(/sesión|iniciar/i.test(e.message)){localStorage.removeItem(KEY);location.reload()}else alert(e.message)}}
+  $('supportForm').onsubmit=async e=>{e.preventDefault();try{await api({action:'support-ticket',subject:$('subject').value,message:$('message').value});e.target.reset();await load()}catch(err){alert(err.message)}};
+  $('privacyForm').onsubmit=async e=>{e.preventDefault();try{await api({action:'privacy-request',type:$('privacyType').value,details:$('privacyDetails').value});e.target.reset();await load()}catch(err){alert(err.message)}};
+  $('passwordForm').onsubmit=async e=>{e.preventDefault();$('securityMsg').textContent='';try{await api({action:'change-password',oldPassword:$('oldPassword').value,newPassword:$('newPassword').value},'account-security');$('securityMsg').textContent='Contraseña actualizada.';$('securityMsg').className='status ok';e.target.reset()}catch(err){$('securityMsg').textContent=err.message;$('securityMsg').className='status bad'}};
+  $('referralCreate').onclick=async()=>{try{await api({action:'referral-create'});await load()}catch(err){alert(err.message)}};
+  $('reviewForm').onsubmit=async e=>{e.preventDefault();$('reviewMsg').textContent='';try{await api({action:'submit-review',orderId:$('reviewOrder').value.trim(),productId:Number($('reviewProduct').value),rating:Number($('reviewRating').value),title:$('reviewTitle').value,body:$('reviewBody').value});$('reviewMsg').textContent='Reseña enviada a moderación.';$('reviewMsg').className='status ok';e.target.reset();await load()}catch(err){$('reviewMsg').textContent=err.message;$('reviewMsg').className='status bad'}};
+  $('giftCardForm').onsubmit=async e=>{e.preventDefault();$('giftCardResult').textContent='';try{const d=await api({action:'gift-card-balance',code:$('giftCardCode').value});const g=d.giftCard;$('giftCardResult').innerHTML=`Estado: <b>${esc(g.status)}</b> · Saldo: <b>${(Number(g.balanceCents||0)/100).toFixed(2)} ${esc(g.currency||'EUR')}</b>`}catch(err){$('giftCardResult').textContent=err.message}};
+  $('b2bForm').onsubmit=async e=>{e.preventDefault();$('b2bMsg').textContent='';try{await api({action:'b2b-apply',companyName:$('b2bCompany').value,taxId:$('b2bTax').value,contactName:$('b2bContact').value});$('b2bMsg').textContent='Solicitud B2B registrada.';$('b2bMsg').className='status ok';e.target.reset()}catch(err){$('b2bMsg').textContent=err.message;$('b2bMsg').className='status bad'}};
+  async function setConsent(purpose,granted){try{await api({action:'consent-set',purpose,granted});if(window.NUTRETIUM_CONSENT&&purpose==='analytics'){granted?window.NUTRETIUM_CONSENT.acepta?.():window.NUTRETIUM_CONSENT.rechaza?.()}}catch(err){alert(err.message);await load()}}
+  $('consentAnalytics').onchange=e=>setConsent('analytics',e.target.checked);$('consentMarketing').onchange=e=>setConsent('marketing',e.target.checked);$('consentPersonalization').onchange=e=>setConsent('personalization',e.target.checked);
   load();
 })();

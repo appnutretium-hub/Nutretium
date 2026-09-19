@@ -1,0 +1,36 @@
+name: Nutretium Quality Gate
+on:
+  push:
+    branches: [main, 'feature/**', 'hotfix/**']
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install
+        run: npm ci --omit=optional
+      - name: Build storefront
+        run: npm run build:css
+      - name: Price and cart tests
+        run: npm test
+      - name: Redsys tests
+        run: npm run test:redsys
+      - name: Catalog tests
+        run: npm run test:catalogo
+      - name: Admin tests
+        run: npm run test:admin
+      - name: Account tests
+        run: npm run test:cuentas
+      - name: Commerce tests
+        run: npm run test:commerce

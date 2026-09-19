@@ -1,23 +1,12 @@
 [build]
   publish = "."
   functions = "netlify/functions"
-
-  # Lo que NO debe salir publicado.
-  #
-  # publish = "." sirve la carpeta entera, así que todo lo que esté aquí queda
-  # accesible por URL. Este comando lo borra de la COPIA que Netlify despliega;
-  # tus archivos locales NO se tocan.
-  #
-  # Importante: el listado del ERP, el Excel y la auditoría llevan precios,
-  # stock y datos de proveedor. Publicados serían descargables por cualquiera.
-  #
-  # El comando hace cuatro cosas: 1) compila Tailwind a styles.css,
-  # 2) añade la capa visual Human Touch, 3) añade la capa de confianza/franquicia
-  # al JS público, 4) borra de la copia desplegada lo sensible.
   command = """
     npm run build:css &&
     cat human-touch.css >> styles.css &&
+    cat commerce-core.css >> styles.css &&
     cat franchise-trust.js >> app.js &&
+    cat commerce-core.js >> app.js &&
     rm -rf \
       'Listado de stock disponible.pdf' \
       'CATALOGO_NUTRETIUM.xlsx' \
@@ -35,6 +24,8 @@
       'scripts' \
       '.vscode' \
       '.claude' \
+      'commerce-core.css' \
+      'commerce-core.js' \
       'sources/01_PNG_MAX_CALIDAD_CON_PVP' \
       'sources/00_CONTROL_CALIDAD.csv' \
       'sources/00_RELACION_IMAGENES_PVP.csv' \
@@ -51,9 +42,6 @@
       'src' \
       'tailwind.config.js'
   """
-  # No se borran package.json, package-lock.json ni node_modules: Netlify los
-  # necesita DESPUÉS de este comando para empaquetar las funciones. No son
-  # sensibles, y las reglas de más abajo impiden servirlos.
 
 [build.environment]
   NPM_FLAGS = "--omit=optional"
@@ -79,93 +67,96 @@
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
     Cache-Control = "no-store"
-
 [[headers]]
   for = "/admin"
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
     Cache-Control = "no-store"
-
+[[headers]]
+  for = "/ops.html"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-store"
+[[headers]]
+  for = "/ops"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-store"
 [[headers]]
   for = "/sources/productos/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# URLs limpias para categorías y fichas de producto.
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "/.netlify/functions/sitemap"
+  status = 200
+  force = true
+[[redirects]]
+  from = "/ops"
+  to = "/ops.html"
+  status = 200
 [[redirects]]
   from = "/categoria/*"
   to = "/index.html"
   status = 200
-
 [[redirects]]
   from = "/producto/*"
   to = "/producto.html"
   status = 200
-
 [[redirects]]
   from = "/pago-ok"
   to = "/index.html"
   status = 200
-
 [[redirects]]
   from = "/pago-ko"
   to = "/index.html"
   status = 200
-
 [[redirects]]
   from = "/*.pdf"
   to = "/index.html"
   status = 404
   force = true
-
 [[redirects]]
   from = "/*.xlsx"
   to = "/index.html"
   status = 404
   force = true
-
 [[redirects]]
   from = "/*.md"
   to = "/index.html"
   status = 404
   force = true
-
 [[redirects]]
   from = "/sources/_*"
   to = "/index.html"
   status = 404
   force = true
-
 [[redirects]]
   from = "/_backup_pre_actualizacion/*"
   to = "/index.html"
   status = 404
   force = true
-
 [[redirects]]
   from = "/node_modules/*"
   to = "/index.html"
   status = 404
   force = true
-
 [[redirects]]
   from = "/netlify/*"
   to = "/index.html"
   status = 404
   force = true
-
 [[redirects]]
   from = "/netlify.toml"
   to = "/index.html"
   status = 404
   force = true
-
 [[redirects]]
   from = "/package*.json"
   to = "/index.html"
   status = 404
   force = true
-
 [[redirects]]
   from = "/.env*"
   to = "/index.html"

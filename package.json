@@ -1,17 +1,11 @@
 {
   "name": "nutretium-web",
   "version": "1.0.0",
+  "description": "NUTRETIUM ecommerce — Netlify serverless + Redsys",
   "private": true,
-  "description": "NUTRETIUM — tienda online (Netlify Functions + Redsys)",
-  "dependencies": {
-    "@netlify/blobs": "^10.7.11"
-  },
-  "devDependencies": {
-    "tailwindcss": "^3.4.19"
-  },
-  "optionalDependencies": {
-    "sharp": "^0.35.3"
-  },
+  "dependencies": { "@netlify/blobs": "^10.7.11" },
+  "devDependencies": { "tailwindcss": "^3.4.19" },
+  "optionalDependencies": { "sharp": "^0.35.3" },
   "scripts": {
     "build:css": "tailwindcss -c tailwind.config.js -i src/tailwind.css -o styles.css --minify && node scripts/trust-inject.js",
     "watch:css": "tailwindcss -c tailwind.config.js -i src/tailwind.css -o styles.css --watch",
@@ -25,9 +19,8 @@
     "panel": "node scripts/panel-servidor.js",
     "test:catalogo": "node scripts/test-catalogo.js",
     "test:admin": "node scripts/test-admin.js",
-    "test:cuentas": "node scripts/test-cuentas.js"
+    "test:cuentas": "node scripts/test-cuentas.js",
+    "test:commerce": "node scripts/test-commerce.js"
   },
-  "engines": {
-    "node": ">=20"
-  }
+  "engines": { "node": ">=20" }
 }

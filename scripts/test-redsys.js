@@ -10,9 +10,9 @@ process.env.SHIPPING_COUNTRY = 'España';
 process.env.SHIPPING_LABEL = 'Envío de prueba';
 process.env.JWT_SECRET = 'secreto-de-pruebas-con-mas-de-32-caracteres';
 
-const CLAVE_SANDBOX = process.env.REDSYS_TEST_SECRET || Buffer.alloc(24, 1).toString('base64');
-const COMERCIO = process.env.REDSYS_TEST_MERCHANT || '999999999';
-const TERMINAL = process.env.REDSYS_TEST_TERMINAL || '1';
+const CLAVE_SANDBOX = 'sq7HjrUOBfKmC576ILgskD5srU870gJ7';
+const COMERCIO = '369551841';
+const TERMINAL = '1';
 
 function signingKey(secretBase64, order) {
   const key = Buffer.from(secretBase64, 'base64');

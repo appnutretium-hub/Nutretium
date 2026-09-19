@@ -7,6 +7,7 @@ const required=[
 const missing=required.filter(f=>!fs.existsSync(f));
 if(missing.length)throw new Error('Arquitectura incompleta. Faltan: '+missing.join(', '));
 function has(file,needle){const text=fs.readFileSync(file,'utf8');if(!text.includes(needle))throw new Error(`${file}: falta ${needle}`)}
+function hasAny(file,needles,label){const text=fs.readFileSync(file,'utf8');if(!needles.some(needle=>text.includes(needle)))throw new Error(`${file}: falta ${label||needles.join(' o ')}`)}
 function parse(file){try{new Function(fs.readFileSync(file,'utf8'));}catch(err){throw new Error(`${file}: JavaScript no válido: ${err.message}`)}}
 has('scripts/trust-inject.js','commerce-suite.js');
 has('scripts/trust-inject.js','commercial-finish.js');
@@ -38,8 +39,8 @@ has('netlify/functions/contact.js','statusCode: 429');
 has('netlify/functions/commerce.js','POINTS_CONFIGURED');
 has('netlify/functions/commerce.js','pointsEnabled');
 has('smart-shop.js','GOALS');
-has('cuenta.js','frequentProducts');
-has('cuenta.js','Programa de puntos no activo');
+hasAny('cuenta.js',['frequentProducts',"action:'overview'"],'resumen de compras');
+hasAny('cuenta.js',['Programa de puntos no activo','d.loyalty'],'estado de fidelización');
 has('backoffice.js','data.operador||data.administrador');
 has('backoffice.js','envio.calle');
 has('franchise-trust.js','productIdFromCard');

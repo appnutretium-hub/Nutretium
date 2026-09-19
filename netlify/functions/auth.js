@@ -4,6 +4,7 @@ const {cabecerasCORS}=require('../lib/cors');
 const {signJWT,secretConfigured}=require('../lib/jwt');
 const {verifyUserToken}=require('../lib/session');
 const {rolDe}=require('../lib/admin');
+const {hashPassword,verifyPassword}=require('../lib/passwords');
 const usuarios=require('../lib/usuarios');
 const direccion=require('../lib/direccion');
 const {consume,reset}=require('../lib/rate-limit');
@@ -11,11 +12,14 @@ const CORS=cabecerasCORS('POST, GET, OPTIONS');
 const readUser=usuarios.lee;
 const MAX_NOMBRE=60,MAX_TELEFONO=20,TELEFONO_VALIDO=/^[0-9 +().-]*$/;
 const MAX_INTENTOS=5,VENTANA_MS=15*60*1000;
-function hashPassword(password){const salt=crypto.randomBytes(16).toString('hex');const hash=crypto.pbkdf2Sync(password,salt,100_000,64,'sha512').toString('hex');return`${salt}:${hash}`}
-function verifyPassword(password,stored){try{const[salt,hash]=String(stored||'').split(':');if(!salt||!hash)return false;const attempt=crypto.pbkdf2Sync(password,salt,100_000,64,'sha512').toString('hex');const a=Buffer.from(hash,'hex'),b=Buffer.from(attempt,'hex');return a.length===b.length&&crypto.timingSafeEqual(a,b)}catch{return false}}
 function revisaFicha({name,surname,phone}){if(!name)return'El nombre es obligatorio.';if(name.length>MAX_NOMBRE)return'El nombre no puede pasar de '+MAX_NOMBRE+' caracteres.';if(surname.length>MAX_NOMBRE)return'Los apellidos no pueden pasar de '+MAX_NOMBRE+' caracteres.';if(phone.length>MAX_TELEFONO)return'El teléfono no puede pasar de '+MAX_TELEFONO+' caracteres.';if(phone&&!TELEFONO_VALIDO.test(phone))return'El teléfono solo puede llevar números, espacios y los signos + ( ) . -';if([name,surname,phone].some(c=>/[<>]/.test(c)))return'Ni el nombre ni los apellidos ni el teléfono pueden llevar «<» ni «>».';return null}
 function fichaPublica(user,extra){return Object.assign({id:user.id,name:user.name,surname:user.surname,email:user.email,phone:user.phone,direccion:direccion.normaliza(user.direccion),direccionCompleta:direccion.completa(user.direccion),role:rolDe(user.email)},extra||{})}
 function response(statusCode,payload,headers=CORS){return{statusCode,headers,body:JSON.stringify(payload)}}
+async function upgradeHashIfNeeded(email,password,user,verification){
+ if(!verification.needsRehash)return;
+ const upgraded=hashPassword(password),at=new Date().toISOString();
+ await usuarios.muta(email,current=>current.passwordHash===user.passwordHash?{...current,passwordHash:upgraded,passwordHashUpgradedAt:at,updatedAt:at}:null).catch(()=>null);
+}
 exports.handler=async function(event){
  if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
  if(event.httpMethod!=='POST')return response(405,{error:'Method Not Allowed'});
@@ -34,7 +38,8 @@ exports.handler=async function(event){
   const{email,password}=body;if(!email||!password)return response(400,{error:'Email y contraseña son obligatorios.'});const emailLower=email.toLowerCase().trim();
   const gate=await consume({scope:'login',event,extra:emailLower,limit:MAX_INTENTOS,windowMs:VENTANA_MS});
   if(!gate.allowed){const seconds=Math.max(1,Number(gate.retryAfter)||60);return response(429,{error:`Demasiados intentos. Prueba otra vez dentro de ${Math.max(1,Math.ceil(seconds/60))} minutos.`},{...CORS,'Retry-After':String(seconds)})}
-  const user=await readUser(emailLower);if(!user||!verifyPassword(password,user.passwordHash))return response(401,{error:'Email o contraseña incorrectos.'});
+  const user=await readUser(emailLower),verification=user?verifyPassword(password,user.passwordHash):{ok:false,needsRehash:false};if(!user||!verification.ok)return response(401,{error:'Email o contraseña incorrectos.'});
+  await upgradeHashIfNeeded(emailLower,password,user,verification);
   await reset({scope:'login',event,extra:emailLower});
   const token=signJWT({sub:user.id,email:emailLower,exp:Math.floor(Date.now()/1000)+60*60*24*30});return response(200,{user:fichaPublica(user,{token})});
  }
@@ -50,3 +55,5 @@ exports.handler=async function(event){
  }
  return response(400,{error:'Acción no reconocida.'});
 };
+
+exports._test={upgradeHashIfNeeded};

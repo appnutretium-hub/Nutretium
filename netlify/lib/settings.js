@@ -2,9 +2,24 @@
 const crypto=require('crypto');
 const {getBlobStore}=require('./blob-store');
 const STORE='commerce-settings',KEY='settings';
-const defaults={content:{bannerEnabled:false,bannerText:''},couponsManaged:false,coupons:[],points:{managed:false,enabled:false,perEuro:0}};
+const defaults={content:{bannerEnabled:false,bannerText:''},couponsManaged:false,coupons:[],points:{managed:false,enabled:false,perEuro:0},shipping:{managed:false,enabled:false,rateCents:null,freeFromCents:5000,country:'España',label:'Envío'}};
 const clone=v=>JSON.parse(JSON.stringify(v));
-function normalize(v){const src=v&&typeof v==='object'?v:{};const content=src.content&&typeof src.content==='object'?src.content:{};const points=src.points&&typeof src.points==='object'?src.points:{};const coupons=Array.isArray(src.coupons)?src.coupons:[];return{content:{bannerEnabled:Boolean(content.bannerEnabled),bannerText:String(content.bannerText||'').trim().replace(/[<>]/g,'').slice(0,180)},couponsManaged:Boolean(src.couponsManaged),points:{managed:Boolean(points.managed),enabled:Boolean(points.enabled),perEuro:Math.max(0,Math.min(100,Number(points.perEuro)||0))},coupons:coupons.slice(0,100).map(c=>({code:String(c.code||'').trim().toUpperCase().replace(/[^A-Z0-9_-]/g,'').slice(0,32),type:c.type==='fixed'?'fixed':'percent',value:Math.max(0,Number(c.value)||0),valueCents:Math.max(0,Math.round(Number(c.valueCents)||0)),minCents:Math.max(0,Math.round(Number(c.minCents)||0)),maxDiscountCents:Math.max(0,Math.round(Number(c.maxDiscountCents)||0)),label:String(c.label||'').trim().replace(/[<>]/g,'').slice(0,80),active:c.active!==false})).filter(c=>c.code)}}
+function nullableCents(v,fallback=null){if(v===null||v===undefined||v==='')return fallback;const n=Number(v);return Number.isFinite(n)&&n>=0?Math.round(n):fallback}
+function safeText(v,fallback,max){const clean=String(v??fallback).trim().replace(/[<>]/g,'').slice(0,max);return clean||fallback}
+function normalize(v){
+ const src=v&&typeof v==='object'?v:{};
+ const content=src.content&&typeof src.content==='object'?src.content:{};
+ const points=src.points&&typeof src.points==='object'?src.points:{};
+ const shipping=src.shipping&&typeof src.shipping==='object'?src.shipping:{};
+ const coupons=Array.isArray(src.coupons)?src.coupons:[];
+ return{
+  content:{bannerEnabled:Boolean(content.bannerEnabled),bannerText:String(content.bannerText||'').trim().replace(/[<>]/g,'').slice(0,180)},
+  couponsManaged:Boolean(src.couponsManaged),
+  points:{managed:Boolean(points.managed),enabled:Boolean(points.enabled),perEuro:Math.max(0,Math.min(100,Number(points.perEuro)||0))},
+  shipping:{managed:Boolean(shipping.managed),enabled:Boolean(shipping.enabled),rateCents:nullableCents(shipping.rateCents,null),freeFromCents:nullableCents(shipping.freeFromCents,shipping.freeFromCents===undefined?5000:null),country:safeText(shipping.country,'España',60),label:safeText(shipping.label,'Envío',60)},
+  coupons:coupons.slice(0,100).map(c=>({code:String(c.code||'').trim().toUpperCase().replace(/[^A-Z0-9_-]/g,'').slice(0,32),type:c.type==='fixed'?'fixed':'percent',value:Math.max(0,Number(c.value)||0),valueCents:Math.max(0,Math.round(Number(c.valueCents)||0)),minCents:Math.max(0,Math.round(Number(c.minCents)||0)),maxDiscountCents:Math.max(0,Math.round(Number(c.maxDiscountCents)||0)),label:String(c.label||'').trim().replace(/[<>]/g,'').slice(0,80),active:c.active!==false})).filter(c=>c.code)
+ };
+}
 function versionOf(value){return crypto.createHash('sha256').update(JSON.stringify(normalize(value))).digest('hex').slice(0,24)}
 async function readWithVersion(){const s=getBlobStore(STORE);if(!s)return{settings:clone(defaults),version:versionOf(defaults)};const v=await s.get(KEY,{type:'json',consistency:'strong'}).catch(()=>null);const settings=normalize(v);return{settings,version:versionOf(settings)}}
 async function read(){return(await readWithVersion()).settings}

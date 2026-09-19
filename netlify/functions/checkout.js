@@ -44,7 +44,7 @@ exports.handler=async function(event){
   const promo=body.coupon?await promotions.calculaAsync(pedido.totalCents,body.coupon):{ok:false,subtotalCents:pedido.totalCents,discountCents:0,totalCents:pedido.totalCents};
   if(body.coupon&&!promo.ok)return json(422,{error:promo.reason==='minimum'?'El pedido no alcanza el mínimo del cupón.':'Cupón no válido o no activo.',promotion:promo});
   const merchandiseCents=promo.ok?promo.totalCents:pedido.totalCents;if(merchandiseCents<=0)return json(400,{error:'El importe final no puede ser cero.'});
-  const shipment=shipping.quote({subtotalCents:merchandiseCents,address:identidad.envio});
+  const shipment=await shipping.quote({subtotalCents:merchandiseCents,address:identidad.envio});
   if(!shipment.ok){console.error('[checkout] envío bloqueado:',shipment.reason);return json(503,{error:shipment.error,motivo:shipment.reason});}
   const totalCents=merchandiseCents+shipment.shippingCents;
 

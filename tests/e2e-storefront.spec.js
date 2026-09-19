@@ -20,7 +20,14 @@ for(const device of [{name:'mobile',width:390,height:844},{name:'desktop',width:
   const directAdd=page.locator('#productGrid .product-card .add-to-cart-btn[onclick*="addToCart"]:not([disabled])').first();
   if(await directAdd.count()){
     await directAdd.evaluate(el=>el.scrollIntoView({block:'center',inline:'center',behavior:'instant'}));await page.waitForTimeout(150);
-    await directAdd.click({timeout:8000});await page.waitForTimeout(300);
+    const point=await directAdd.evaluate(el=>{
+      const r=el.getBoundingClientRect();
+      const xs=[.12,.35,.5,.65,.88],ys=[.25,.5,.75];
+      for(const fy of ys)for(const fx of xs){const x=r.left+r.width*fx,y=r.top+r.height*fy;if(x<1||y<1||x>=innerWidth-1||y>=innerHeight-1)continue;const hit=document.elementFromPoint(x,y);if(hit&&(hit===el||el.contains(hit)))return{x,y}}
+      return null;
+    });
+    expect(point,'El CTA de añadir está totalmente cubierto por elementos fijos').toBeTruthy();
+    await page.mouse.click(point.x,point.y);await page.waitForTimeout(300);
     const count=await page.evaluate(()=>{try{const raw=localStorage.getItem('nutretium_cart_v1');if(raw)return JSON.parse(raw).length;return typeof cart!=='undefined'&&cart?.size?cart.size:0}catch{return 0}});expect(count).toBeGreaterThan(0)
   }
   expect(errors).toEqual([]);

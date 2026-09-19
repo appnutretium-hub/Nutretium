@@ -3,6 +3,7 @@ const crypto=require('crypto');
 const {cabecerasCORS}=require('../lib/cors');
 const {getBlobStore}=require('../lib/blob-store');
 const {verifyEventSession}=require('../lib/session');
+const {hashPassword,verifyPassword:verifyPasswordRecord}=require('../lib/passwords');
 const usuarios=require('../lib/usuarios');
 const {sendEmail}=require('../lib/email');
 const {consume}=require('../lib/rate-limit');
@@ -10,8 +11,6 @@ const CORS=cabecerasCORS('POST, OPTIONS');
 const EMAIL=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESET_TTL=30*60*1000,VERIFY_TTL=24*60*60*1000,CLAIM_TTL=2*60*1000;
 const json=(statusCode,payload,headers={})=>({statusCode,headers:{...CORS,...headers},body:JSON.stringify(payload)});
-function hashPassword(password){const salt=crypto.randomBytes(16).toString('hex');const hash=crypto.pbkdf2Sync(password,salt,100_000,64,'sha512').toString('hex');return`${salt}:${hash}`}
-function verifyPassword(password,stored){try{const[salt,hash]=String(stored||'').split(':');if(!salt||!hash)return false;const attempt=crypto.pbkdf2Sync(password,salt,100_000,64,'sha512').toString('hex');const a=Buffer.from(hash,'hex'),b=Buffer.from(attempt,'hex');return a.length===b.length&&crypto.timingSafeEqual(a,b)}catch{return false}}
 function validPassword(p){return typeof p==='string'&&p.length>=8&&p.length<=128}
 function tokenHash(token){return crypto.createHash('sha256').update(String(token)).digest('hex')}
 function resetStore(){return getBlobStore('password-resets')}
@@ -50,7 +49,7 @@ exports.handler=async function(event){
   const email=await authEmail(event);if(!email)return json(401,{error:'Debes iniciar sesión.'});
   const current=String(body.currentPassword||''),next=String(body.newPassword||'');if(!validPassword(next))return json(400,{error:'La nueva contraseña debe tener entre 8 y 128 caracteres.'});
   const rate=await consume({scope:'password-change',event,extra:email,limit:5,windowMs:15*60*1000});if(!rate.allowed)return json(429,{error:'Demasiados intentos. Espera unos minutos.'},{'Retry-After':String(rate.retryAfter||60)});
-  const snapshot=await usuarios.lee(email);if(!snapshot||!verifyPassword(current,snapshot.passwordHash))return json(401,{error:'La contraseña actual no es correcta.'});
+  const snapshot=await usuarios.lee(email),verification=snapshot?verifyPasswordRecord(current,snapshot.passwordHash):{ok:false};if(!snapshot||!verification.ok)return json(401,{error:'La contraseña actual no es correcta.'});
   const newHash=hashPassword(next);let updated;try{updated=await usuarios.muta(email,u=>{if(u.passwordHash!==snapshot.passwordHash)return null;return revokedPatch(u,newHash)})}catch{return json(409,{error:'La cuenta cambió durante la operación. Vuelve a intentarlo.'})}
   if(!updated||updated.passwordHash!==newHash)return json(409,{error:'La cuenta cambió durante la operación. Vuelve a intentarlo.'});
   return json(200,{ok:true,reauthRequired:true,message:'Contraseña actualizada. Por seguridad, vuelve a iniciar sesión.'});

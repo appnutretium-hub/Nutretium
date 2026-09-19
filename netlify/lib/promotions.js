@@ -7,6 +7,6 @@ function calculaCon(list,subtotalCents,code){const subtotal=Math.max(0,Math.roun
 function config(){return envConfig()}
 function busca(code){return buscaEn(envConfig(),code)}
 function calcula(subtotalCents,code){return calculaCon(envConfig(),subtotalCents,code)}
-async function configAsync(){const s=await settings.read().catch(()=>null);return s&&Array.isArray(s.coupons)&&s.coupons.length?s.coupons:envConfig()}
+async function configAsync(){const s=await settings.read().catch(()=>null);return s&&s.couponsManaged===true?(Array.isArray(s.coupons)?s.coupons:[]):envConfig()}
 async function calculaAsync(subtotalCents,code){return calculaCon(await configAsync(),subtotalCents,code)}
 module.exports={config,normalizaCodigo,busca,calcula,configAsync,calculaAsync};

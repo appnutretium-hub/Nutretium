@@ -41,10 +41,10 @@ exports.handler=async function(event){
   const token=signJWT({sub:user.id,email:emailLower,exp:Math.floor(Date.now()/1000)+60*60*24*30});return response(200,{user:fichaPublica(user,{token})});
  }
  if(body.action==='profile'){
-  if(!body.token)return response(401,{error:'Token requerido.'});let verified;try{verified=await verifyUserToken(body.token)}catch{return response(401,{error:'Token inválido, revocado o expirado.'})}return response(200,{user:fichaPublica(verified.user)});
+  if(!body.token)return response(401,{error:'Token requerido.'});let verified;try{verified=await verifyUserToken(body.token,{requireUser:false})}catch{return response(401,{error:'Token inválido, revocado o expirado.'})}if(!verified.user)return response(404,{error:'Usuario no encontrado.'});return response(200,{user:fichaPublica(verified.user)});
  }
  if(body.action==='update'){
-  if(!body.token)return response(401,{error:'Token requerido.'});let verified;try{verified=await verifyUserToken(body.token)}catch{return response(401,{error:'Token inválido, revocado o expirado.'})}const user=verified.user;
+  if(!body.token)return response(401,{error:'Token requerido.'});let verified;try{verified=await verifyUserToken(body.token,{requireUser:false})}catch{return response(401,{error:'Token inválido, revocado o expirado.'})}if(!verified.user)return response(404,{error:'Usuario no encontrado.'});const user=verified.user;
   const ficha={name:String(body.name||'').trim(),surname:String(body.surname||'').trim(),phone:String(body.phone||'').trim()},problema=revisaFicha(ficha);if(problema)return response(400,{error:problema});
   let dir=direccion.normaliza(user.direccion);if(body.direccion!==undefined){dir=direccion.normaliza(body.direccion);const problemaDir=direccion.revisa(dir);if(problemaDir)return response(400,{error:problemaDir})}
   const actualizado={...user,name:ficha.name,surname:ficha.surname,phone:ficha.phone,direccion:dir,updatedAt:new Date().toISOString()};await writeUser(verified.email,actualizado);return response(200,{user:fichaPublica(actualizado)});

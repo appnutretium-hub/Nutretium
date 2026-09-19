@@ -24,10 +24,15 @@ jobs:
           npm test
           NUTRETIUM_TEST_MEMORY_BLOBS=true npm run test:redsys
           npm run test:catalogo
+          npm run test:pim
           npm run test:admin
           npm run test:cuentas
       - name: Syntax hardening
         run: |
+          node --check product-pim.js
+          node --check product-variants.js
+          node --check producto.js
+          node --check scripts/build-seo-pages.js
           node --check runtime-content.js
           node --check runtime-performance.js
           node --check runtime-guard.js
@@ -52,6 +57,7 @@ jobs:
       - name: Build final HTML trust audit
         run: |
           node scripts/trust-inject.js
+          node scripts/build-seo-pages.js
           node scripts/build-trust-audit.js
       - name: Install Playwright test runner
         run: npm install --no-save --no-package-lock @playwright/test@1.55.0

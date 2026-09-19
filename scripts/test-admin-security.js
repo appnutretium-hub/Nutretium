@@ -56,9 +56,11 @@ const parse=r=>JSON.parse(r.body||'{}');
  assert(adminHtml.includes('/staff-session-bridge.js'),'El build debe inyectar el puente en admin');
  assert(backofficeHtml.includes('/staff-session-bridge.js'),'El build debe inyectar el puente en backoffice');
  const bridge=fs.readFileSync('staff-session-bridge.js','utf8');
- assert(!bridge.includes('localStorage.setItem(SESSION'),'El puente no debe persistir el JWT interno');
+ assert(bridge.includes("STAFF_LOGIN_ENDPOINT='/.netlify/functions/staff-login'"),'El puente debe reconocer el login específico de staff');
+ assert(bridge.includes('exchangeStaffToken(token)'),'El login de staff debe canjear el JWT por la cookie interna');
+ assert(!bridge.includes('localStorage.setItem(SESSION)'),'El puente no debe persistir el JWT interno');
 
  const logout=await adminSession.handler(event({action:'logout'},{cookie:cookiePair}));
  assert.strictEqual(logout.statusCode,200);assert(/Max-Age=0/.test(logout.headers['Set-Cookie']),'Logout debe expirar la cookie');
- console.log('[test-admin-security] OK · cookie HttpOnly · auditoría concurrente · detección de manipulación · bridge de panel');
+ console.log('[test-admin-security] OK · cookie HttpOnly · auditoría concurrente · detección de manipulación · bridge de panel y staff-login');
 })().catch(err=>{console.error(err);process.exit(1)});

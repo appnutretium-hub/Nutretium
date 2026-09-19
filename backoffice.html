@@ -21,6 +21,8 @@
     <button data-view="shipping">Envíos<small>Tracking y entrega</small></button>
     <button data-view="customers">Clientes<small>Histórico de compradores</small></button>
     <button id="catalogBtn">Catálogo<small>Productos, precios y stock</small></button>
+    <button type="button" onclick="location.href='/control.html'">Control<small>Analítica y configuración</small></button>
+    <button type="button" onclick="location.href='/cuenta.html'">Vista cliente<small>Mi Nutretium</small></button>
   </nav><div class="sidefoot"><button id="logout" style="width:100%">Cerrar sesión</button></div></aside>
   <main class="content"><div class="topbar"><div><div class="brand">OPERACIONES</div><h1 id="viewTitle">Dashboard</h1></div><div class="grow"></div><span id="adminEmail" class="muted"></span><button id="refresh">Actualizar</button></div>
     <section id="dashboardView"><div class="cards" id="metrics"></div><div class="toolbar"><strong>Pedidos recientes</strong></div><div class="tablewrap"><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Importe</th><th>Pago</th><th>Logística</th><th>Fecha</th></tr></thead><tbody id="recentRows"></tbody></table></div></section>

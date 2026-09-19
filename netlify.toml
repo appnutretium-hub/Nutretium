@@ -2,22 +2,16 @@
   publish = "."
   functions = "netlify/functions"
 
-  # Lo que NO debe salir publicado.
-  #
-  # publish = "." sirve la carpeta entera, así que todo lo que esté aquí queda
-  # accesible por URL. Este comando lo borra de la COPIA que Netlify despliega;
-  # tus archivos locales NO se tocan.
-  #
-  # Importante: el listado del ERP, el Excel y la auditoría llevan precios,
-  # stock y datos de proveedor. Publicados serían descargables por cualquiera.
-  #
-  # El comando hace cuatro cosas: 1) compila Tailwind a styles.css,
-  # 2) añade la capa visual Human Touch, 3) añade la capa de confianza/franquicia
-  # al JS público, 4) borra de la copia desplegada lo sensible.
   command = """
     npm run build:css &&
     cat human-touch.css >> styles.css &&
     cat franchise-trust.js >> app.js &&
+    node --check app.js &&
+    node --check trust-fixes.js &&
+    node --check commerce-pro.js &&
+    node --check final-hardening.js &&
+    node --check producto.js &&
+    node scripts/smoke-web.js &&
     rm -rf \
       'Listado de stock disponible.pdf' \
       'CATALOGO_NUTRETIUM.xlsx' \
@@ -51,9 +45,6 @@
       'src' \
       'tailwind.config.js'
   """
-  # No se borran package.json, package-lock.json ni node_modules: Netlify los
-  # necesita DESPUÉS de este comando para empaquetar las funciones. No son
-  # sensibles, y las reglas de más abajo impiden servirlos.
 
 [build.environment]
   NPM_FLAGS = "--omit=optional"
@@ -91,7 +82,6 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# URLs limpias para categorías y fichas de producto.
 [[redirects]]
   from = "/categoria/*"
   to = "/index.html"
@@ -100,6 +90,11 @@
 [[redirects]]
   from = "/producto/*"
   to = "/producto.html"
+  status = 200
+
+[[redirects]]
+  from = "/ayuda"
+  to = "/ayuda.html"
   status = 200
 
 [[redirects]]

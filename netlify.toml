@@ -10,7 +10,10 @@
     node --check trust-fixes.js &&
     node --check commerce-pro.js &&
     node --check final-hardening.js &&
+    node --check product-variants.js &&
     node --check producto.js &&
+    node --check netlify/lib/email.js &&
+    node --check netlify/functions/redsys-notify.js &&
     node scripts/smoke-web.js &&
     rm -rf \
       'Listado de stock disponible.pdf' \
@@ -52,7 +55,7 @@
 
 [functions]
   node_bundler = "esbuild"
-  included_files = ["netlify/functions/**", "products-data.js"]
+  included_files = ["netlify/functions/**", "netlify/lib/**", "products-data.js"]
 
 [[headers]]
   for = "/*"

@@ -12,10 +12,8 @@
     .replace(/^-+|-+$/g, '');
 
   const cleanText = (value) => String(value || '').replace(/[<>]/g, '');
-
-  function productUrl(product) {
-    return `/producto/${slugify(product.name)}-${product.id}`;
-  }
+  const productUrl = (product) => `/producto/${slugify(product.name)}-${product.id}`;
+  const notifyProductsRendered = () => window.dispatchEvent(new CustomEvent('nt:products-rendered'));
 
   function productIdFromCard(card) {
     const fromDataset = Number(card?.dataset?.productId);
@@ -66,228 +64,83 @@
     if (document.getElementById('ntGoals')) return;
     const categories = document.getElementById('categories');
     if (!categories) return;
-    const section = sectionShell(
-      'ntGoals',
-      'Encuentra lo que necesitas',
-      'Compra según tu objetivo',
-      'Una forma rápida de llegar a la categoría más útil para tu entrenamiento o bienestar.'
-    );
+    const section = sectionShell('ntGoals','Encuentra lo que necesitas','Compra según tu objetivo','Una forma rápida de llegar a la categoría más útil para tu entrenamiento o bienestar.');
     const grid = document.createElement('div');
     grid.className = 'nt-goal-grid';
-    const goals = [
-      ['💪', 'Desarrollo muscular', 'Proteínas'],
-      ['⚡', 'Mayor rendimiento', 'Pre-entrenos'],
-      ['🔄', 'Recuperación', 'Colágeno y bienestar'],
-      ['🌿', 'Salud y bienestar', 'Vitaminas y salud'],
-      ['🥣', 'Alimentación proteica', 'Alimentación proteica'],
-    ];
-    goals.forEach(([icon, label, category]) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'nt-goal-card';
-      btn.addEventListener('click', () => filterByCategory(category));
-      const ico = document.createElement('span'); ico.className = 'nt-goal-icon'; ico.textContent = icon;
-      const txt = document.createElement('span'); txt.className = 'nt-goal-title'; txt.textContent = label;
-      const sub = document.createElement('span'); sub.className = 'nt-goal-sub'; sub.textContent = category;
-      btn.append(ico, txt, sub);
-      grid.appendChild(btn);
+    const goals = [['💪','Desarrollo muscular','Proteínas'],['⚡','Mayor rendimiento','Pre-entrenos'],['🔄','Recuperación','Colágeno y bienestar'],['🌿','Salud y bienestar','Vitaminas y salud'],['🥣','Alimentación proteica','Alimentación proteica']];
+    goals.forEach(([icon,label,category]) => {
+      const btn = document.createElement('button'); btn.type='button'; btn.className='nt-goal-card'; btn.addEventListener('click',()=>filterByCategory(category));
+      const ico=document.createElement('span');ico.className='nt-goal-icon';ico.textContent=icon;
+      const txt=document.createElement('span');txt.className='nt-goal-title';txt.textContent=label;
+      const sub=document.createElement('span');sub.className='nt-goal-sub';sub.textContent=category;
+      btn.append(ico,txt,sub);grid.appendChild(btn);
     });
-    section.appendChild(grid);
-    categories.insertAdjacentElement('afterend', section);
+    section.appendChild(grid);categories.insertAdjacentElement('afterend', section);
   }
 
   function brandCounts() {
     const map = new Map();
-    (typeof PRODUCTS !== 'undefined' ? PRODUCTS : []).forEach((p) => {
-      const brand = String(p.brand || '').trim();
-      if (!brand) return;
-      map.set(brand, (map.get(brand) || 0) + 1);
-    });
-    return [...map.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'));
+    (typeof PRODUCTS !== 'undefined' ? PRODUCTS : []).forEach((p) => {const brand=String(p.brand||'').trim();if(!brand)return;map.set(brand,(map.get(brand)||0)+1)});
+    return [...map.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'es'));
   }
 
   function filterBrand(brand) {
-    ['searchInput', 'navSearchInput', 'mobileSearchInput'].forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) el.value = '';
-    });
-    activeFilter = 'Todos';
-    document.querySelectorAll('.filter-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.filter === 'Todos'));
-    const list = (typeof PRODUCTS !== 'undefined' ? PRODUCTS : []).filter((p) => String(p.brand || '').trim() === brand);
-    renderProducts(list);
-    history.pushState({ brand }, '', `/?marca=${encodeURIComponent(slugify(brand))}#products`);
-    document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
+    ['searchInput','navSearchInput','mobileSearchInput'].forEach((id)=>{const el=document.getElementById(id);if(el)el.value=''});
+    activeFilter='Todos';document.querySelectorAll('.filter-btn').forEach((btn)=>btn.classList.toggle('active',btn.dataset.filter==='Todos'));
+    const list=(typeof PRODUCTS!=='undefined'?PRODUCTS:[]).filter((p)=>String(p.brand||'').trim()===brand);
+    renderProducts(list);history.pushState({brand},'',`/?marca=${encodeURIComponent(slugify(brand))}#products`);document.getElementById('products')?.scrollIntoView({behavior:'smooth'});
   }
 
   function insertBrands() {
     if (document.getElementById('ntBrands')) return;
-    const brands = brandCounts().slice(0, 12);
-    if (!brands.length) return;
-    const products = document.getElementById('products');
-    if (!products) return;
-    const section = sectionShell(
-      'ntBrands',
-      'Catálogo real',
-      'Marcas disponibles en Nutretium',
-      'Accede directamente a las marcas que ya forman parte del catálogo publicado.'
-    );
-    const grid = document.createElement('div');
-    grid.className = 'nt-brand-grid';
-    brands.forEach(([brand, count]) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'nt-brand-chip';
-      btn.addEventListener('click', () => filterBrand(brand));
-      const name = document.createElement('strong'); name.textContent = brand;
-      const meta = document.createElement('span'); meta.textContent = `${count} ${count === 1 ? 'producto' : 'productos'}`;
-      btn.append(name, meta);
-      grid.appendChild(btn);
-    });
-    section.appendChild(grid);
-    products.insertAdjacentElement('beforebegin', section);
+    const brands=brandCounts().slice(0,12);if(!brands.length)return;const products=document.getElementById('products');if(!products)return;
+    const section=sectionShell('ntBrands','Catálogo real','Marcas disponibles en Nutretium','Accede directamente a las marcas que ya forman parte del catálogo publicado.');
+    const grid=document.createElement('div');grid.className='nt-brand-grid';
+    brands.forEach(([brand,count])=>{const btn=document.createElement('button');btn.type='button';btn.className='nt-brand-chip';btn.addEventListener('click',()=>filterBrand(brand));const name=document.createElement('strong');name.textContent=brand;const meta=document.createElement('span');meta.textContent=`${count} ${count===1?'producto':'productos'}`;btn.append(name,meta);grid.appendChild(btn)});
+    section.appendChild(grid);products.insertAdjacentElement('beforebegin',section);
   }
 
   function insertStoreProof() {
     if (document.getElementById('ntStoreProof')) return;
-    const products = document.getElementById('products');
-    if (!products) return;
-    const section = document.createElement('section');
-    section.id = 'ntStoreProof';
-    section.className = 'nt-store-proof';
-    section.innerHTML = `
-      <div class="nt-store-proof-inner">
-        <div class="nt-store-proof-copy">
-          <span class="nt-franchise-eyebrow">Detrás de la web hay una tienda real</span>
-          <h2>Nutretium también está en Santander</h2>
-          <p>Puedes visitarnos en C/ La Albericia 1 y hablar directamente con el equipo. La web complementa la atención de la tienda física con catálogo, fichas y compra online.</p>
-          <div class="nt-store-actions">
-            <a href="#location">Ver ubicación y horario</a>
-            <a href="tel:+34633753517" class="secondary">Llamar al 633 753 517</a>
-          </div>
-        </div>
-        <div class="nt-store-proof-points" aria-label="Información de confianza">
-          <div><strong>09:30–22:00</strong><span>Horario continuo</span></div>
-          <div><strong>Redsys</strong><span>Pasarela bancaria</span></div>
-          <div><strong>Santander</strong><span>Tienda física</span></div>
-          <div><strong>Online</strong><span>Catálogo y pedidos</span></div>
-        </div>
-      </div>`;
-    products.insertAdjacentElement('afterend', section);
+    const products=document.getElementById('products');if(!products)return;
+    const section=document.createElement('section');section.id='ntStoreProof';section.className='nt-store-proof';
+    section.innerHTML=`<div class="nt-store-proof-inner"><div class="nt-store-proof-copy"><span class="nt-franchise-eyebrow">Detrás de la web hay una tienda real</span><h2>Nutretium también está en Santander</h2><p>Puedes visitarnos en C/ La Albericia 1 y hablar directamente con el equipo. La web complementa la atención de la tienda física con catálogo, fichas y compra online.</p><div class="nt-store-actions"><a href="#location">Ver ubicación y horario</a><a href="tel:+34633753517" class="secondary">Llamar al 633 753 517</a></div></div><div class="nt-store-proof-points" aria-label="Información de confianza"><div><strong>09:30–22:00</strong><span>Horario continuo</span></div><div><strong>Redsys</strong><span>Pasarela bancaria</span></div><div><strong>Santander</strong><span>Tienda física</span></div><div><strong>Online</strong><span>Catálogo y pedidos</span></div></div></div>`;
+    products.insertAdjacentElement('afterend',section);
   }
 
   function insertLegalIdentity() {
-    const footer = document.querySelector('footer .max-w-7xl');
-    if (!footer || document.getElementById('ntLegalIdentity')) return;
-    const box = document.createElement('div');
-    box.id = 'ntLegalIdentity';
-    box.className = 'nt-legal-identity';
-    box.textContent = 'Nutretium · Establecimiento operado por BAHÍA NORTE CAPITAL, S.L. · NIF B27659754 · C/ La Albericia 1, Santander';
-    footer.prepend(box);
+    const footer=document.querySelector('footer .max-w-7xl');if(!footer||document.getElementById('ntLegalIdentity'))return;
+    const box=document.createElement('div');box.id='ntLegalIdentity';box.className='nt-legal-identity';box.textContent='Nutretium · Establecimiento operado por BAHÍA NORTE CAPITAL, S.L. · NIF B27659754 · C/ La Albericia 1, Santander';footer.prepend(box);
   }
 
   function decorateProductCards() {
-    if (typeof PRODUCTS === 'undefined') return;
-    document.querySelectorAll('#productGrid .product-card').forEach((card) => {
-      const id = productIdFromCard(card);
-      if (!Number.isFinite(id)) return;
-      const product = PRODUCTS.find((p) => Number(p.id) === id);
-      if (!product) return;
-      card.dataset.productId = String(id);
-
-      const actionRows = [...card.querySelectorAll('.p-5 .flex.items-center.justify-between')];
-      const actions = actionRows.pop();
-      const buttonWrap = actions?.lastElementChild;
-      if (buttonWrap) {
-        let link = buttonWrap.querySelector('.nt-product-detail-link');
-        if (!link) {
-          link = document.createElement('a');
-          link.className = 'nt-product-detail-link';
-          buttonWrap.prepend(link);
-        }
-        link.dataset.productId = String(id);
-        link.href = productUrl(product);
-        link.textContent = 'Ver ficha';
-        link.setAttribute('aria-label', `Ver ficha de ${cleanText(product.name)}`);
-      }
+    if(typeof PRODUCTS==='undefined')return;
+    document.querySelectorAll('#productGrid .product-card').forEach((card)=>{
+      const id=productIdFromCard(card);if(!Number.isFinite(id))return;const product=PRODUCTS.find((p)=>Number(p.id)===id);if(!product)return;card.dataset.productId=String(id);
+      const actionRows=[...card.querySelectorAll('.p-5 .flex.items-center.justify-between')],actions=actionRows.pop(),buttonWrap=actions?.lastElementChild;
+      if(buttonWrap){let link=buttonWrap.querySelector('.nt-product-detail-link');if(!link){link=document.createElement('a');link.className='nt-product-detail-link';buttonWrap.prepend(link)}link.dataset.productId=String(id);link.href=productUrl(product);link.textContent='Ver ficha';link.setAttribute('aria-label',`Ver ficha de ${cleanText(product.name)}`)}
     });
   }
 
   function enhanceRendering() {
-    if (typeof renderProducts !== 'function' || renderProducts.__ntWrapped) return;
-    const original = renderProducts;
-    const wrapped = function (list = PRODUCTS) {
-      const result = original(list);
-      decorateProductCards();
-      return result;
-    };
-    wrapped.__ntWrapped = true;
-    renderProducts = wrapped;
-    decorateProductCards();
+    if(typeof renderProducts!=='function'||renderProducts.__ntWrapped)return;
+    const original=renderProducts;
+    const wrapped=function(list=PRODUCTS){const result=original(list);decorateProductCards();notifyProductsRendered();return result};
+    wrapped.__ntWrapped=true;renderProducts=wrapped;decorateProductCards();notifyProductsRendered();
   }
 
   function enhanceCategoryUrls() {
-    if (typeof filterByCategory !== 'function' || filterByCategory.__ntWrapped) return;
-    const original = filterByCategory;
-    const wrapped = function (category) {
-      original(category);
-      const slug = slugify(category);
-      if (category && category !== 'Todos' && slug) {
-        history.pushState({ category }, '', `/categoria/${slug}`);
-      } else {
-        history.pushState({}, '', '/');
-      }
-    };
-    wrapped.__ntWrapped = true;
-    filterByCategory = wrapped;
+    if(typeof filterByCategory!=='function'||filterByCategory.__ntWrapped)return;
+    const original=filterByCategory;
+    const wrapped=function(category){original(category);const slug=slugify(category);if(category&&category!=='Todos'&&slug)history.pushState({category},'',`/categoria/${slug}`);else history.pushState({},'','/')};
+    wrapped.__ntWrapped=true;filterByCategory=wrapped;
   }
 
-  function categoryFromSlug(slug) {
-    const categories = (window.NUTRETIUM_CATEGORIES || []);
-    return categories.find((c) => slugify(c) === slug) || null;
-  }
-
-  function applyRoute() {
-    const path = location.pathname.replace(/\/+$/, '');
-    if (!path.startsWith('/categoria/')) return;
-    const slug = decodeURIComponent(path.split('/').filter(Boolean)[1] || '');
-    const category = categoryFromSlug(slug);
-    if (!category) return;
-    activeFilter = category;
-    document.querySelectorAll('.filter-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.filter === category));
-    applyFilters();
-    setTimeout(() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
-  }
-
-  function handleAddFromProductPage() {
-    const params = new URLSearchParams(location.search);
-    const raw = params.get('add');
-    if (!raw) return;
-    const id = Number(raw);
-    if (!Number.isInteger(id)) return;
-    setTimeout(() => {
-      addToCart(id);
-      openCart();
-      const clean = location.pathname + location.hash;
-      history.replaceState({}, '', clean || '/');
-    }, 100);
-  }
-
-  function initFranchiseLayer() {
-    renderTrustFacts();
-    insertGoals();
-    insertBrands();
-    insertStoreProof();
-    insertLegalIdentity();
-    enhanceRendering();
-    enhanceCategoryUrls();
-    applyRoute();
-    handleAddFromProductPage();
-  }
+  function categoryFromSlug(slug){const categories=(window.NUTRETIUM_CATEGORIES||[]);return categories.find((c)=>slugify(c)===slug)||null}
+  function applyRoute(){const path=location.pathname.replace(/\/+$/,'');if(!path.startsWith('/categoria/'))return;const slug=decodeURIComponent(path.split('/').filter(Boolean)[1]||''),category=categoryFromSlug(slug);if(!category)return;activeFilter=category;document.querySelectorAll('.filter-btn').forEach((btn)=>btn.classList.toggle('active',btn.dataset.filter===category));applyFilters();setTimeout(()=>document.getElementById('products')?.scrollIntoView({behavior:'smooth',block:'start'}),50)}
+  function handleAddFromProductPage(){const params=new URLSearchParams(location.search),raw=params.get('add');if(!raw)return;const id=Number(raw);if(!Number.isInteger(id))return;setTimeout(()=>{addToCart(id);openCart();const clean=location.pathname+location.hash;history.replaceState({},'',clean||'/')},100)}
+  function initFranchiseLayer(){renderTrustFacts();insertGoals();insertBrands();insertStoreProof();insertLegalIdentity();enhanceRendering();enhanceCategoryUrls();applyRoute();handleAddFromProductPage()}
 
   window.addEventListener('popstate', applyRoute);
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => setTimeout(initFranchiseLayer, 0));
-  } else {
-    setTimeout(initFranchiseLayer, 0);
-  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(initFranchiseLayer,0));else setTimeout(initFranchiseLayer,0);
 })();

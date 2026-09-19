@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('fs');
 const required=[
-  'index.html','commerce-pro.js','commerce-suite.js','commercial-finish.js','commercial-finish.css','compare-suite.js','pro-qa-fixes.js','production-finish.js','comparar.html','comparar.js','producto.html','producto.js','product-education.js','aprende.html','checkout.html','checkout.js','cuenta.html','cuenta.js','smart-shop.html','smart-shop.js','backoffice.html','backoffice.js','control.html','control.js','ayuda.html',
+  'index.html','commerce-pro.js','commerce-suite.js','commercial-finish.js','commercial-finish.css','compare-suite.js','pro-qa-fixes.js','production-finish.js','mobile-commerce-pro.js','mobile-commerce-pro.css','comparar.html','comparar.js','producto.html','producto.js','product-education.js','aprende.html','checkout.html','checkout.js','cuenta.html','cuenta.js','smart-shop.html','smart-shop.js','backoffice.html','backoffice.js','control.html','control.js','ayuda.html',
   'netlify/functions/checkout.js','netlify/functions/commerce.js','netlify/functions/orders.js','netlify/functions/admin-orders.js','netlify/functions/saved-cart.js','netlify/functions/analytics-event.js','netlify/functions/admin-analytics.js','netlify/functions/system-health.js','netlify/functions/reviews.js','netlify/functions/redsys-notify.js','netlify/functions/contact.js','netlify/lib/promotions.js','netlify/lib/staff.js','netlify/lib/email.js'
 ];
 const missing=required.filter(f=>!fs.existsSync(f));
@@ -13,6 +13,7 @@ has('scripts/trust-inject.js','commercial-finish.js');
 has('scripts/trust-inject.js','compare-suite.js');
 has('scripts/trust-inject.js','pro-qa-fixes.js');
 has('scripts/trust-inject.js','production-finish.js');
+has('scripts/trust-inject.js','mobile-commerce-pro.js');
 has('commerce-suite.js','/checkout.html');
 has('commerce-suite.js','raw.version===1&&raw.analitica===true');
 has('checkout.js','/.netlify/functions/checkout');
@@ -41,8 +42,14 @@ has('pro-qa-fixes.js','window.submitCareerApplication');
 has('pro-qa-fixes.js','tarjeta mediante Redsys');
 has('production-finish.js','visibleFocusable');
 has('production-finish.js','Introduce un email válido.');
-['commercial-finish.js','product-education.js','compare-suite.js','comparar.js','pro-qa-fixes.js','production-finish.js','commerce-suite.js','netlify/functions/contact.js'].forEach(parse);
+has('mobile-commerce-pro.js','productIdFromCard');
+has('mobile-commerce-pro.js','bindCleanButton');
+has('mobile-commerce-pro.js','data-product-id');
+has('mobile-commerce-pro.js','ntDockCartBadge');
+has('mobile-commerce-pro.css','min-height:50px');
+has('mobile-commerce-pro.css','env(safe-area-inset-bottom');
+['commercial-finish.js','product-education.js','compare-suite.js','comparar.js','pro-qa-fixes.js','production-finish.js','mobile-commerce-pro.js','commerce-suite.js','netlify/functions/contact.js'].forEach(parse);
 const points=[
  'seguridad/configuración','fotos/catálogo','navegación/buscador','URLs limpias','filtros','ficha producto','compra rápida','carrito/cross-sell','checkout invitado','Redsys','pedidos','envíos/tracking','clientes','favoritos/recompra','points','reseñas verificadas','packs','cupones','emails','SEO','analítica','carrito guardado','recomendador','roles','responsive/build audit'
 ];
-console.log(`[audit-architecture] OK — ${points.length}/25 bloques + centro educativo + comparador + QA móvil + formularios endurecidos + accesibilidad final`);
+console.log(`[audit-architecture] OK — ${points.length}/25 bloques + educación + comparador + QA móvil + SKU card binding + touch commerce + accesibilidad`);

@@ -56,6 +56,12 @@
 [functions."platform-backup"]
   schedule = "@daily"
 
+[functions."automation-worker"]
+  schedule = "0 7 * * *"
+
+[functions."notification-worker"]
+  schedule = "*/15 * * * *"
+
 [[headers]]
   for = "/*"
   [headers.values]

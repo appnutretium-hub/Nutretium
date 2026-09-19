@@ -3,6 +3,7 @@
   functions = "netlify/functions"
   command = """
     npm run build:css &&
+    node scripts/staff-login-inject.js &&
     cat human-touch.css >> styles.css &&
     cat commerce-core.css >> styles.css &&
     cat franchise-trust.js >> app.js &&

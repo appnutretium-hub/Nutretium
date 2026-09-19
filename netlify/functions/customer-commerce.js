@@ -1,0 +1,50 @@
+'use strict';
+
+const crypto=require('crypto');
+const {cabecerasCORS}=require('../lib/cors');
+const {verifyJWT,tokenFromHeader,secretConfigured}=require('../lib/jwt');
+const {getBlobStore}=require('../lib/blob-store');
+const store=require('../lib/enterprise-store');
+const schema=require('../lib/enterprise-schema');
+const {NUTRETIUM_PRODUCTS}=require('../../products-data.js');
+const CORS=cabecerasCORS('POST, OPTIONS');
+const response=(statusCode,body)=>({statusCode,headers:{...CORS,'Cache-Control':'no-store'},body:JSON.stringify(body)});
+function auth(event){if(!secretConfigured())return{ok:false,statusCode:503,error:'Sesiones no disponibles.'};const token=tokenFromHeader(event.headers||{});if(!token)return{ok:false,statusCode:401,error:'Debes iniciar sesión.'};try{const claims=verifyJWT(token);return{ok:true,email:String(claims.email||'').toLowerCase(),claims};}catch{return{ok:false,statusCode:401,error:'Sesión caducada.'};}}
+function canonicalItems(items){if(!Array.isArray(items)||!items.length)return{ok:false,error:'El carrito está vacío.'};const result=[];for(const raw of items){const id=Number(raw.id),qty=Number(raw.qty);const product=(NUTRETIUM_PRODUCTS||[]).find(p=>Number(p.id)===id&&p.active!==false);if(!product||!Number.isInteger(qty)||qty<1||qty>99)return{ok:false,error:'Hay un producto o cantidad no válidos.'};result.push({id:product.id,code:product.code,name:product.name,qty});}return{ok:true,items:result};}
+async function ownOrder(email,orderId){const orders=getBlobStore('redsys-orders');if(!orders)throw Object.assign(new Error('Pedidos no disponibles.'),{code:'STORE_UNAVAILABLE'});const order=await orders.get(String(orderId),{type:'json',consistency:'strong'}).catch(()=>null);return order&&String(order.email||'').toLowerCase()===email?order:null;}
+exports.handler=async function(event){
+  if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};if(event.httpMethod!=='POST')return response(405,{error:'Method Not Allowed'});
+  const who=auth(event);if(!who.ok)return response(who.statusCode,{error:who.error});let body;try{body=JSON.parse(event.body||'{}');}catch{return response(400,{error:'JSON no válido.'});}const action=String(body.action||'');
+  try{
+    if(action==='overview'){
+      const [returns,tickets,subs,carts,privacy,loyalty]=await Promise.all(['returns','crm-tickets','subscriptions','saved-carts','privacy-requests','loyalty'].map(d=>store.list(d,{limit:500})));
+      const own=(rows)=>rows.filter(r=>String(r.customerEmail||'').toLowerCase()===who.email);
+      return response(200,{returns:own(returns),tickets:own(tickets),subscriptions:own(subs),savedCarts:own(carts),privacyRequests:own(privacy),loyalty:own(loyalty)[0]||null});
+    }
+    if(action==='save-cart'){
+      const canon=canonicalItems(body.items);if(!canon.ok)return response(400,{error:canon.error});const id=String(body.id||crypto.randomUUID());const checked=schema.validate('saved-carts',{id,customerEmail:who.email,items:canon.items,status:'active',name:String(body.name||'Carrito guardado').slice(0,80)});if(!checked.ok)return response(400,{error:checked.errors[0]});return response(200,{record:await store.save('saved-carts',checked.data,{email:who.email,role:'client'},{id,reason:'customer-save-cart'})});
+    }
+    if(action==='archive-cart'){
+      const previous=await store.get('saved-carts',body.id);if(!previous||previous.customerEmail!==who.email)return response(404,{error:'Carrito no encontrado.'});return response(200,{record:await store.archive('saved-carts',body.id,{email:who.email,role:'client'},'customer-archive')});
+    }
+    if(action==='request-return'){
+      const order=await ownOrder(who.email,body.orderId);if(!order)return response(404,{error:'Pedido no encontrado.'});if(order.status!=='PAID')return response(409,{error:'Solo se puede solicitar devolución de un pedido pagado.'});const id=crypto.randomUUID();const checked=schema.validate('returns',{id,orderId:order.order,customerEmail:who.email,reason:String(body.reason||'').slice(0,500),items:Array.isArray(body.items)?body.items:[],status:'requested'});if(!checked.ok)return response(400,{error:checked.errors[0]});return response(201,{record:await store.save('returns',checked.data,{email:who.email,role:'client'},{id,reason:'customer-request'})});
+    }
+    if(action==='support-ticket'){
+      const id=crypto.randomUUID();const checked=schema.validate('crm-tickets',{id,subject:String(body.subject||'').slice(0,160),message:String(body.message||'').slice(0,5000),customerEmail:who.email,status:'open',priority:'normal'});if(!checked.ok)return response(400,{error:checked.errors[0]});return response(201,{record:await store.save('crm-tickets',checked.data,{email:who.email,role:'client'},{id,reason:'customer-ticket'})});
+    }
+    if(action==='privacy-request'){
+      const allowed=['access','rectification','erasure','restriction','portability','objection'];if(!allowed.includes(body.type))return response(400,{error:'Tipo de solicitud no válido.'});const id=crypto.randomUUID();const checked=schema.validate('privacy-requests',{id,customerEmail:who.email,type:body.type,details:String(body.details||'').slice(0,2000),status:'requested'});return response(201,{record:await store.save('privacy-requests',checked.data,{email:who.email,role:'client'},{id,reason:'customer-privacy-request'})});
+    }
+    if(action==='subscription-create'){
+      const canon=canonicalItems(body.items);if(!canon.ok)return response(400,{error:canon.error});const cadence=String(body.cadence||'');if(!['weekly','biweekly','monthly','bimonthly','quarterly'].includes(cadence))return response(400,{error:'Frecuencia no válida.'});const id=crypto.randomUUID();const checked=schema.validate('subscriptions',{id,customerEmail:who.email,items:canon.items,cadence,status:'active',nextAt:body.nextAt||null});return response(201,{record:await store.save('subscriptions',checked.data,{email:who.email,role:'client'},{id,reason:'customer-subscription'})});
+    }
+    if(action==='subscription-status'){
+      const previous=await store.get('subscriptions',body.id);if(!previous||previous.customerEmail!==who.email)return response(404,{error:'Suscripción no encontrada.'});if(!['paused','active','cancelled'].includes(body.status))return response(400,{error:'Estado no válido.'});if(previous.status==='cancelled')return response(409,{error:'Una suscripción cancelada no se reactiva automáticamente.'});return response(200,{record:await store.save('subscriptions',{...previous,status:body.status},{email:who.email,role:'client'},{id:body.id,reason:'customer-subscription-status'})});
+    }
+    if(action==='b2b-apply'){
+      const id=crypto.randomUUID();const checked=schema.validate('b2b-accounts',{id,companyName:String(body.companyName||'').slice(0,160),taxId:String(body.taxId||'').slice(0,40),email:who.email,contactName:String(body.contactName||'').slice(0,120),status:'pending'});if(!checked.ok)return response(400,{error:checked.errors[0]});return response(201,{record:await store.save('b2b-accounts',checked.data,{email:who.email,role:'client'},{id,reason:'b2b-application'})});
+    }
+    return response(400,{error:'Acción no reconocida.'});
+  }catch(err){return response(err.code==='STORE_UNAVAILABLE'?503:500,{error:err.message});}
+};

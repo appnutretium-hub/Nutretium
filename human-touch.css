@@ -35,9 +35,7 @@ body{
   background:linear-gradient(120deg,transparent 0 62%,rgba(212,175,55,.05) 62% 100%);
 }
 
-body > div:first-of-type{
-  box-shadow:inset 0 -1px rgba(0,0,0,.22);
-}
+body > div:first-of-type{box-shadow:inset 0 -1px rgba(0,0,0,.22)}
 
 nav{
   background:rgba(10,10,10,.94)!important;
@@ -95,10 +93,7 @@ nav{
 }
 .product-card:hover img{transform:scale(1.025)}
 
-.category-card{
-  border-radius:16px!important;
-  transform:none!important;
-}
+.category-card{border-radius:16px!important;transform:none!important}
 .category-card:hover{
   transform:translateY(-2px)!important;
   background:#171717!important;
@@ -111,9 +106,7 @@ nav{
   box-shadow:inset 0 1px rgba(255,255,255,.24)!important;
 }
 .add-to-cart-btn:hover,
-.bg-brand-gold:hover{
-  background:linear-gradient(180deg,#e7c95f,#d1ad35)!important;
-}
+.bg-brand-gold:hover{background:linear-gradient(180deg,#e7c95f,#d1ad35)!important}
 
 h1,h2,h3,h4{text-wrap:balance}
 h2,h3{letter-spacing:-.03em!important}
@@ -149,11 +142,100 @@ input:focus,select:focus,textarea:focus{
 footer{background:#0e0e0e!important}
 footer p{line-height:1.75}
 
+/* ── CAPA DE CONFIANZA: solo afirmaciones sostenibles ───────────────────── */
+
+/* Hero: se sustituye el claim genérico por una propuesta concreta. */
+.hero-bg .max-w-3xl > p{
+  font-size:0!important;
+  line-height:1.6!important;
+}
+.hero-bg .max-w-3xl > p::after{
+  content:"Suplementación deportiva, alimentación saludable y atención cercana desde nuestra tienda física en Santander.";
+  display:block;
+  font-size:1.1rem;
+  line-height:1.65;
+  color:#b7b2a8;
+}
+
+/* Barra informativa: sin prometer devoluciones o plazos no validados. */
+body > div.bg-brand-card.border-b[class~="sm:block"] p{
+  font-size:0!important;
+}
+body > div.bg-brand-card.border-b[class~="sm:block"] p::after{
+  content:"Tienda física en Santander · Atención personalizada";
+  font-size:.75rem;
+  color:#aaa59a;
+}
+body > div.bg-brand-card.border-b[class~="sm:block"] span.flex.items-center.gap-1\.5 > span{
+  font-size:0!important;
+}
+body > div.bg-brand-card.border-b[class~="sm:block"] span.flex.items-center.gap-1\.5 > span::after{
+  content:"Lun – Sáb 09:30 – 22:00";
+  font-size:.75rem;
+  color:#aaa59a;
+}
+
+/* El bloque de cifras deja de fingir métricas y muestra hechos operativos. */
+#statsBar .stat-num,
+#statsBar .stat-num + p{font-size:0!important}
+#statsBar > div:nth-child(1) .stat-num::after{content:"Santander"}
+#statsBar > div:nth-child(1) .stat-num + p::after{content:"Tienda física"}
+#statsBar > div:nth-child(2) .stat-num::after{content:"Redsys"}
+#statsBar > div:nth-child(2) .stat-num + p::after{content:"Pago mediante pasarela bancaria"}
+#statsBar > div:nth-child(3) .stat-num::after{content:"Recogida"}
+#statsBar > div:nth-child(3) .stat-num + p::after{content:"Disponible en tienda"}
+#statsBar > div:nth-child(4) .stat-num::after{content:"Atención"}
+#statsBar > div:nth-child(4) .stat-num + p::after{content:"Equipo Nutretium"}
+#statsBar .stat-num::after{
+  display:block;
+  font-size:1.25rem;
+  font-weight:900;
+  color:#d4af37;
+  line-height:1.2;
+}
+#statsBar .stat-num + p::after{
+  display:block;
+  font-size:.7rem;
+  line-height:1.35;
+  color:#aaa59a;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  margin-top:.35rem;
+}
+
+/* Certificaciones globales no verificadas: se eliminan de la presentación. */
+#about ul,
+#about .about-certs{display:none!important}
+#about .max-w-7xl > div:first-child::after{
+  content:"Seleccionamos productos de marcas especializadas y te atendemos también en nuestra tienda física de Calle La Albericia 1, Santander. Para cualquier duda sobre un producto, ingredientes, alérgenos o suplementación, consulta al equipo antes de comprar.";
+  display:block;
+  margin-top:1.25rem;
+  padding:1rem 1.1rem;
+  border:1px solid rgba(212,175,55,.18);
+  border-radius:14px;
+  background:#111;
+  color:#b7b2a8;
+  font-size:.92rem;
+  line-height:1.7;
+}
+
+/* Solo se enseña el medio de pago implementado en el checkout actual. */
+footer .pay-badge:nth-child(n+2){display:none!important}
+footer .pay-badge:first-child{font-size:0!important}
+footer .pay-badge:first-child::after{
+  content:"Tarjeta · Redsys";
+  font-size:.75rem;
+}
+
+/* Se suavizan frases absolutas del pie visualmente hasta revisión documental. */
+footer h4 + p{max-width:760px}
+
 @media(max-width:767px){
   #statsBar > div{border-right:0}
   .hero-bg .max-w-7xl{padding-top:56px!important;padding-bottom:64px!important}
   .hero-title{letter-spacing:-.045em!important}
   .product-card{border-radius:15px!important}
+  .hero-bg .max-w-3xl > p::after{font-size:1rem}
 }
 
 @media(prefers-reduced-motion:reduce){

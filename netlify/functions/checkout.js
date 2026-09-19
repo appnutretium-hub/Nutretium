@@ -28,6 +28,10 @@ function guestData(g){
   if(problem)return{error:problem};
   return{email,comprador:{name,surname,phone},envio,guest:true};
 }
+function publicProductionHost(host){
+  const h=String(host||'').toLowerCase().split(':')[0];
+  return h==='nutretium.com'||h==='www.nutretium.com';
+}
 
 exports.handler=async function(event){
   if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
@@ -53,21 +57,33 @@ exports.handler=async function(event){
 
   const secret=process.env.REDSYS_SECRET_KEY,merchant=process.env.REDSYS_MERCHANT_CODE,terminal=process.env.REDSYS_TERMINAL||'1',env=process.env.REDSYS_ENV||'test';
   if(!secret||!merchant)return json(503,{error:'Pasarela de pago no configurada.'});
-  const host=event.headers['x-forwarded-host']||event.headers.host||'',base=host?`https://${host}`:'';
+  const host=event.headers['x-forwarded-host']||event.headers.host||'';
+  if(publicProductionHost(host)&&(env!=='production'||process.env.COMMERCE_LIVE!=='true')){
+    console.error('[checkout] Cobro público bloqueado: REDSYS_ENV/COMMERCE_LIVE no están en producción');
+    return json(503,{error:'El pago online está temporalmente desactivado mientras se completa la configuración de producción.'});
+  }
+  const base=host?`https://${host}`:'';
   const ok=process.env.URL_OK||`${base}/.netlify/functions/pago-return?result=ok`,ko=process.env.URL_KO||`${base}/.netlify/functions/pago-return?result=ko`,notify=process.env.MERCHANT_URL||`${base}/.netlify/functions/redsys-notify`;
   const order=orderNumber();
   const params={Ds_Merchant_Amount:String(totalCents),Ds_Merchant_Order:order,Ds_Merchant_MerchantCode:merchant,Ds_Merchant_Currency:'978',Ds_Merchant_TransactionType:'0',Ds_Merchant_Terminal:terminal,Ds_Merchant_MerchantURL:notify,Ds_Merchant_UrlOK:ok,Ds_Merchant_UrlKO:ko};
   const encoded=Buffer.from(JSON.stringify(params)).toString('base64');
   let signature;try{signature=sign(encoded,key(secret,order))}catch(e){console.error('[checkout] firma',e);return json(500,{error:'No se pudo preparar el pago.'})}
 
+  const record={order,email:identidad.email,envio:identidad.envio,cliente:[identidad.comprador.name,identidad.comprador.surname].filter(Boolean).join(' '),telefono:identidad.comprador.phone||'',guest:Boolean(identidad.guest),items:pedido.lineas,subtotal:pedido.totalCents/100,discount:promo.ok?promo.discountCents/100:0,promotion:promo.ok?{code:promo.code,label:promo.label}:null,amount:totalCents/100,currency:'978',status:'PENDING',createdAt:new Date().toISOString()};
   try{
     const store=getBlobStore('redsys-orders');
-    if(store){
-      const record={order,email:identidad.email,envio:identidad.envio,cliente:[identidad.comprador.name,identidad.comprador.surname].filter(Boolean).join(' '),telefono:identidad.comprador.phone||'',guest:Boolean(identidad.guest),items:pedido.lineas,subtotal:pedido.totalCents/100,discount:promo.ok?promo.discountCents/100:0,promotion:promo.ok?{code:promo.code,label:promo.label}:null,amount:totalCents/100,currency:'978',status:'PENDING',createdAt:new Date().toISOString()};
-      await store.setJSON(order,record);
-      if(!identidad.guest){const idx=getBlobStore('user-orders');if(idx){const prev=(await idx.get(identidad.email,{type:'json'}).catch(()=>null))||[];await idx.setJSON(identidad.email,[order,...prev.filter(x=>x!==order)].slice(0,100))}}
+    if(!store)throw new Error('redsys-orders no disponible');
+    await store.setJSON(order,record);
+    const verify=await store.get(order,{type:'json'}).catch(()=>null);
+    if(!verify||verify.order!==order||Math.round(Number(verify.amount)*100)!==totalCents)throw new Error('pedido no verificable tras persistencia');
+    if(!identidad.guest){
+      const idx=getBlobStore('user-orders');
+      if(idx){const prev=(await idx.get(identidad.email,{type:'json'}).catch(()=>null))||[];await idx.setJSON(identidad.email,[order,...prev.filter(x=>x!==order)].slice(0,100));}
     }
-  }catch(e){console.error('[checkout] persistencia',order,e)}
+  }catch(e){
+    console.error('[checkout] persistencia obligatoria',order,e);
+    return json(503,{error:'No se ha podido guardar el pedido de forma segura. No se iniciará ningún cobro. Inténtalo de nuevo.'});
+  }
 
   return json(200,{Ds_SignatureVersion:VERSION,Ds_MerchantParameters:encoded,Ds_Signature:signature,redsysUrl:URLS[env]||URLS.test,order,summary:{subtotal:pedido.totalCents/100,discount:promo.ok?promo.discountCents/100:0,total:totalCents/100,coupon:promo.ok?promo.code:null}});
 };

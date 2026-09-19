@@ -47,7 +47,7 @@ exports.handler=async function(event){
 
   const pedido=valorarCarrito(body.items);
   if(!pedido.ok)return json(400,{error:pedido.errores[0],detalles:pedido.errores});
-  const promo=body.coupon?promotions.calcula(pedido.totalCents,body.coupon):{ok:false,subtotalCents:pedido.totalCents,discountCents:0,totalCents:pedido.totalCents};
+  const promo=body.coupon?await promotions.calculaAsync(pedido.totalCents,body.coupon):{ok:false,subtotalCents:pedido.totalCents,discountCents:0,totalCents:pedido.totalCents};
   if(body.coupon&&!promo.ok)return json(422,{error:promo.reason==='minimum'?'El pedido no alcanza el mínimo del cupón.':'Cupón no válido o no activo.',promotion:promo});
   const totalCents=promo.ok?promo.totalCents:pedido.totalCents;
   if(totalCents<=0)return json(400,{error:'El importe final no puede ser cero.'});

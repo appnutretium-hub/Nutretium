@@ -7,6 +7,7 @@ const { domains } = require('./enterprise-schema');
 const STORE = 'enterprise-platform-v1';
 const AUDIT = 'enterprise-audit-v1';
 const MAX_LIST = 1000;
+const READ_BATCH = 100;
 
 function storeOrThrow(name = STORE) {
   const store = getBlobStore(name);
@@ -22,12 +23,35 @@ async function get(domain, id) {
   return store.get(keyFor(domain, id), { type:'json', consistency:'strong' }).catch(() => null);
 }
 
+async function readRows(store, blobs) {
+  const rows = [];
+  for (let start = 0; start < blobs.length; start += READ_BATCH) {
+    const batch = blobs.slice(start, start + READ_BATCH);
+    const values = await Promise.all(batch.map((b) => store.get(b.key, { type:'json', consistency:'strong' }).catch(() => null)));
+    rows.push(...values.filter(Boolean));
+  }
+  return rows;
+}
+
+function orderRows(rows, includeArchived) {
+  return rows
+    .filter((r) => includeArchived || !r.archivedAt)
+    .sort((a,b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
+}
+
 async function list(domain, { includeArchived = false, limit = 500 } = {}) {
   const store = storeOrThrow();
   const result = await store.list({ prefix:`${domain}/` });
   const blobs = (result.blobs || []).slice(0, Math.min(Number(limit) || 500, MAX_LIST));
-  const rows = (await Promise.all(blobs.map((b) => store.get(b.key, { type:'json' }).catch(() => null)))).filter(Boolean);
-  return rows.filter((r) => includeArchived || !r.archivedAt).sort((a,b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
+  return orderRows(await readRows(store, blobs), includeArchived);
+}
+
+async function listAll(domain, { includeArchived = false } = {}) {
+  const store = storeOrThrow();
+  // @netlify/blobs pagina automáticamente cuando paginate no se establece.
+  // No aplicar slice aquí: esta ruta se usa para backups completos.
+  const result = await store.list({ prefix:`${domain}/` });
+  return orderRows(await readRows(store, result.blobs || []), includeArchived);
 }
 
 async function audit(actor, action, domain, id, detail = {}) {
@@ -73,14 +97,18 @@ async function auditList({ domain, recordId, limit = 200 } = {}) {
   const store = storeOrThrow(AUDIT);
   const result = await store.list({ prefix:'event/' });
   const keys = (result.blobs || []).slice(-Math.min(Number(limit) || 200, 1000)).reverse();
-  const rows = (await Promise.all(keys.map((b) => store.get(b.key, {type:'json'}).catch(() => null)))).filter(Boolean);
+  const rows = (await Promise.all(keys.map((b) => store.get(b.key, {type:'json', consistency:'strong'}).catch(() => null)))).filter(Boolean);
   return rows.filter((r) => (!domain || r.domain === domain) && (!recordId || r.recordId === recordId));
 }
 
 async function snapshot() {
-  const out = { schemaVersion:1, generatedAt:new Date().toISOString(), domains:{} };
-  for (const domain of domains()) out.domains[domain] = await list(domain, { includeArchived:true, limit:1000 });
+  const out = { schemaVersion:2, generatedAt:new Date().toISOString(), domains:{}, counts:{} };
+  for (const domain of domains()) {
+    const rows = await listAll(domain, { includeArchived:true });
+    out.domains[domain] = rows;
+    out.counts[domain] = rows.length;
+  }
   return out;
 }
 
-module.exports = { STORE, AUDIT, safeId, keyFor, get, list, save, archive, audit, auditList, snapshot };
+module.exports = { STORE, AUDIT, safeId, keyFor, get, list, listAll, save, archive, audit, auditList, snapshot };

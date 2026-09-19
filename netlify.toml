@@ -247,14 +247,6 @@
   to = "/index.html"
   status = 200
 [[redirects]]
-  from = "/categoria/*"
-  to = "/index.html"
-  status = 200
-[[redirects]]
-  from = "/producto/*"
-  to = "/producto.html"
-  status = 200
-[[redirects]]
   from = "/pago-ok"
   to = "/index.html"
   status = 200

@@ -2,7 +2,7 @@
 
 const { getBlobStore } = require('../lib/blob-store');
 const { cabecerasCORS } = require('../lib/cors');
-const { exigeAdmin } = require('../lib/admin');
+const { exigePermiso } = require('../lib/staff');
 
 const CORS = cabecerasCORS('POST, OPTIONS');
 const ESTADOS = new Set([
@@ -72,19 +72,20 @@ exports.handler = async function (event) {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
   if (event.httpMethod !== 'POST') return json(405, { error: 'Method Not Allowed' });
 
-  const admin = exigeAdmin(event);
-  if (!admin.ok) return json(admin.statusCode, { error: admin.error });
-
   let body;
   try { body = JSON.parse(event.body || '{}'); }
   catch { return json(400, { error: 'JSON no válido.' }); }
+
+  const permiso = body.action === 'update-fulfilment' ? 'shipping' : 'orders';
+  const staff = exigePermiso(event, permiso);
+  if (!staff.ok) return json(staff.statusCode, { error: staff.error });
 
   const store = getBlobStore('redsys-orders');
   if (!store) return json(503, { error: 'Almacenamiento de pedidos no disponible.' });
 
   if (body.action === 'list') {
     const pedidos = await cargaPedidos(store);
-    return json(200, { pedidos, metricas: metricas(pedidos), administrador: admin.email });
+    return json(200, { pedidos, metricas: metricas(pedidos), operador: staff.email, permisos: staff.permisos });
   }
 
   if (body.action === 'update-fulfilment') {
@@ -111,7 +112,7 @@ exports.handler = async function (event) {
       tracking,
       internalNote: normalizaTexto(body.internalNote ?? rec.internalNote, 500),
       updatedAt: new Date().toISOString(),
-      updatedBy: admin.email,
+      updatedBy: staff.email,
     };
 
     await store.setJSON(order, actualizado);

@@ -19,7 +19,7 @@ exports.handler=async function(event){
  if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
  if(event.httpMethod!=='POST')return json(405,{error:'Method Not Allowed'});
  let body;try{body=JSON.parse(event.body||'{}')}catch{return json(400,{error:'JSON no válido.'})}
- const permiso=body.action==='update-fulfilment'?'shipping':'orders';const staff=exigePermiso(event,permiso);if(!staff.ok)return json(staff.statusCode,{error:staff.error});
+ const permiso=body.action==='update-fulfilment'?'shipping':'orders';const staff=await exigePermiso(event,permiso);if(!staff.ok)return json(staff.statusCode,{error:staff.error});
  const store=getBlobStore('redsys-orders');if(!store)return json(503,{error:'Almacenamiento de pedidos no disponible.'});
  if(body.action==='list'){const pedidos=await cargaPedidos(store);return json(200,{pedidos,metricas:metricas(pedidos),operador:staff.email,permisos:staff.permisos})}
  if(body.action==='update-fulfilment'){

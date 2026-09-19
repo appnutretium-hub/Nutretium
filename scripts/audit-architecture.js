@@ -64,7 +64,7 @@ has('production-finish.js','visibleFocusable');
 has('production-finish.js','Introduce un email válido.');
 has('mobile-commerce-pro.js','productIdFromCard');
 has('mobile-commerce-pro.js','bindCleanButton');
-has('mobile-commerce-pro.js','data-product-id');
+has('mobile-commerce-pro.js','dataset.productId');
 has('mobile-commerce-pro.js','ntDockCartBadge');
 has('mobile-commerce-pro.css','min-height:50px');
 has('mobile-commerce-pro.css','env(safe-area-inset-bottom');

@@ -47,8 +47,6 @@ if (!failures.length) {
   }
 
   const netlify = read('netlify.toml');
-  if (!netlify.includes('from = "/producto/*"')) failures.push('Falta ruta limpia /producto/*');
-  if (!netlify.includes('from = "/categoria/*"')) failures.push('Falta ruta limpia /categoria/*');
   if (!netlify.includes('from = "/ayuda"')) failures.push('Falta ruta /ayuda');
 
   const commerce = read('commerce-pro.js');

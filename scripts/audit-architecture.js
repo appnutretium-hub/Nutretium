@@ -35,7 +35,7 @@ has('netlify/functions/admin-orders.js','http:// o https://');
 has('netlify/functions/reviews.js','verifiedPurchase');
 has('netlify/functions/saved-cart.js','valorarCarrito');
 has('netlify/functions/contact.js',"consume({scope:'contact'");
-has('netlify/functions/contact.js','statusCode: 429');
+has('netlify/functions/contact.js','json(429');
 has('netlify/functions/commerce.js','POINTS_CONFIGURED');
 has('netlify/functions/commerce.js','pointsEnabled');
 has('smart-shop.js','GOALS');

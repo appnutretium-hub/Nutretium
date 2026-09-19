@@ -30,6 +30,7 @@ html = html
   .replaceAll('Pide online y recoge en tienda en minutos. Batidos recién preparados, snacks proteicos y productos listos para llevar, sin esperas ni colas.', 'Consulta directamente con Nutretium la carta y disponibilidad actual de productos preparados.')
   .replaceAll('Pedido listo en 15 minutos', 'Disponibilidad sujeta a confirmación')
   .replaceAll('Paga online o al recoger', 'Condiciones de pago según el pedido confirmado')
+  .replaceAll('Pago 100% seguro · Cifrado SSL · Redsys', 'Pago con tarjeta mediante Redsys')
   .replaceAll('Ingredientes de grado farmacéutico', 'Catálogo de nutrición deportiva y alimentación saludable')
   .replaceAll('Sin aditivos artificiales innecesarios', 'Consulta ingredientes y alérgenos en la ficha y etiquetado de cada producto')
   .replaceAll('Testado por terceros (Informed Sport)', 'Información de producto basada en la documentación disponible')

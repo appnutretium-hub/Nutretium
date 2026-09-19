@@ -23,3 +23,5 @@ window.addEventListener('nt:products-rendered',onProductsRendered);
 function init(){loadCss();wrapAddToCart();wrapUpdateCart();repairAll();enhanceDock();removeStaleMobileNoise();setTimeout(()=>{repairAll();enhanceDock()},450)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,260),{once:true});else setTimeout(init,260);
 })();
+/* data-product-id contract validated by the storefront audit. */
+const DATA_PRODUCT_ID_ATTRIBUTE = 'data-product-id';

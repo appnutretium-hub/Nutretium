@@ -1,11 +1,6 @@
 /**
  * netlify/lib/email.js — NUTRETIUM
  * Correo transaccional de pedidos mediante Resend.
- *
- * Variables de entorno:
- *   RESEND_API_KEY
- *   ORDER_NOTIFICATION_EMAIL  — buzón interno de pedidos
- *   ORDER_EMAIL_FROM          — remitente verificado, p.ej. "Nutretium <pedidos@nutretium.com>"
  */
 'use strict';
 
@@ -15,126 +10,22 @@ const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 async function sendEmail({ to, subject, html, idempotencyKey }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.ORDER_EMAIL_FROM || 'onboarding@resend.dev';
-  if (!apiKey) {
-    console.warn('[email] Falta RESEND_API_KEY; correo no enviado:', subject);
-    return { ok:false, reason:'missing-api-key' };
-  }
-  if (!to) {
-    console.warn('[email] Sin destinatario; correo no enviado:', subject);
-    return { ok:false, reason:'missing-recipient' };
-  }
-
+  if (!apiKey) { console.warn('[email] Falta RESEND_API_KEY; correo no enviado:', subject); return { ok:false, reason:'missing-api-key' }; }
+  if (!to) { console.warn('[email] Sin destinatario; correo no enviado:', subject); return { ok:false, reason:'missing-recipient' }; }
   try {
-    const headers = {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    };
+    const headers = { Authorization:`Bearer ${apiKey}`, 'Content-Type':'application/json' };
     if (idempotencyKey) headers['Idempotency-Key'] = String(idempotencyKey).slice(0,256);
-
-    const res = await fetch(RESEND_ENDPOINT, {
-      method:'POST',
-      headers,
-      body:JSON.stringify({ from, to:[to], subject, html }),
-    });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      console.error('[email] Resend devolvió', res.status, JSON.stringify(payload).slice(0,400));
-      return { ok:false, reason:'provider-error', status:res.status };
-    }
-    console.log('[email] Enviado:', subject, '->', to, payload.id || '');
-    return { ok:true, id:payload.id || null };
-  } catch (err) {
-    console.error('[email] Error de red:', err);
-    return { ok:false, reason:'network-error' };
-  }
+    const res = await fetch(RESEND_ENDPOINT,{method:'POST',headers,body:JSON.stringify({from,to:[to],subject,html})});
+    const payload = await res.json().catch(()=>({}));
+    if (!res.ok) { console.error('[email] Resend devolvió',res.status,JSON.stringify(payload).slice(0,400)); return {ok:false,reason:'provider-error',status:res.status}; }
+    return {ok:true,id:payload.id||null};
+  } catch(err) { console.error('[email] Error de red:',err); return {ok:false,reason:'network-error'}; }
 }
-
-function esc(str) {
-  return String(str ?? '').replace(/[&<>"']/g, c => (
-    { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
-  ));
-}
-
-function orderRows(record) {
-  return (record.items || []).length
-    ? record.items.map(i => `
-      <tr>
-        <td style="padding:9px 0;border-bottom:1px solid #eee;">${esc(i.name)} &times;${esc(i.qty)}</td>
-        <td style="padding:9px 0;border-bottom:1px solid #eee;text-align:right;white-space:nowrap;">${(Number(i.price) * Number(i.qty)).toFixed(2)} &euro;</td>
-      </tr>`).join('')
-    : '<tr><td colspan="2" style="padding:9px 0;color:#777;">Sin detalle de artículos.</td></tr>';
-}
-
-function shell({ eyebrow, title, intro, body, footer }) {
-  return `<!doctype html><html><body style="margin:0;background:#0b0b0b;padding:28px 12px;font-family:Arial,Helvetica,sans-serif;color:#222">
-    <div style="max-width:620px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden">
-      <div style="background:#0e0e0e;padding:24px 28px;color:#fff;border-bottom:3px solid #d4af37">
-        <div style="font-size:12px;letter-spacing:.16em;color:#d4af37;font-weight:700">${esc(eyebrow)}</div>
-        <h1 style="margin:8px 0 0;font-size:26px;line-height:1.2">${esc(title)}</h1>
-      </div>
-      <div style="padding:28px">
-        <p style="font-size:15px;line-height:1.7;color:#555;margin:0 0 22px">${intro}</p>
-        ${body}
-      </div>
-      <div style="padding:18px 28px;background:#f7f7f5;color:#666;font-size:12px;line-height:1.6">${footer}</div>
-    </div>
-  </body></html>`;
-}
-
-function buildStoreOrderEmail(record) {
-  const body = `
-    <div style="padding:14px 16px;border-radius:10px;background:#fff5d8;border:1px solid #eed58b;margin-bottom:20px">
-      <strong>Estado operativo:</strong> PAGO CONFIRMADO · PENDIENTE DE PREPARAR / ENVIAR
-    </div>
-    <table style="width:100%;border-collapse:collapse;font-size:14px">${orderRows(record)}
-      <tr><td style="padding:12px 0;font-weight:bold">Total</td><td style="padding:12px 0;text-align:right;font-weight:bold">${Number(record.amount || 0).toFixed(2)} &euro;</td></tr>
-    </table>
-    <p style="font-size:14px;line-height:1.7;margin:20px 0 0">
-      <strong>Pedido:</strong> ${esc(record.order)}<br/>
-      <strong>Cliente:</strong> ${esc([record.cliente, record.email].filter(Boolean).join(' — ') || 'Sin datos')}<br/>
-      ${record.telefono ? `<strong>Teléfono:</strong> ${esc(record.telefono)}<br/>` : ''}
-      <strong>Enviar a:</strong> ${record.envio ? esc(direccion.comoTexto(record.envio)) : 'Sin dirección registrada'}<br/>
-      <strong>Autorización:</strong> ${esc(record.authCode || '—')}
-    </p>`;
-  return {
-    subject:`[PENDIENTE DE ENVIAR] Pedido ${record.order} — ${Number(record.amount || 0).toFixed(2)} €`,
-    html:shell({
-      eyebrow:'NUTRETIUM · PEDIDOS',
-      title:'Nuevo pedido pagado',
-      intro:'Redsys ha confirmado el pago. Este pedido necesita preparación y gestión de envío.',
-      body,
-      footer:'Nutretium · C/ La Albericia 1, Santander',
-    }),
-  };
-}
-
-function buildCustomerOrderEmail(record) {
-  const firstName = String(record.cliente || '').trim().split(/\s+/)[0] || 'cliente';
-  const body = `
-    <div style="padding:14px 16px;border-radius:10px;background:#eef8ef;border:1px solid #cce5cf;margin-bottom:20px">
-      <strong>Pago confirmado.</strong> Tu pedido ya está registrado y pasa a preparación.
-    </div>
-    <table style="width:100%;border-collapse:collapse;font-size:14px">${orderRows(record)}
-      <tr><td style="padding:12px 0;font-weight:bold">Total pagado</td><td style="padding:12px 0;text-align:right;font-weight:bold">${Number(record.amount || 0).toFixed(2)} &euro;</td></tr>
-    </table>
-    <p style="font-size:14px;line-height:1.7;margin:20px 0 0">
-      <strong>Número de pedido:</strong> ${esc(record.order)}<br/>
-      <strong>Dirección registrada:</strong> ${record.envio ? esc(direccion.comoTexto(record.envio)) : 'Consulta con Nutretium'}
-    </p>
-    <p style="font-size:14px;line-height:1.7;color:#555;margin:18px 0 0">Conserva este email como comprobante. Si necesitas modificar un dato o tienes una incidencia, contacta con Nutretium indicando el número de pedido.</p>`;
-  return {
-    subject:`Pedido ${record.order} confirmado · Nutretium`,
-    html:shell({
-      eyebrow:'NUTRETIUM · CONFIRMACIÓN',
-      title:`Gracias, ${firstName}`,
-      intro:'Hemos recibido correctamente tu pago y tu pedido está en marcha.',
-      body,
-      footer:'Atención Nutretium · 633 753 517 · appnutretium@gmail.com · C/ La Albericia 1, Santander',
-    }),
-  };
-}
-
-// Compatibilidad con llamadas antiguas.
-const buildOrderEmail = buildStoreOrderEmail;
-
-module.exports = { sendEmail, buildOrderEmail, buildStoreOrderEmail, buildCustomerOrderEmail };
+function esc(str){return String(str??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function orderRows(record){return(record.items||[]).length?record.items.map(i=>`<tr><td style="padding:9px 0;border-bottom:1px solid #eee;">${esc(i.name)} &times;${esc(i.qty)}</td><td style="padding:9px 0;border-bottom:1px solid #eee;text-align:right;white-space:nowrap;">${(Number(i.price)*Number(i.qty)).toFixed(2)} &euro;</td></tr>`).join(''):'<tr><td colspan="2" style="padding:9px 0;color:#777;">Sin detalle de artículos.</td></tr>'}
+function shell({eyebrow,title,intro,body,footer}){return`<!doctype html><html><body style="margin:0;background:#0b0b0b;padding:28px 12px;font-family:Arial,Helvetica,sans-serif;color:#222"><div style="max-width:620px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden"><div style="background:#0e0e0e;padding:24px 28px;color:#fff;border-bottom:3px solid #d4af37"><div style="font-size:12px;letter-spacing:.16em;color:#d4af37;font-weight:700">${esc(eyebrow)}</div><h1 style="margin:8px 0 0;font-size:26px;line-height:1.2">${esc(title)}</h1></div><div style="padding:28px"><p style="font-size:15px;line-height:1.7;color:#555;margin:0 0 22px">${intro}</p>${body}</div><div style="padding:18px 28px;background:#f7f7f5;color:#666;font-size:12px;line-height:1.6">${footer}</div></div></body></html>`}
+function buildStoreOrderEmail(record){const body=`<div style="padding:14px 16px;border-radius:10px;background:#fff5d8;border:1px solid #eed58b;margin-bottom:20px"><strong>Estado operativo:</strong> PAGO CONFIRMADO · PENDIENTE DE PREPARAR / ENVIAR</div><table style="width:100%;border-collapse:collapse;font-size:14px">${orderRows(record)}<tr><td style="padding:12px 0;font-weight:bold">Total</td><td style="padding:12px 0;text-align:right;font-weight:bold">${Number(record.amount||0).toFixed(2)} &euro;</td></tr></table><p style="font-size:14px;line-height:1.7;margin:20px 0 0"><strong>Pedido:</strong> ${esc(record.order)}<br/><strong>Cliente:</strong> ${esc([record.cliente,record.email].filter(Boolean).join(' — ')||'Sin datos')}<br/>${record.telefono?`<strong>Teléfono:</strong> ${esc(record.telefono)}<br/>`:''}<strong>Enviar a:</strong> ${record.envio?esc(direccion.comoTexto(record.envio)):'Sin dirección registrada'}<br/><strong>Autorización:</strong> ${esc(record.authCode||'—')}</p>`;return{subject:`[PENDIENTE DE ENVIAR] Pedido ${record.order} — ${Number(record.amount||0).toFixed(2)} €`,html:shell({eyebrow:'NUTRETIUM · PEDIDOS',title:'Nuevo pedido pagado',intro:'Redsys ha confirmado el pago. Este pedido necesita preparación y gestión de envío.',body,footer:'Nutretium · C/ La Albericia 1, Santander'})}}
+function buildCustomerOrderEmail(record){const firstName=String(record.cliente||'').trim().split(/\s+/)[0]||'cliente';const body=`<div style="padding:14px 16px;border-radius:10px;background:#eef8ef;border:1px solid #cce5cf;margin-bottom:20px"><strong>Pago confirmado.</strong> Tu pedido ya está registrado y pasa a preparación.</div><table style="width:100%;border-collapse:collapse;font-size:14px">${orderRows(record)}<tr><td style="padding:12px 0;font-weight:bold">Total pagado</td><td style="padding:12px 0;text-align:right;font-weight:bold">${Number(record.amount||0).toFixed(2)} &euro;</td></tr></table><p style="font-size:14px;line-height:1.7;margin:20px 0 0"><strong>Número de pedido:</strong> ${esc(record.order)}<br/><strong>Dirección registrada:</strong> ${record.envio?esc(direccion.comoTexto(record.envio)):'Consulta con Nutretium'}</p>`;return{subject:`Pedido ${record.order} confirmado · Nutretium`,html:shell({eyebrow:'NUTRETIUM · CONFIRMACIÓN',title:`Gracias, ${firstName}`,intro:'Hemos recibido correctamente tu pago y tu pedido está en marcha.',body,footer:'Atención Nutretium · 633 753 517 · appnutretium@gmail.com · C/ La Albericia 1, Santander'})}}
+function buildFulfilmentEmail(record,status){const sent=status==='SHIPPED',delivered=status==='DELIVERED';const tracking=record.tracking||{};const title=sent?'Tu pedido ha salido':delivered?'Pedido entregado':'Actualización de tu pedido';const intro=sent?'Tu pedido ha sido marcado como enviado.':delivered?'Tu pedido ha sido marcado como entregado.':'El estado de tu pedido ha cambiado.';const trackLink=sent&&tracking.url?`<p style="margin:18px 0"><a href="${esc(tracking.url)}" style="display:inline-block;padding:12px 18px;border-radius:9px;background:#d4af37;color:#111;text-decoration:none;font-weight:bold">Seguir envío</a></p>`:'';const body=`<p style="font-size:14px;line-height:1.7"><strong>Pedido:</strong> ${esc(record.order)}<br/>${tracking.carrier?`<strong>Transportista:</strong> ${esc(tracking.carrier)}<br/>`:''}${tracking.code?`<strong>Seguimiento:</strong> ${esc(tracking.code)}<br/>`:''}</p>${trackLink}`;return{subject:`Pedido ${record.order} · ${sent?'Enviado':delivered?'Entregado':'Actualizado'}`,html:shell({eyebrow:'NUTRETIUM · SEGUIMIENTO',title,intro,body,footer:'Nutretium · Atención 633 753 517 · C/ La Albericia 1, Santander'})}}
+const buildOrderEmail=buildStoreOrderEmail;
+module.exports={sendEmail,buildOrderEmail,buildStoreOrderEmail,buildCustomerOrderEmail,buildFulfilmentEmail};

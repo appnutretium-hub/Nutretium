@@ -49,7 +49,7 @@ exports.handler=async function(event){
     if(action==='list') return response(200,{records:await store.list(domain,{includeArchived:Boolean(body.includeArchived),limit:body.limit})});
     if(action==='get'){const record=await store.get(domain,body.id);return record?response(200,{record}):response(404,{error:'Registro no encontrado.'});}
     if(action==='create'||action==='update'){
-      if(domain==='product-compliance'&&body.record?.status==='approved'&&!hasPermission(auth.role,'compliance.approve')) return response(403,{error:'La aprobación de Food Safety & EU Market Access requiere un responsable de cumplimiento autorizado.'});
+      if(domain==='product-compliance'&&body.record?.status==='approved'&&auth.role!=='compliance') return response(403,{error:'La aprobación de Food Safety & EU Market Access solo puede hacerla una cuenta configurada en COMPLIANCE_EMAILS.'});
       const checked=schema.validate(domain,body.record,{partial:action==='update'}); if(!checked.ok) return response(400,{error:checked.errors[0],errors:checked.errors});
       let payload=checked.data;
       if(action==='update'){
@@ -61,7 +61,7 @@ exports.handler=async function(event){
     if(action==='archive'){const record=await store.archive(domain,body.id,auth,body.reason);return record?response(200,{record}):response(404,{error:'Registro no encontrado.'});}
     if(action==='transition'){
       const previous=await store.get(domain,body.id); if(!previous) return response(404,{error:'Registro no encontrado.'});
-      if(domain==='product-compliance'&&body.status==='approved'&&!hasPermission(auth.role,'compliance.approve')) return response(403,{error:'Solo Food Safety & EU Market Access puede aprobar este expediente.'});
+      if(domain==='product-compliance'&&body.status==='approved'&&auth.role!=='compliance') return response(403,{error:'Solo Food Safety & EU Market Access puede aprobar este expediente.'});
       if(domain==='product-compliance'&&body.status==='blocked'&&!hasPermission(auth.role,'compliance.block')&&!['owner','admin'].includes(auth.role)) return response(403,{error:'No tienes permiso para bloquear este producto.'});
       const changed=actions.transition(domain,previous,body.status); if(!changed.ok) return response(409,{error:changed.error});
       const checked=schema.validate(domain,changed.record); if(!checked.ok) return response(400,{error:checked.errors[0],errors:checked.errors});

@@ -3,9 +3,9 @@
 'use strict';
 const SESSION='nutretium_user';
 const session=()=>{try{return JSON.parse(localStorage.getItem(SESSION)||'null')}catch{return null}};
-const consent=()=>localStorage.getItem('nutretium_cookies')==='accepted';
+const consent=()=>{try{const raw=JSON.parse(localStorage.getItem('nutretium_cookies')||'null');return !!(raw&&raw.version===1&&raw.analitica===true)}catch{return false}};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function track(name){try{if(consent())fetch('/.netlify/functions/analytics-event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})})}catch{}}
+function track(name){try{if(consent())fetch('/.netlify/functions/analytics-event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name}),keepalive:true}).catch(()=>{})}catch{}}
 
 // Checkout único: conserva la función antigua en window como respaldo técnico.
 if(typeof window.initiateRedsysPayment==='function') window.__legacyRedsysPayment=window.initiateRedsysPayment;
@@ -64,7 +64,7 @@ function crossSell(){
   const box=document.createElement('div');box.id='suiteCrossSell';box.style.cssText='margin:14px 0;padding:14px;border:1px solid #2a2a2a;border-radius:14px;background:#101010';box.innerHTML='<p style="font-size:12px;font-weight:800;color:#d4af37;margin:0 0 10px">COMPLETA TU PEDIDO</p>'+candidates.map(p=>`<button data-suite-add="${p.id}" style="width:100%;display:flex;justify-content:space-between;background:none;color:#eee;border:0;padding:7px 0;cursor:pointer;text-align:left"><span>${esc(p.name)}</span><b>${Number(p.price).toFixed(2)} €</b></button>`).join('');target.parentElement?.insertBefore(box,target);box.querySelectorAll('[data-suite-add]').forEach(b=>b.onclick=()=>window.addToCart(Number(b.dataset.suiteAdd)));
 }
 
-function trustBar(){if(document.getElementById('suiteTrustBar'))return;const b=document.createElement('div');b.id='suiteTrustBar';b.style.cssText='background:#d4af37;color:#080808;text-align:center;padding:7px 12px;font-size:12px;font-weight:900;letter-spacing:.02em';b.textContent='Tienda física en Santander · Pago seguro mediante Redsys · Atención Nutretium';document.body.prepend(b);}
+function trustBar(){if(document.getElementById('suiteTrustBar'))return;const b=document.createElement('div');b.id='suiteTrustBar';b.style.cssText='background:#d4af37;color:#080808;text-align:center;padding:7px 12px;font-size:12px;font-weight:900;letter-spacing:.02em';b.textContent='Tienda física en Santander · Pago mediante Redsys · Atención Nutretium';document.body.prepend(b);}
 
 document.addEventListener('DOMContentLoaded',()=>{trustBar();addNavigation();crossSell();setTimeout(decorateVerifiedReviews,900);if(location.search.includes('cart=1')&&typeof openCart==='function')setTimeout(openCart,200)});
 })();

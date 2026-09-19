@@ -3,6 +3,15 @@ Allow: /
 
 Disallow: /admin
 Disallow: /admin.html
+Disallow: /backoffice
+Disallow: /backoffice.html
+Disallow: /control
+Disallow: /control.html
+Disallow: /checkout
+Disallow: /checkout.html
+Disallow: /cuenta
+Disallow: /cuenta.html
+Disallow: /mi-nutretium
 Disallow: /pago-ok
 Disallow: /pago-ko
 Disallow: /.netlify/

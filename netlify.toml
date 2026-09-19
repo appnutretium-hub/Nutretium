@@ -15,6 +15,8 @@
     node --check pro-qa-fixes.js &&
     node --check production-finish.js &&
     node --check mobile-commerce-pro.js &&
+    node --check runtime-content.js &&
+    node --check runtime-performance.js &&
     node --check runtime-guard.js &&
     node --check product-variants.js &&
     node --check producto.js &&
@@ -23,6 +25,7 @@
     node --check checkout.js &&
     node --check cuenta.js &&
     node --check pedido.js &&
+    node --check settings.js &&
     node --check smart-shop.js &&
     node --check control.js &&
     node --check backoffice.js &&
@@ -31,6 +34,7 @@
     node --check netlify/lib/staff.js &&
     node --check netlify/lib/rate-limit.js &&
     node --check netlify/lib/guest-access.js &&
+    node --check netlify/lib/settings.js &&
     node --check netlify/functions/redsys-notify.js &&
     node --check netlify/functions/checkout.js &&
     node --check netlify/functions/commerce.js &&
@@ -39,13 +43,18 @@
     node --check netlify/functions/admin-analytics.js &&
     node --check netlify/functions/system-health.js &&
     node --check netlify/functions/admin-orders.js &&
+    node --check netlify/functions/admin-settings.js &&
     node --check netlify/functions/contact.js &&
     node --check netlify/functions/account-security.js &&
     node --check netlify/functions/guest-order.js &&
     node --check netlify/functions/site-status.js &&
+    node --check netlify/functions/site-config.js &&
     node --check netlify/functions/client-error.js &&
     node scripts/smoke-web.js &&
     node scripts/audit-architecture.js &&
+    node scripts/security-audit.js &&
+    node scripts/build-trust-audit.js &&
+    node scripts/release-manifest.js &&
     rm -rf \
       'Listado de stock disponible.pdf' \
       'CATALOGO_NUTRETIUM.xlsx' \
@@ -110,6 +119,11 @@
     X-Robots-Tag = "noindex, nofollow"
     Cache-Control = "no-store"
 [[headers]]
+  for = "/settings*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-store"
+[[headers]]
   for = "/control*"
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
@@ -133,6 +147,10 @@
   for = "/comparar*"
   [headers.values]
     X-Robots-Tag = "noindex, follow"
+    Cache-Control = "no-store"
+[[headers]]
+  for = "/version.json"
+  [headers.values]
     Cache-Control = "no-store"
 [[headers]]
   for = "/sources/productos/*"
@@ -170,6 +188,10 @@
 [[redirects]]
   from = "/pedido"
   to = "/pedido.html"
+  status = 200
+[[redirects]]
+  from = "/settings"
+  to = "/settings.html"
   status = 200
 [[redirects]]
   from = "/recomendador"

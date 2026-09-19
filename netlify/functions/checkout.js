@@ -3,9 +3,8 @@
 const crypto = require('crypto');
 const { cabecerasCORS } = require('../lib/cors');
 const { getBlobStore } = require('../lib/blob-store');
-const { verifyJWT } = require('../lib/jwt');
+const { verifyUserToken } = require('../lib/session');
 const { valorarCarrito } = require('../lib/catalogo');
-const usuarios = require('../lib/usuarios');
 const direccion = require('../lib/direccion');
 const promotions = require('../lib/promotions');
 const shipping = require('../lib/shipping');
@@ -38,7 +37,7 @@ exports.handler=async function(event){
 
   let body;try{body=JSON.parse(event.body||'{}')}catch{return json(400,{error:'JSON no válido.'})}
   let identidad=null;
-  if(body.token){try{const email=verifyJWT(body.token).email;const comprador=await usuarios.lee(email);if(comprador){const envio=direccion.normaliza(comprador.direccion),problem=direccion.revisa(envio);if(problem)return json(422,{error:problem,motivo:'sin-direccion'});identidad={email,comprador,envio,guest:false}}}catch{}}
+  if(body.token){try{const verified=await verifyUserToken(body.token);const comprador=verified.user;const envio=direccion.normaliza(comprador.direccion),problem=direccion.revisa(envio);if(problem)return json(422,{error:problem,motivo:'sin-direccion'});identidad={email:verified.email,comprador,envio,guest:false}}catch{}}
   if(!identidad){const g=guestData(body.guest);if(g.error)return json(401,{error:g.error,motivo:'guest-required'});identidad=g}
 
   const pedido=valorarCarrito(body.items);if(!pedido.ok)return json(400,{error:pedido.errores[0],detalles:pedido.errores});
@@ -56,19 +55,13 @@ exports.handler=async function(event){
 
   const store=getBlobStore('redsys-orders');if(!store)return json(503,{error:'No se ha podido guardar el pedido de forma segura. No se iniciará ningún cobro.'});
   const previous=await store.get(order,{type:'json'}).catch(()=>null);
-  if(previous){
-    if(previous.checkoutFingerprint!==fp)return json(409,{error:'La referencia de este intento ya pertenece a otro carrito. Recarga el checkout antes de continuar.'});
-    if(previous.status&&previous.status!=='PENDING')return json(409,{error:'Este pedido ya ha sido procesado. Consulta su estado antes de volver a pagar.'});
-  }
+  if(previous){if(previous.checkoutFingerprint!==fp)return json(409,{error:'La referencia de este intento ya pertenece a otro carrito. Recarga el checkout antes de continuar.'});if(previous.status&&previous.status!=='PENDING')return json(409,{error:'Este pedido ya ha sido procesado. Consulta su estado antes de volver a pagar.'});}
 
   const reservation=await inventory.reserve(order,pedido.lineas);
   if(!reservation.ok){const status=reservation.reason==='insufficient-stock'?409:503;return json(status,{error:reservation.error,motivo:reservation.reason,productId:reservation.productId,available:reservation.available});}
 
   let payment;try{payment=redsysPayload({order,totalCents,merchant,terminal,notify,ok,ko,secret,env})}catch(e){await inventory.release(order,pedido.lineas);console.error('[checkout] firma',e);return json(500,{error:'No se pudo preparar el pago.'})}
-
-  if(previous){
-    return json(200,{...payment,summary:summary(pedido,promo,shipment,totalCents),idempotent:true,reservationExpiresAt:reservation.expiresAt});
-  }
+  if(previous)return json(200,{...payment,summary:summary(pedido,promo,shipment,totalCents),idempotent:true,reservationExpiresAt:reservation.expiresAt});
 
   const record={order,email:identidad.email,envio:identidad.envio,cliente:[identidad.comprador.name,identidad.comprador.surname].filter(Boolean).join(' '),telefono:identidad.comprador.phone||'',guest:Boolean(identidad.guest),items:pedido.lineas,subtotal:pedido.totalCents/100,discount:promo.ok?promo.discountCents/100:0,promotion:promo.ok?{code:promo.code,label:promo.label}:null,shipping:{amount:shipment.shippingCents/100,label:shipment.label,country:shipment.country,free:shipment.free},amount:totalCents/100,currency:'978',status:'PENDING',checkoutFingerprint:fp,checkoutRequestId:reqId||null,inventoryReservation:{status:'RESERVED',expiresAt:reservation.expiresAt,productIds:reservation.reservedProductIds},createdAt:new Date().toISOString()};
   try{await store.setJSON(order,record);const verify=await store.get(order,{type:'json'}).catch(()=>null);if(!verify||verify.order!==order||verify.checkoutFingerprint!==fp||Math.round(Number(verify.amount)*100)!==totalCents)throw new Error('pedido no verificable tras persistencia');if(!identidad.guest){const idx=getBlobStore('user-orders');if(idx){const prev=(await idx.get(identidad.email,{type:'json'}).catch(()=>null))||[];await idx.setJSON(identidad.email,[order,...prev.filter(x=>x!==order)].slice(0,100));}}}catch(e){await inventory.release(order,pedido.lineas);console.error('[checkout] persistencia obligatoria',order,e);return json(503,{error:'No se ha podido guardar el pedido de forma segura. No se iniciará ningún cobro. Inténtalo de nuevo.'})}

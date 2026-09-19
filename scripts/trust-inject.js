@@ -15,6 +15,7 @@ const scripts = [
   'final-hardening.js',
   'commerce-suite.js',
   'commercial-finish.js',
+  'compare-suite.js',
 ];
 
 for (const src of scripts) {

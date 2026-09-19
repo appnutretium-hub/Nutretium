@@ -43,9 +43,11 @@ const RUTA_VETADOS = 'netlify/lib/no-vendibles.js';
 // foto obligaba a publicar ocho veces, y **cada publicación es un despliegue
 // entero**. Se agotó así la asignación de Netlify (30 despliegues para 30
 // fotos, una a una). El panel aprieta ahora cada foto a 35 KB (MAX_KB en
-// admin.js), así que 4 MB dan para más de cien y entran todas de una vez.
+// admin.js). El límite binario se deja en 3,5 MiB para que, después del +33 %
+// de base64 y del JSON/catálogo, la petición conserve margen bajo el corte de
+// 6 MB de Netlify. Sigue permitiendo más de cien fotos de 35 KB en una tanda.
 const MAX_FOTOS = 150;
-const MAX_BYTES_FOTOS = 4 * 1024 * 1024;
+const MAX_BYTES_FOTOS = Math.floor(3.5 * 1024 * 1024);
 const MAX_PRODUCTOS = 1000;
 const EXTENSIONES = new Set(['webp', 'jpg', 'jpeg', 'png']);
 
@@ -72,7 +74,7 @@ function aFilas(productos) {
     etiqueta: String(p.etiqueta ?? '').trim(),
     marca: String(p.marca ?? '').trim(),
     foto: String(p.foto ?? '').trim(),
-    __linea: i + 2,   // el panel enseña «fila N» contando como Excel
+    __linea: i + 2,
   }));
 }
 
@@ -97,7 +99,7 @@ function paraElPanel(productos) {
     nombre: p.name,
     categoria: p.category,
     precio: Number(p.price),
-    stock: p.stock,                       // null = «no se controla»
+    stock: p.stock,
     activo: p.active !== false,
     destacado: p.featured === true,
     etiqueta: p.badge || '',
@@ -136,8 +138,7 @@ function revisaFotos(fotos) {
 
     bytes += Math.ceil(base64.length * 3 / 4);
     if (bytes > MAX_BYTES_FOTOS) {
-      return { error: 'Las fotos suman más de ' + Math.round(MAX_BYTES_FOTOS / 1024 / 1024) +
-        ' MB y no caben en un envío. Han entrado ' + limpias.length + ' de ' + fotos.length +
+      return { error: 'Las fotos superan el límite seguro por publicación y no caben en un envío. Han entrado ' + limpias.length + ' de ' + fotos.length +
         ': quita las que sobran, publica, y luego vuelve a por el resto.' };
     }
     limpias.push({ codigo: codigo.toUpperCase(), extension, base64 });
@@ -148,12 +149,6 @@ function revisaFotos(fotos) {
 
 /**
  * Coloca cada foto en la ruta que le toca y la escribe en su fila.
- *
- * La ruta la calcula el SERVIDOR, no el navegador: es la misma fórmula que usa
- * NOMBRES_ESPERADOS.csv (hoja.rutaEsperada), y así una foto subida desde el
- * panel cae donde la buscaría scripts/fotos-incorporar.js. Si la calculara el
- * navegador tendríamos una tercera copia de esa fórmula, y con el tiempo
- * dejarían de coincidir.
  */
 function colocaFotos(filas, fotos) {
   const porCodigo = new Map(filas.map((fila) => [String(fila.codigo).toUpperCase(), fila]));
@@ -175,8 +170,6 @@ function colocaFotos(filas, fotos) {
   return { archivos };
 }
 
-// ── Handler ─────────────────────────────────────────────────────────────────
-
 exports.handler = async function (event) {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
   if (event.httpMethod !== 'POST') {
@@ -190,9 +183,6 @@ exports.handler = async function (event) {
   try { cuerpo = JSON.parse(event.body || '{}'); }
   catch { return respuesta(400, { error: 'El envío no es JSON válido.' }); }
 
-  // El catálogo se lee de GitHub y se publica en GitHub: sin token no hay panel,
-  // ni siquiera para mirar. Se dice claro y pronto, en vez de reventar más
-  // abajo con un error de red que no explica nada.
   if (!github.configurado()) {
     console.error('[admin-catalogo] Falta GITHUB_TOKEN. Configúralo en Netlify o el panel no funciona.');
     return respuesta(503, {
@@ -202,9 +192,6 @@ exports.handler = async function (event) {
   }
 
   try {
-    // ── ESTADO ───────────────────────────────────────────────────────────────
-    // El catálogo se lee de GitHub, no del paquete de la función: esa copia es
-    // la del despliegue en curso y estaría atrasada justo después de publicar.
     if (cuerpo.action === 'estado') {
       const texto = await github.leeArchivo(RUTA_CATALOGO);
       const { productos, categorias } = hoja.parsea(texto);
@@ -228,7 +215,6 @@ exports.handler = async function (event) {
 
     const textoActual = await github.leeArchivo(RUTA_CATALOGO);
     const { productos, categorias } = hoja.parsea(textoActual);
-
     const filas = aFilas(cuerpo.productos);
 
     const revision = revisaFotos(cuerpo.fotos);
@@ -238,8 +224,6 @@ exports.handler = async function (event) {
     if (colocadas.error) return respuesta(400, { error: colocadas.error });
     const fotos = colocadas.archivos;
 
-    // Una foto vale si ya está en el catálogo publicado o si viene en este
-    // mismo envío. Aquí no hay disco donde comprobarlo de otra forma.
     const disponibles = new Set([
       ...productos.map((p) => p.image).filter(Boolean),
       ...fotos.map((f) => f.ruta),
@@ -257,12 +241,10 @@ exports.handler = async function (event) {
       existeFoto: (ruta) => disponibles.has(ruta),
     });
 
-    // ── ENSAYO ───────────────────────────────────────────────────────────────
     if (cuerpo.action === 'ensayo') {
       return respuesta(200, { ok: informe.errores.length === 0, informe: informeParaPantalla(informe) });
     }
 
-    // ── PUBLICAR ─────────────────────────────────────────────────────────────
     if (cuerpo.action === 'publicar') {
       if (informe.errores.length) {
         return respuesta(400, { ok: false, informe: informeParaPantalla(informe) });
@@ -276,8 +258,6 @@ exports.handler = async function (event) {
         ...fotos.map((f) => ({ ruta: f.ruta, base64: f.base64 })),
       ];
 
-      // La lista de vetados solo se toca si de verdad ha cambiado: así el
-      // historial no se llena de commits que no cambian nada.
       if (JSON.stringify(vetados) !== JSON.stringify(vetadosDelRepo.map((v) => ({ codigo: v.codigo, motivo: v.motivo })))) {
         const textoVetados = await github.leeArchivo(RUTA_VETADOS);
         archivos.push({ ruta: RUTA_VETADOS, texto: renderizaVetados(textoVetados, vetados) });
@@ -295,10 +275,6 @@ exports.handler = async function (event) {
         archivos,
       });
 
-      // Las rutas vuelven al panel porque las calcula el servidor y el navegador
-      // no tiene forma de adivinarlas. Sin esto, su lista se queda con la foto
-      // vacía y la siguiente publicación borra el enlace que acaba de hacerse:
-      // el .webp se queda en el repositorio y la ficha vuelve a salir sin foto.
       return respuesta(200, {
         ok: true,
         informe: informeParaPantalla(informe),
@@ -314,7 +290,6 @@ exports.handler = async function (event) {
   }
 };
 
-/** Reescribe no-vendibles.js conservando su cabecera explicativa. */
 function renderizaVetados(original, lista) {
   const inicio = original.indexOf('module.exports = [');
   if (inicio === -1) throw new Error('No encuentro la lista dentro de no-vendibles.js.');

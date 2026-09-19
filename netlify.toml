@@ -7,6 +7,7 @@
     cat commerce-core.css >> styles.css &&
     cat franchise-trust.js >> app.js &&
     cat commerce-core.js >> app.js &&
+    cat enterprise-storefront.js >> app.js &&
     rm -rf \
       'Listado de stock disponible.pdf' \
       'CATALOGO_NUTRETIUM.xlsx' \
@@ -26,6 +27,7 @@
       '.claude' \
       'commerce-core.css' \
       'commerce-core.js' \
+      'enterprise-storefront.js' \
       'sources/01_PNG_MAX_CALIDAD_CON_PVP' \
       'sources/00_CONTROL_CALIDAD.csv' \
       'sources/00_RELACION_IMAGENES_PVP.csv' \

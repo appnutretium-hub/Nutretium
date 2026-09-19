@@ -1,0 +1,44 @@
+name: Nutretium Quality Gate
+on:
+  push:
+    branches: [main, 'feature/**', 'hotfix/**', 'final-**']
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --omit=optional
+      - name: Build
+        run: npm run build:css
+      - name: Core tests
+        run: |
+          npm test
+          npm run test:redsys
+          npm run test:catalogo
+          npm run test:admin
+          npm run test:cuentas
+      - name: Syntax hardening
+        run: |
+          node --check runtime-guard.js
+          node --check cuenta.js
+          node --check netlify/lib/rate-limit.js
+          node --check netlify/functions/account-security.js
+          node --check netlify/functions/client-error.js
+          node --check netlify/functions/site-status.js
+          node --check netlify/functions/checkout.js
+          node --check netlify/functions/system-health.js
+      - name: Install Playwright Chromium
+        run: npx --yes playwright@1.55.0 install --with-deps chromium
+      - name: Start static storefront
+        run: node scripts/dev-server.js > /tmp/nutretium-server.log 2>&1 &
+      - name: Browser E2E
+        run: npx --yes playwright@1.55.0 test tests/e2e-storefront.spec.js --browser=chromium --workers=1

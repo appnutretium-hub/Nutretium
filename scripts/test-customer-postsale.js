@@ -14,7 +14,7 @@ const {NUTRETIUM_PRODUCTS=[]}=require('../products-data.js');
 const email='cliente-prueba@nutretium.test';
 const user={id:'u-test',name:'Cliente',surname:'Prueba',email,phone:'600000000',direccion:{calle:'Calle Test 1',piso:'',cp:'39001',localidad:'Santander',provincia:'Cantabria',pais:'España'},passwordHash:'test'};
 const token=signJWT({sub:user.id,email,exp:Math.floor(Date.now()/1000)+3600});
-const event=(method,body)=>({httpMethod:method,headers:{authorization:`Bearer ${token}`,'x-nf-client-connection-ip':'127.0.0.1'},body:body?JSON.stringify(body):''});
+const event=(method,body,ip='127.0.0.1')=>({httpMethod:method,headers:{authorization:`Bearer ${token}`,'x-nf-client-connection-ip':ip},body:body?JSON.stringify(body):''});
 const parse=r=>JSON.parse(r.body||'{}');
 
 (async()=>{
@@ -28,22 +28,36 @@ const parse=r=>JSON.parse(r.body||'{}');
   r=await customer.handler(event('POST',{action:'add-address',label:'Trabajo',isDefault:true,direccion:{calle:'Avenida Test 2',piso:'2A',cp:'39002',localidad:'Santander',provincia:'Cantabria',pais:'España'}}));
   assert.strictEqual(r.statusCode,201);let data=parse(r);assert.strictEqual(data.addresses.length,1);assert.strictEqual(data.addresses[0].isDefault,true);
   const addressId=data.addresses[0].id;
+  r=await customer.handler(event('POST',{action:'set-default-address',id:addressId}));assert.strictEqual(r.statusCode,200);
 
-  r=await customer.handler(event('POST',{action:'set-default-address',id:addressId}));
-  assert.strictEqual(r.statusCode,200);
-  r=await customer.handler(event('GET'));data=parse(r);assert.strictEqual(data.wishlist[0],Number(active.id));assert.strictEqual(data.addresses[0].label,'Trabajo');
+  const [a,b]=await Promise.all([
+    customer.handler(event('POST',{action:'add-address',label:'Casa 2',direccion:{calle:'Calle Paralela 3',piso:'',cp:'39003',localidad:'Santander',provincia:'Cantabria',pais:'España'}})),
+    customer.handler(event('POST',{action:'add-address',label:'Almacén',direccion:{calle:'Calle Paralela 4',piso:'',cp:'39004',localidad:'Santander',provincia:'Cantabria',pais:'España'}}))
+  ]);
+  assert.strictEqual(a.statusCode,201);assert.strictEqual(b.statusCode,201);
+  r=await customer.handler(event('GET'));data=parse(r);
+  assert.strictEqual(data.wishlist[0],Number(active.id));assert.strictEqual(data.addresses.length,3,'Dos escrituras concurrentes no deben perder una dirección');
+  assert(data.addresses.some(x=>x.label==='Casa 2')&&data.addresses.some(x=>x.label==='Almacén'),'Deben conservarse ambas direcciones concurrentes');
 
   const order='NT-TEST-POSTSALE';
   await getBlobStore('redsys-orders').setJSON(order,{order,email,status:'PAID',amount:24.90,items:[{id:active.id,name:active.name,qty:1}]});
-
-  r=await postSale.handler(event('POST',{action:'request-return',order,reason:'Producto sin abrir, deseo tramitar devolución'}));
+  r=await postSale.handler(event('POST',{action:'request-return',order,reason:'Producto sin abrir, deseo tramitar devolución'},'127.0.0.20'));
   assert.strictEqual(r.statusCode,201);let req=parse(r).request;assert.strictEqual(req.type,'RETURN');assert.strictEqual(req.refundStatus,'NOT_STARTED');
-  r=await postSale.handler(event('POST',{action:'request-return',order,reason:'Producto sin abrir, deseo tramitar devolución'}));
+  r=await postSale.handler(event('POST',{action:'request-return',order,reason:'Producto sin abrir, deseo tramitar devolución'},'127.0.0.20'));
   assert.strictEqual(r.statusCode,200);assert.strictEqual(parse(r).idempotent,true,'No debe duplicar una devolución abierta');
-
-  r=await postSale.handler(event('POST',{action:'request-invoice',order,legalName:'Cliente Prueba',taxId:'12345678Z',billingAddress:'Calle Test 1, 39001 Santander'}));
+  r=await postSale.handler(event('POST',{action:'request-invoice',order,legalName:'Cliente Prueba',taxId:'12345678Z',billingAddress:'Calle Test 1, 39001 Santander'},'127.0.0.20'));
   assert.strictEqual(r.statusCode,201);req=parse(r).request;assert.strictEqual(req.type,'INVOICE');assert.strictEqual(req.documentStatus,'NOT_ISSUED');
 
-  r=await postSale.handler(event('GET'));data=parse(r);assert.strictEqual(data.requests.length,2,'Debe conservar devolución y factura');
-  console.log('[test-customer-postsale] OK · favoritos sincronizados · direcciones · devolución · solicitud de factura');
+  const order2='NT-TEST-CONCURRENT';
+  await getBlobStore('redsys-orders').setJSON(order2,{order:order2,email,status:'PAID',amount:19.90,items:[{id:active.id,name:active.name,qty:1}]});
+  const concurrent=await Promise.all([
+    postSale.handler(event('POST',{action:'request-return',order:order2,reason:'Solicitud simultánea uno'},'127.0.0.21')),
+    postSale.handler(event('POST',{action:'request-return',order:order2,reason:'Solicitud simultánea dos'},'127.0.0.21'))
+  ]);
+  assert(concurrent.some(x=>x.statusCode===201),'Una petición concurrente debe crear la devolución');
+  assert(concurrent.some(x=>x.statusCode===200&&parse(x).idempotent===true),'La otra debe resolverse como idempotente');
+  r=await postSale.handler(event('GET'));data=parse(r);
+  assert.strictEqual(data.requests.filter(x=>x.type==='RETURN'&&x.order===order2).length,1,'La concurrencia no debe duplicar una devolución');
+  assert.strictEqual(data.requests.length,3,'Debe conservar devolución, factura y devolución concurrente');
+  console.log('[test-customer-postsale] OK · favoritos · direcciones concurrentes · devolución idempotente · factura solicitada');
 })().catch(err=>{console.error(err);process.exit(1)});

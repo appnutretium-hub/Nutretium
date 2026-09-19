@@ -6,9 +6,11 @@ const { signJWT, secretConfigured } = require('../lib/jwt');
 const { roleFor } = require('../lib/staff');
 const { secretFor, verify: verifyTotp } = require('../lib/totp');
 const { cabecerasCORS } = require('../lib/cors');
-const { getBlobStore } = require('../lib/blob-store');
+const { consume, reset } = require('../lib/rate-limit');
 
 const CORS = cabecerasCORS('POST, OPTIONS');
+const MAX_INTENTOS = 5;
+const VENTANA_MS = 15 * 60 * 1000;
 const response = (statusCode, body, headers = {}) => ({
   statusCode,
   headers: { ...CORS, 'Cache-Control': 'no-store', ...headers },
@@ -18,6 +20,7 @@ const response = (statusCode, body, headers = {}) => ({
 function verifyPassword(password, stored) {
   try {
     const [salt, hash] = String(stored || '').split(':');
+    if (!salt || !hash) return false;
     const attempt = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
     const a = Buffer.from(hash, 'hex');
     const b = Buffer.from(attempt, 'hex');
@@ -27,47 +30,23 @@ function verifyPassword(password, stored) {
   }
 }
 
-function attemptStore() {
-  return getBlobStore('staff-auth-attempts');
-}
-
-function attemptKey(email) {
-  return crypto.createHash('sha256').update(String(email || '').toLowerCase()).digest('hex');
-}
-
-async function checkThrottle(email) {
-  const store = attemptStore();
-  if (!store) return { ok: true };
-  const now = Date.now();
-  const record = await store.get(attemptKey(email), { type: 'json' }).catch(() => null);
-  if (record && Number(record.until) > now) {
-    return { ok: false, retryAfter: Math.ceil((Number(record.until) - now) / 1000) };
-  }
-  return { ok: true };
-}
-
-async function failAttempt(email) {
-  const store = attemptStore();
-  if (!store) return;
-  const key = attemptKey(email);
-  const now = Date.now();
-  const record = (await store.get(key, { type: 'json' }).catch(() => null)) || {
-    fails: 0,
-    first: now,
-    until: 0,
-  };
-  const insideWindow = now - Number(record.first || 0) < 15 * 60 * 1000;
-  const fails = (insideWindow ? Number(record.fails || 0) : 0) + 1;
-  await store.setJSON(key, {
-    fails,
-    first: insideWindow ? record.first : now,
-    until: fails >= 5 ? now + 15 * 60 * 1000 : 0,
+async function checkThrottle(event, email) {
+  const gate = await consume({
+    scope: 'staff-login',
+    event,
+    extra: email,
+    limit: MAX_INTENTOS,
+    windowMs: VENTANA_MS,
   });
+  return {
+    ok: gate.allowed === true,
+    retryAfter: Math.max(1, Number(gate.retryAfter) || 60),
+    degraded: gate.degraded === true,
+  };
 }
 
-async function clearAttempts(email) {
-  const store = attemptStore();
-  if (store) await store.delete(attemptKey(email)).catch(() => {});
+async function clearAttempts(event, email) {
+  await reset({ scope: 'staff-login', event, extra: email }).catch(() => false);
 }
 
 function staffMfaRequired() {
@@ -89,11 +68,15 @@ exports.handler = async event => {
   const email = String(body.email || '').trim().toLowerCase();
   const password = String(body.password || '');
   const mfaCode = String(body.mfaCode || '').replace(/\s/g, '');
-  const wait = await checkThrottle(email);
+  const wait = await checkThrottle(event, email);
   if (!wait.ok) {
     return response(
-      429,
-      { error: 'Demasiados intentos. Prueba más tarde.' },
+      wait.degraded ? 503 : 429,
+      {
+        error: wait.degraded
+          ? 'El control de acceso del personal no está disponible. Prueba de nuevo más tarde.'
+          : 'Demasiados intentos. Prueba más tarde.',
+      },
       { 'Retry-After': String(wait.retryAfter) }
     );
   }
@@ -101,7 +84,6 @@ exports.handler = async event => {
   const user = await usuarios.lee(email);
   const role = roleFor(email);
   if (!user || role === 'client' || !verifyPassword(password, user.passwordHash)) {
-    await failAttempt(email);
     return response(401, { error: 'Credenciales incorrectas.' });
   }
 
@@ -125,14 +107,13 @@ exports.handler = async event => {
     }
 
     if (!verifyTotp(secret, mfaCode)) {
-      await failAttempt(email);
       return response(401, { error: 'Código MFA incorrecto.', mfaRequired: true });
     }
 
     mfaVerified = true;
   }
 
-  await clearAttempts(email);
+  await clearAttempts(event, email);
   const token = signJWT({
     sub: user.id,
     email,

@@ -8,7 +8,7 @@ const yes=(...names)=>names.every(name=>Boolean(process.env[name]));
 exports.handler=async function(event){
   if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
   if(event.httpMethod!=='GET')return{statusCode:405,headers:CORS,body:JSON.stringify({error:'Method Not Allowed'})};
-  const auth=exigeAdmin(event);if(!auth.ok)return{statusCode:auth.statusCode,headers:CORS,body:JSON.stringify({error:auth.error})};
+  const auth=await exigeAdmin(event);if(!auth.ok)return{statusCode:auth.statusCode,headers:CORS,body:JSON.stringify({error:auth.error})};
   const products=(NUTRETIUM_PRODUCTS||[]).filter(p=>p&&p.active!==false),admins=listaAdmins();
   const services={
     sessions:yes('JWT_SECRET'),payments:yes('REDSYS_SECRET_KEY','REDSYS_MERCHANT_CODE'),email:yes('RESEND_API_KEY'),

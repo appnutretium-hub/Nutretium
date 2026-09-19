@@ -25,6 +25,7 @@
     "panel": "node scripts/panel-servidor.js",
     "test:catalogo": "node scripts/test-catalogo.js",
     "test:pim": "node scripts/test-pim-seo.js",
+    "test:customer": "node scripts/test-customer-postsale.js",
     "test:admin": "node scripts/test-admin.js",
     "test:cuentas": "node scripts/test-cuentas.js"
   },

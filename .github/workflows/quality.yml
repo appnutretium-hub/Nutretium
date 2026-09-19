@@ -34,3 +34,5 @@ jobs:
         run: npm run test:cuentas
       - name: Commerce tests
         run: npm run test:commerce
+      - name: Enterprise platform tests
+        run: npm run test:enterprise

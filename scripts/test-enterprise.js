@@ -1,0 +1,25 @@
+'use strict';
+const assert=require('assert');const schema=require('../netlify/lib/enterprise-schema');const a=require('../netlify/lib/enterprise-actions');
+let n=0;function t(name,fn){fn();n++;console.log('✓',name)}
+t('rechaza almacén sin campos obligatorios',()=>assert.strictEqual(schema.validate('warehouses',{}).ok,false));
+t('acepta almacén válido',()=>assert.strictEqual(schema.validate('warehouses',{code:'SAN',name:'Santander',status:'active'}).ok,true));
+t('inventario impide reservar más que físico',()=>assert.strictEqual(schema.validate('inventory',{sku:'X',warehouseId:'SAN',onHand:2,reserved:3}).ok,false));
+t('variante acepta EAN válido',()=>assert.strictEqual(schema.validate('product-variants',{productId:1,sku:'SKU-1',ean:'12345678',status:'active'}).ok,true));
+t('variante rechaza EAN inventado/no válido',()=>assert.strictEqual(schema.validate('product-variants',{productId:1,sku:'SKU-1',ean:'ABC',status:'active'}).ok,false));
+t('wishlist solo acepta ids numéricos',()=>assert.strictEqual(schema.validate('wishlists',{customerEmail:'a@b.es',productIds:[1,2],status:'active'}).ok,true));
+t('compliance no se aprueba sin evidencia',()=>assert.strictEqual(schema.validate('product-compliance',{sku:'X',market:'ES',status:'approved'}).ok,false));
+t('compliance se aprueba con evidencia',()=>assert.strictEqual(schema.validate('product-compliance',{sku:'X',market:'ES',status:'approved',evidenceComplete:true,evidence:['doc-1']}).ok,true));
+t('transición de compra válida',()=>assert.strictEqual(a.transition('purchase-orders',{status:'draft'},'submitted').ok,true));
+t('transición de compra imposible se bloquea',()=>assert.strictEqual(a.transition('purchase-orders',{status:'draft'},'received').ok,false));
+t('reserva stock calcula disponible',()=>assert.deepStrictEqual(a.reserveInventory({onHand:10,reserved:2},3).record,{onHand:10,reserved:5,available:5}));
+t('fidelización impide saldo negativo',()=>assert.strictEqual(a.loyaltyAdjust({balance:2},-3,'x').ok,false));
+t('promoción porcentual se calcula en céntimos',()=>assert.strictEqual(a.promotionDiscount({status:'active',type:'percent',value:10},{subtotalCents:12345}).discountCents,1234));
+t('promoción fija nunca supera subtotal',()=>assert.strictEqual(a.promotionDiscount({status:'active',type:'fixed',value:50},{subtotalCents:1000}).discountCents,1000));
+t('3x2 descuenta una unidad por cada tres',()=>{const r=a.promotionDiscount({status:'active',type:'buy_x_get_y',buyQty:2,freeQty:1},{subtotalCents:3000,items:[{code:'A',price:10,qty:3}]});assert.strictEqual(r.discountCents,1000)});
+t('segunda unidad al 50%',()=>{const r=a.promotionDiscount({status:'active',type:'second_unit_percent',discountPercent:50},{subtotalCents:2000,items:[{code:'A',price:10,qty:2}]});assert.strictEqual(r.discountCents,500)});
+t('bundle usa precio cerrado',()=>{const r=a.promotionDiscount({status:'active',type:'bundle',bundleItems:[{sku:'A',qty:1},{sku:'B',qty:1}],bundlePriceCents:1500},{subtotalCents:2200,items:[{code:'A',price:10,qty:1},{code:'B',price:12,qty:1}]});assert.strictEqual(r.discountCents,700)});
+t('experimento es determinista',()=>{const e={key:'hero',status:'running',variants:[{key:'a',weight:50},{key:'b',weight:50}]};assert.strictEqual(a.chooseVariant(e,'abc'),a.chooseVariant(e,'abc'))});
+t('margen calcula beneficio',()=>assert.deepStrictEqual(a.margin({revenueCents:10000,costCents:6000}),{revenueCents:10000,totalCostCents:6000,grossProfitCents:4000,grossMarginPct:40}));
+t('limpia prototype pollution',()=>{const x=JSON.parse('{"safe":1,"__proto__":{"polluted":true}}');const c=schema.cleanValue(x);assert.strictEqual(c.safe,1);assert.strictEqual(Object.prototype.polluted,undefined)});
+const feed=require('../netlify/functions/merchant-feed');
+(async()=>{const r=await feed.handler();assert.strictEqual(r.statusCode,200);assert(r.body.includes('<rss'));assert(!r.body.includes('<g:price>NaN'));console.log('✓ merchant feed XML generado');console.log(`\n${n+1} pruebas enterprise superadas.`)})().catch(e=>{console.error(e);process.exit(1)});

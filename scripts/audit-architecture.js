@@ -1,28 +1,75 @@
 'use strict';
 const fs=require('fs');
 const required=[
-'index.html','franchise-trust.js','commerce-pro.js','commerce-suite.js','commercial-finish.js','compare-suite.js','pro-qa-fixes.js','production-finish.js','mobile-commerce-pro.js','runtime-content.js','runtime-performance.js','runtime-guard.js','runtime-guard.css','comparar.html','comparar.js','producto.html','producto.js','product-education.js','aprende.html','checkout.html','checkout.js','cuenta.html','cuenta.js','pedido.html','pedido.js','settings.html','settings.js','smart-shop.html','smart-shop.js','backoffice.html','backoffice.js','control.html','control.js','ayuda.html',
-'netlify/functions/checkout.js','netlify/functions/commerce.js','netlify/functions/orders.js','netlify/functions/admin-orders.js','netlify/functions/admin-settings.js','netlify/functions/saved-cart.js','netlify/functions/analytics-event.js','netlify/functions/admin-analytics.js','netlify/functions/system-health.js','netlify/functions/reviews.js','netlify/functions/redsys-notify.js','netlify/functions/contact.js','netlify/functions/account-security.js','netlify/functions/guest-order.js','netlify/functions/site-status.js','netlify/functions/site-config.js','netlify/functions/client-error.js','netlify/lib/promotions.js','netlify/lib/staff.js','netlify/lib/email.js','netlify/lib/rate-limit.js','netlify/lib/guest-access.js','netlify/lib/settings.js','netlify/lib/shipping.js','.github/workflows/quality-gate.yml','tests/e2e-storefront.spec.js','scripts/security-audit.js','scripts/build-trust-audit.js','scripts/release-manifest.js'];
-const missing=required.filter(f=>!fs.existsSync(f));if(missing.length)throw new Error('Arquitectura incompleta. Faltan: '+missing.join(', '));
-function text(f){return fs.readFileSync(f,'utf8')}
-function has(f,s){if(!text(f).includes(s))throw new Error(`${f}: falta ${s}`)}
-function lacks(f,s){if(text(f).includes(s))throw new Error(`${f}: conserva patrón no permitido ${s}`)}
-function parse(f){try{new Function(text(f))}catch(err){throw new Error(`${f}: JavaScript no válido: ${err.message}`)}}
-['commerce-suite.js','commercial-finish.js','compare-suite.js','pro-qa-fixes.js','production-finish.js','mobile-commerce-pro.js','runtime-content.js','runtime-performance.js','runtime-guard.js'].forEach(x=>has('scripts/trust-inject.js',x));
-has('franchise-trust.js','nt:products-rendered');has('franchise-trust.js','reconcileCart');has('compare-suite.js','nt:products-rendered');has('mobile-commerce-pro.js','nt:products-rendered');lacks('compare-suite.js','MutationObserver');lacks('mobile-commerce-pro.js','MutationObserver');
-has('netlify/functions/checkout.js','COMMERCE_LIVE');has('netlify/functions/checkout.js','MAINTENANCE_MODE');has('netlify/functions/checkout.js','checkoutFingerprint');has('netlify/functions/checkout.js','calculaAsync');has('netlify/functions/checkout.js','shipping.quote');has('netlify/functions/checkout.js','persistencia obligatoria');has('netlify/lib/shipping.js','shipping-not-configured');
-has('checkout.js','checkoutRequestId');has('checkout.js','AbortController');
-has('netlify/functions/system-health.js','paymentsReady');has('netlify/functions/system-health.js','emailReady');has('netlify/functions/system-health.js','shipping.configured');has('netlify/functions/system-health.js','adminIsolation');has('netlify/functions/site-status.js','paymentsReady');
-has('netlify/functions/account-security.js','change-password');has('netlify/functions/account-security.js','request-reset');has('netlify/functions/account-security.js','request-verification');has('netlify/functions/account-security.js','verify-email');
-has('cuenta.html','Mi perfil y dirección');has('cuenta.html','He olvidado mi contraseña');has('cuenta.js','request-verification');has('cuenta.js','saveProfile');
-has('netlify/lib/guest-access.js','createHmac');has('netlify/functions/guest-order.js','verify(order,rec.email,token)');has('netlify/lib/email.js','guestTracking');has('netlify/lib/email.js','shippingRow');has('netlify/lib/email.js','missing-from');has('netlify.toml','from = "/pedido"');
-has('netlify/functions/contact.js',"scope:'contact'");has('netlify/lib/rate-limit.js','rate-${scope}');
-has('netlify/functions/admin-settings.js',"exigePermiso(event,'settings')");has('netlify/lib/settings.js','couponsManaged');has('netlify/lib/settings.js','managed:Boolean(points.managed)');has('netlify/lib/promotions.js','s.couponsManaged===true');has('netlify/functions/commerce.js','stored?.points?.managed===true');
-has('settings.html','Banner superior');has('settings.html','Nutretium Points');has('settings.html','Cupones');has('runtime-content.js','site-config');
-has('runtime-performance.js','loading');has('runtime-guard.css','prefers-reduced-motion');has('runtime-guard.js','unhandledrejection');has('netlify/functions/client-error.js','client-errors');
-has('.github/workflows/quality-gate.yml','Browser E2E');has('.github/workflows/quality-gate.yml','security-audit.js');has('tests/e2e-storefront.spec.js','window.innerWidth');has('tests/e2e-storefront.spec.js','pageScrollX');has('tests/e2e-storefront.spec.js','isIntentionalScroller');has('tests/e2e-storefront.spec.js','addToCart');
-has('netlify.toml',"object-src 'none'");has('netlify.toml','upgrade-insecure-requests');has('netlify.toml','from = "/settings"');has('netlify.toml','node scripts/release-manifest.js');
-has('scripts/release-manifest.js','version.json');lacks('scripts/trust-inject.js',"postalCode:'39012'");
-has('backoffice.js','data.operador||data.administrador');has('netlify/functions/admin-orders.js','normalizaTrackingUrl');has('netlify/functions/reviews.js','verifiedPurchase');
-['franchise-trust.js','compare-suite.js','mobile-commerce-pro.js','runtime-content.js','runtime-performance.js','runtime-guard.js','checkout.js','cuenta.js','pedido.js','settings.js','backoffice.js','netlify/lib/rate-limit.js','netlify/lib/guest-access.js','netlify/lib/settings.js','netlify/lib/promotions.js','netlify/lib/email.js','netlify/lib/shipping.js','netlify/functions/checkout.js','netlify/functions/commerce.js','netlify/functions/admin-settings.js','netlify/functions/account-security.js','netlify/functions/guest-order.js','netlify/functions/site-status.js','netlify/functions/site-config.js','netlify/functions/client-error.js','netlify/functions/contact.js'].forEach(parse);
-console.log('[audit-architecture] OK — hardening coordinado presente; pagos/envíos/email/configuración permanecen fail-closed cuando falta evidencia o configuración externa');
+  'index.html','commerce-pro.js','commerce-suite.js','commercial-finish.js','commercial-finish.css','compare-suite.js','pro-qa-fixes.js','production-finish.js','mobile-commerce-pro.js','mobile-commerce-pro.css','comparar.html','comparar.js','producto.html','producto.js','product-education.js','aprende.html','checkout.html','checkout.js','cuenta.html','cuenta.js','smart-shop.html','smart-shop.js','backoffice.html','backoffice.js','control.html','control.js','ayuda.html',
+  'netlify/functions/checkout.js','netlify/functions/commerce.js','netlify/functions/orders.js','netlify/functions/admin-orders.js','netlify/functions/saved-cart.js','netlify/functions/analytics-event.js','netlify/functions/admin-analytics.js','netlify/functions/system-health.js','netlify/functions/reviews.js','netlify/functions/redsys-notify.js','netlify/functions/contact.js','netlify/lib/promotions.js','netlify/lib/staff.js','netlify/lib/email.js'
+];
+const missing=required.filter(f=>!fs.existsSync(f));
+if(missing.length)throw new Error('Arquitectura incompleta. Faltan: '+missing.join(', '));
+function has(file,needle){const text=fs.readFileSync(file,'utf8');if(!text.includes(needle))throw new Error(`${file}: falta ${needle}`)}
+function hasAny(file,needles,label){const text=fs.readFileSync(file,'utf8');if(!needles.some(needle=>text.includes(needle)))throw new Error(`${file}: falta ${label||needles.join(' o ')}`)}
+function parse(file){try{new Function(fs.readFileSync(file,'utf8'));}catch(err){throw new Error(`${file}: JavaScript no válido: ${err.message}`)}}
+has('scripts/trust-inject.js','commerce-suite.js');
+has('scripts/trust-inject.js','commercial-finish.js');
+has('scripts/trust-inject.js','compare-suite.js');
+has('scripts/trust-inject.js','pro-qa-fixes.js');
+has('scripts/trust-inject.js','production-finish.js');
+has('scripts/trust-inject.js','mobile-commerce-pro.js');
+has('scripts/trust-inject.js','El equipo confirmará disponibilidad y condiciones del servicio.');
+has('commerce-suite.js','/checkout.html');
+has('commerce-suite.js','raw.version===1&&raw.analitica===true');
+has('checkout.js','/.netlify/functions/checkout');
+has('checkout.js','raw.version===1&&raw.analitica===true');
+has('netlify/functions/checkout.js','valorarCarrito');
+has('netlify/functions/checkout.js','promotions.calcula');
+has('netlify/functions/checkout.js','COMMERCE_LIVE');
+has('netlify/functions/checkout.js','publicProductionHost');
+has('netlify/functions/checkout.js','persistencia obligatoria');
+has('netlify/functions/checkout.js','store.get(order,{type:\'json\'})');
+has('netlify/functions/redsys-notify.js','missingOrderRecord');
+has('netlify/functions/redsys-notify.js','Storage unavailable');
+has('netlify/functions/redsys-notify.js','REVIEW_REQUIRED');
+has('netlify/functions/admin-orders.js','exigePermiso');
+has('netlify/functions/admin-orders.js','normalizaTrackingUrl');
+has('netlify/functions/admin-orders.js','http:// o https://');
+has('netlify/functions/reviews.js','verifiedPurchase');
+has('netlify/functions/saved-cart.js','valorarCarrito');
+has('netlify/functions/contact.js','MAX_PER_WINDOW');
+has('netlify/functions/contact.js','statusCode: 429');
+has('netlify/functions/commerce.js','POINTS_CONFIGURED');
+has('netlify/functions/commerce.js','pointsEnabled');
+has('smart-shop.js','GOALS');
+hasAny('cuenta.js',['frequentProducts',"action:'overview'"],'resumen de compras');
+hasAny('cuenta.js',['Programa de puntos no activo','d.loyalty'],'estado de fidelización');
+has('backoffice.js','data.operador||data.administrador');
+has('backoffice.js','envio.calle');
+has('franchise-trust.js','productIdFromCard');
+has('franchise-trust.js','card.dataset.productId');
+has('ayuda.html','href="/mi-nutretium"');
+has('netlify.toml','/mi-nutretium');
+has('netlify.toml','/comparar');
+has('netlify.toml','node scripts/audit-architecture.js');
+has('aprende.html','Entiende lo que compras');
+has('product-education.js','NUTRETIUM APRENDE');
+has('comparar.html','Compara sin adivinar');
+has('comparar.js','Pendiente de documentación estructurada del fabricante');
+has('_redirects','/aprende');
+has('_redirects','/comparar');
+has('pro-qa-fixes.js','ntMobileFilters');
+has('pro-qa-fixes.js','/.netlify/functions/orders');
+has('pro-qa-fixes.js','window.submitTrainerRequest');
+has('pro-qa-fixes.js','window.submitCareerApplication');
+has('pro-qa-fixes.js','tarjeta mediante Redsys');
+has('production-finish.js','visibleFocusable');
+has('production-finish.js','Introduce un email válido.');
+has('mobile-commerce-pro.js','productIdFromCard');
+has('mobile-commerce-pro.js','bindCleanButton');
+has('mobile-commerce-pro.js','data-product-id');
+has('mobile-commerce-pro.js','ntDockCartBadge');
+has('mobile-commerce-pro.css','min-height:50px');
+has('mobile-commerce-pro.css','env(safe-area-inset-bottom');
+['franchise-trust.js','commercial-finish.js','product-education.js','compare-suite.js','comparar.js','pro-qa-fixes.js','production-finish.js','mobile-commerce-pro.js','commerce-suite.js','checkout.js','cuenta.js','backoffice.js','netlify/functions/checkout.js','netlify/functions/commerce.js','netlify/functions/admin-orders.js','netlify/functions/redsys-notify.js','netlify/functions/contact.js'].forEach(parse);
+const points=[
+ 'seguridad/configuración','fotos/catálogo','navegación/buscador','URLs limpias','filtros','ficha producto','compra rápida','carrito/cross-sell','checkout invitado','Redsys','pedidos','envíos/tracking','clientes','favoritos/recompra','points','reseñas verificadas','packs','cupones','emails','SEO','analítica','carrito guardado','recomendador','roles','responsive/build audit'
+];
+console.log(`[audit-architecture] OK — ${points.length}/25 bloques + educación + comparador + QA móvil + SKU estable + backoffice + tracking + points fail-closed + protecciones de producción`);

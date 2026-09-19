@@ -1,190 +1,40 @@
-/* NUTRETIUM — ficha individual de producto sobre PIM normalizado */
+/* NUTRETIUM — ficha individual de producto */
 (function(){
   'use strict';
-
-  const app = document.getElementById('app');
-  const rawProducts = Array.isArray(window.NUTRETIUM_PRODUCTS)
-    ? window.NUTRETIUM_PRODUCTS.filter(p => p.active !== false)
-    : [];
-  const pim = window.NUTRETIUM_PIM || null;
-  const variantsApi = window.NUTRETIUM_VARIANTS || null;
-  const products = rawProducts.map(p => pim?.normalize ? pim.normalize(p) : p);
-  const RECENT_KEY = 'nutretium_recent_v1';
-  const CART_KEY = 'nutretium_cart_v1';
-
-  const escapeHtml = (v) => String(v ?? '')
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
-  const slugify = pim?.slugify || ((v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''));
-  const productUrl = (p) => `/producto/${slugify(p.name)}-${p.id}`;
-
-  function idFromPath(){
-    const last = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop() || '');
-    const match = last.match(/-(\d+)$/);
-    return match ? Number(match[1]) : Number(new URLSearchParams(location.search).get('id'));
-  }
-
-  function remember(id){
-    try {
-      const old = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
-      const next = [Number(id), ...old.map(Number).filter(x => x !== Number(id) && Number.isFinite(x))].slice(0,8);
-      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
-    } catch { /* optional */ }
-  }
-
-  function injectJsonLd(id, data){
-    const old = document.getElementById(id);
-    if (old) old.remove();
-    const script=document.createElement('script');
-    script.id=id; script.type='application/ld+json'; script.textContent=JSON.stringify(data);
-    document.head.appendChild(script);
-  }
-
-  function addStructuredData(product, available){
-    const productSchema = {
-      '@context':'https://schema.org', '@type':'Product',
-      name:product.name,
-      sku:product.sku || product.code || undefined,
-      gtin:product.gtin || undefined,
-      brand: product.brand ? {'@type':'Brand',name:product.brand} : undefined,
-      manufacturer: product.manufacturer ? {'@type':'Organization',name:product.manufacturer} : undefined,
-      description:product.description || variantsApi?.factualDescription(product) || `${product.name} disponible en Nutretium Santander.`,
-      image:(product.images || []).map(src => new URL('/' + src.replace(/^\//,''), location.origin).href),
-      offers:{'@type':'Offer',priceCurrency:'EUR',price:Number(product.price).toFixed(2),availability:available?'https://schema.org/InStock':'https://schema.org/OutOfStock',url:new URL(productUrl(product),location.origin).href,itemCondition:'https://schema.org/NewCondition'}
-    };
-    if (!productSchema.image.length) delete productSchema.image;
-    Object.keys(productSchema).forEach(k => productSchema[k] === undefined && delete productSchema[k]);
-    injectJsonLd('nt-product-schema', productSchema);
-    injectJsonLd('nt-breadcrumb-schema', {
-      '@context':'https://schema.org','@type':'BreadcrumbList',itemListElement:[
-        {'@type':'ListItem',position:1,name:'Inicio',item:new URL('/',location.origin).href},
-        {'@type':'ListItem',position:2,name:product.category || 'Catálogo',item:new URL(`/categoria/${slugify(product.category || 'catalogo')}`,location.origin).href},
-        {'@type':'ListItem',position:3,name:product.name,item:new URL(productUrl(product),location.origin).href}
-      ]
-    });
-  }
-
-  function loadCart(){
-    try {
-      const raw = JSON.parse(localStorage.getItem(CART_KEY) || '[]');
-      return Array.isArray(raw) ? raw : [];
-    } catch { return []; }
-  }
-
-  function addSelectedToCart(product, qty){
-    const max = typeof product.stock === 'number' ? Math.max(0, product.stock) : 99;
-    const quantity = Math.max(1, Math.min(max || 1, Number(qty) || 1));
-    const cart = loadCart();
-    const idx = cart.findIndex(row => Number(row.id) === Number(product.id) && !row.customization);
-    if (idx >= 0) cart[idx].quantity = Math.min(max || 99, Math.max(1, Number(cart[idx].quantity || 1) + quantity));
-    else cart.push({ key:String(product.id), id:Number(product.id), quantity, customization:null });
-    try { localStorage.setItem(CART_KEY, JSON.stringify(cart.slice(0,100))); } catch { /* ignore */ }
-    location.href = '/?cart=1#products';
-  }
-  window.ntAddProductToCart = addSelectedToCart;
-
-  function unique(values){ return [...new Set(values.filter(Boolean))]; }
-
-  function variantSelectorHtml(product, familyRows){
-    const currentMeta = variantsApi?.meta(product) || product;
-    if (!familyRows || familyRows.length <= 1) return `<div class="selector-box"><div class="selector-group"><span class="selector-label">Formato</span><div class="variant-grid"><span class="variant-option active">${escapeHtml(currentMeta.size || 'Formato único')}</span></div></div></div>`;
-    const flavors = unique(familyRows.map(r => r.meta.flavor));
-    const sizes = unique(familyRows.map(r => r.meta.size));
-    let html = '<div class="selector-box">';
-    if (flavors.length > 1) {
-      html += `<div class="selector-group"><span class="selector-label">${escapeHtml(currentMeta.flavorLabel || 'Sabor')}</span><div class="variant-grid">`;
-      html += flavors.map(flavor => {
-        const row = familyRows.find(r => r.meta.flavor === flavor && (!currentMeta.size || r.meta.size === currentMeta.size)) || familyRows.find(r => r.meta.flavor === flavor);
-        const active = currentMeta.flavor === flavor;
-        const unavailable = typeof row?.product?.stock === 'number' && row.product.stock <= 0;
-        return `<a class="variant-option ${active ? 'active' : ''} ${unavailable ? 'disabled' : ''}" href="${row ? productUrl(row.product) : '#'}">${escapeHtml(flavor)}${unavailable ? ' · agotado' : ''}</a>`;
-      }).join('');
-      html += '</div></div>';
-    } else if (flavors.length === 1) html += `<div class="selector-group"><span class="selector-label">${escapeHtml(currentMeta.flavorLabel || 'Sabor')}</span><div class="variant-grid"><span class="variant-option active">${escapeHtml(flavors[0])}</span></div></div>`;
-    if (sizes.length > 1) {
-      html += '<div class="selector-group"><span class="selector-label">Tamaño / formato</span><div class="variant-grid">';
-      html += sizes.map(size => {
-        const row = familyRows.find(r => r.meta.size === size && (!currentMeta.flavor || r.meta.flavor === currentMeta.flavor)) || familyRows.find(r => r.meta.size === size);
-        const active = currentMeta.size === size;
-        const unavailable = typeof row?.product?.stock === 'number' && row.product.stock <= 0;
-        return `<a class="variant-option ${active ? 'active' : ''} ${unavailable ? 'disabled' : ''}" href="${row ? productUrl(row.product) : '#'}">${escapeHtml(size)}${unavailable ? ' · agotado' : ''}</a>`;
-      }).join('');
-      html += '</div></div>';
-    } else if (sizes.length === 1) html += `<div class="selector-group"><span class="selector-label">Tamaño / formato</span><div class="variant-grid"><span class="variant-option active">${escapeHtml(sizes[0])}</span></div></div>`;
-    return html + '</div>';
-  }
-
-  function fact(value, fallback='No indicado en el catálogo'){ return value ? escapeHtml(Array.isArray(value) ? value.join(', ') : value) : fallback; }
-
-  const id = idFromPath();
-  const product = products.find(p => Number(p.id) === id);
-  if (!product) {
-    app.innerHTML = '<div class="error"><h1>Producto no disponible</h1><p>Este producto no existe, no está publicado o ha sido retirado del catálogo.</p><p><a class="back" href="/#products">Volver al catálogo</a></p></div>';
-    document.title = 'Producto no disponible | NUTRETIUM';
-    return;
-  }
-
-  remember(product.id);
-  document.title = `${product.name} | NUTRETIUM`;
-  const meta = document.querySelector('meta[name="description"]') || document.head.appendChild(document.createElement('meta'));
-  meta.name = 'description';
-  meta.content = (product.description || variantsApi?.factualDescription(product) || `${product.name}. Precio, disponibilidad y ficha en Nutretium Santander.`).slice(0,155);
-  let canonical=document.querySelector('link[rel="canonical"]');
-  if(!canonical){ canonical=document.createElement('link'); canonical.rel='canonical'; document.head.appendChild(canonical); }
-  canonical.href=new URL(productUrl(product),location.origin).href;
-
-  const gallery = product.images || (product.image ? [product.image] : []);
-  const image = gallery.length
-    ? `<img id="mainProductImage" src="/${escapeHtml(gallery[0])}" alt="${escapeHtml(product.name)}"/><div class="gallery">${gallery.map((src,i)=>`<button type="button" class="${i===0?'active':''}" data-gallery-src="/${escapeHtml(src)}" aria-label="Ver imagen ${i+1} de ${escapeHtml(product.name)}"><img src="/${escapeHtml(src)}" alt=""/></button>`).join('')}</div>`
-    : `<div class="emoji">${escapeHtml(product.emoji || '📦')}</div>`;
-  const stockKnown = typeof product.stock === 'number';
-  const available = !stockKnown || product.stock > 0;
-  const stockText = stockKnown ? (product.stock > 0 ? `${product.stock} uds. registradas en stock` : 'Agotado actualmente') : 'Consulta disponibilidad actual';
-  addStructuredData(product, available);
-
-  const currentMeta = variantsApi?.meta(product) || product;
-  const familyRows = variantsApi?.family(product, products) || [{ product, meta:currentMeta }];
-  const description = product.description || variantsApi?.factualDescription(product) || 'Producto disponible en el catálogo Nutretium.';
-  const detailItems = [
-    ['Marca', product.brand || null], ['Fabricante', product.manufacturer || null], ['Categoría', product.category || null],
-    ['Referencia / SKU', product.sku || product.code || null], ['EAN / GTIN', product.gtin || null],
-    ['Familia', currentMeta.familyLabel || product.name], ['Sabor / variedad', currentMeta.flavor || null], ['Formato', currentMeta.size || product.pdfDescription || null]
-  ];
-  const related = products.filter(p => p.id !== product.id && p.category === product.category && (typeof p.stock !== 'number' || p.stock > 0)).slice(0,4);
-  const maxQty = typeof product.stock === 'number' ? Math.max(1, product.stock) : 99;
-  const compositionKnown = Boolean(product.ingredients || product.allergens || product.nutrition || product.directions || product.warnings);
-
-  app.innerHTML = `
-    <div class="crumb"><a href="/">Inicio</a> · <a href="/categoria/${slugify(product.category || 'catalogo')}">${escapeHtml(product.category || 'Catálogo')}</a> · ${escapeHtml(product.name)}</div>
-    <section class="product">
-      <div class="visual">${image}</div>
-      <div>
-        <span class="eyebrow">${escapeHtml(product.brand || product.category || 'Nutretium')}</span>
-        <h1 class="title">${escapeHtml(product.name)}</h1>
-        <div class="meta">${product.brand ? `<a class="pill" href="/marca/${slugify(product.brand)}">Marca: ${escapeHtml(product.brand)}</a>` : ''}${product.sku || product.code ? `<span class="pill">Ref. ${escapeHtml(product.sku || product.code)}</span>` : ''}<span class="pill">${escapeHtml(product.category || 'Catálogo')}</span></div>
-        <div class="price">€${Number(product.price).toFixed(2)}</div>
-        <div class="stock ${available ? 'ok' : ''}">${escapeHtml(stockText)}</div>
-        <p class="desc">${escapeHtml(description)}</p>
-        ${variantSelectorHtml(product, familyRows)}
-        <div class="selector-box"><div class="selector-group"><span class="selector-label">Cantidad</span><div class="quantity-row"><button class="qty-btn" type="button" id="qtyMinus" aria-label="Reducir cantidad">−</button><input class="qty-input" id="qtyInput" type="number" value="1" min="1" max="${maxQty}" inputmode="numeric" aria-label="Cantidad" /><button class="qty-btn" type="button" id="qtyPlus" aria-label="Aumentar cantidad">+</button></div>${stockKnown ? `<div class="notice">Máximo disponible para este SKU: ${Math.max(0, product.stock)} uds.</div>` : ''}</div></div>
-        <div class="buy">${available ? `<button class="primary" id="addToCartBtn" type="button">Añadir al carrito</button>` : '<button class="primary" disabled type="button">Producto agotado</button>'}<a class="secondary" href="tel:+34633753517">Consultar al equipo</a></div>
-        <div class="trust"><div><strong>Tienda física</strong><span>C/ La Albericia 1 · Santander</span></div><div><strong>Pago</strong><span>Tarjeta mediante Redsys</span></div><div><strong>Pedido</strong><span>Confirmación tras pago autorizado</span></div><div><strong>Atención directa</strong><span>633 753 517</span></div></div>
-      </div>
-    </section>
-    <section class="details"><h2>Descripción y datos del producto</h2><div class="detail-grid">${detailItems.map(([label,value]) => `<div class="detail ${value?'':'pending'}"><strong>${escapeHtml(label)}</strong><span>${value ? escapeHtml(value) : 'Pendiente de documentación verificada.'}</span></div>`).join('')}<div class="detail ${compositionKnown?'':'pending'}"><strong>Ingredientes</strong><span>${fact(product.ingredients,'Pendiente de documentación verificada del fabricante.')}</span></div><div class="detail ${product.allergens?'':'pending'}"><strong>Alérgenos</strong><span>${fact(product.allergens,'Pendiente de documentación verificada del fabricante.')}</span></div><div class="detail ${product.nutrition?'':'pending'}"><strong>Información nutricional</strong><span>${fact(product.nutrition,'Pendiente de documentación verificada del fabricante.')}</span></div><div class="detail ${product.directions?'':'pending'}"><strong>Modo de empleo</strong><span>${fact(product.directions,'Consulta el etiquetado vigente. Información estructurada pendiente.')}</span></div><div class="detail ${product.warnings?'':'pending'}"><strong>Advertencias</strong><span>${fact(product.warnings,'Consulta las advertencias del etiquetado vigente del producto.')}</span></div><div class="detail"><strong>Disponibilidad</strong><span>${escapeHtml(stockText)}</span></div></div></section>
-    ${related.length ? `<section class="details"><h2>También puedes consultar</h2><div class="detail-grid">${related.map(p=>`<a class="detail" style="text-decoration:none" href="${productUrl(p)}"><strong>${escapeHtml(p.name)}</strong><span>${escapeHtml(p.brand || p.category)} · €${Number(p.price).toFixed(2)}</span></a>`).join('')}</div></section>` : ''}
-    <footer class="foot">Nutretium es un establecimiento de BAHÍA NORTE CAPITAL, S.L. · NIF B27659754 · C/ La Albericia 1, Santander. La información específica de composición y uso debe contrastarse con el etiquetado vigente cuando corresponda. <a class="back" href="/ayuda">Centro de ayuda</a></footer>`;
-
-  const qtyInput = document.getElementById('qtyInput');
-  const clampQty = () => { const value = Math.max(1, Math.min(maxQty, Number(qtyInput.value) || 1)); qtyInput.value = String(value); return value; };
-  document.getElementById('qtyMinus')?.addEventListener('click', () => { qtyInput.value = String(Math.max(1, clampQty() - 1)); });
-  document.getElementById('qtyPlus')?.addEventListener('click', () => { qtyInput.value = String(Math.min(maxQty, clampQty() + 1)); });
-  qtyInput?.addEventListener('change', clampQty);
-  document.getElementById('addToCartBtn')?.addEventListener('click', () => addSelectedToCart(product, clampQty()));
-  document.querySelectorAll('[data-gallery-src]').forEach(btn => btn.addEventListener('click', () => {
-    const main = document.getElementById('mainProductImage');
-    if (main) main.src = btn.dataset.gallerySrc;
-    document.querySelectorAll('[data-gallery-src]').forEach(x => x.classList.toggle('active', x === btn));
-  }));
+  const app=document.getElementById('app');
+  const products=Array.isArray(window.NUTRETIUM_PRODUCTS)?window.NUTRETIUM_PRODUCTS.filter(p=>p.active!==false):[];
+  const WISHLIST_KEY='nt_wishlist_v1',RECENT_KEY='nt_recent_products_v1';
+  const escapeHtml=(v)=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+  const normalize=(value)=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const slugify=(value)=>normalize(value).replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+  const productUrl=(p)=>`/producto/${slugify(p.name)}-${p.id}`; const fullProductUrl=(p)=>`https://nutretium.com${productUrl(p)}`;
+  const money=(v)=>new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR'}).format(Number(v||0));
+  const readList=(key)=>{try{const v=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(v)?v:[]}catch{return[]}}; const writeList=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value))}catch(_){}};
+  function idFromPath(){const last=decodeURIComponent(location.pathname.split('/').filter(Boolean).pop()||'');const match=last.match(/-(\d+)$/);return match?Number(match[1]):Number(new URLSearchParams(location.search).get('id'));}
+  const id=idFromPath();const product=products.find(p=>Number(p.id)===id);
+  if(!product){app.innerHTML='<div class="error"><h1>Producto no disponible</h1><p>Este producto no existe, no está publicado o ha sido retirado del catálogo.</p><p><a class="back" href="/#products">Volver al catálogo</a></p></div>';document.title='Producto no disponible | NUTRETIUM';return;}
+  const description=String(product.description||'').trim()||`${product.name}. Consulta precio, disponibilidad y ficha del producto en Nutretium Santander.`;const canonicalUrl=fullProductUrl(product);document.title=`${product.name} | NUTRETIUM`;
+  upsertMeta('meta[name="description"]',{name:'description',content:description.slice(0,155)});upsertMeta('meta[property="og:title"]',{property:'og:title',content:`${product.name} | NUTRETIUM`});upsertMeta('meta[property="og:description"]',{property:'og:description',content:description.slice(0,180)});upsertMeta('meta[property="og:type"]',{property:'og:type',content:'product'});upsertMeta('meta[property="og:url"]',{property:'og:url',content:canonicalUrl});if(product.image)upsertMeta('meta[property="og:image"]',{property:'og:image',content:new URL('/'+String(product.image).replace(/^\//,''),location.origin).href});
+  const canonical=document.querySelector('link[rel="canonical"]')||document.head.appendChild(document.createElement('link'));canonical.rel='canonical';canonical.href=canonicalUrl;
+  const image=product.image?`<img src="/${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" onerror="this.style.display='none';document.getElementById('fallback').style.display='block'"/><div id="fallback" class="emoji" style="display:none">${escapeHtml(product.emoji||'📦')}</div>`:`<div class="emoji">${escapeHtml(product.emoji||'📦')}</div>`;
+  const stockKnown=typeof product.stock==='number',available=!stockKnown||product.stock>0,stockText=stockKnown?(product.stock>0?`${product.stock} uds. registradas en stock`:'Agotado actualmente'):'Consulta disponibilidad actual';const hasDescription=Boolean(String(product.description||'').trim());const infoStatus=hasDescription?'La descripción disponible procede del catálogo publicado. Comprueba siempre el etiquetado físico vigente cuando corresponda.':'Ficha ampliada pendiente: antes de comprar un alimento o suplemento, consulta ingredientes, alérgenos, información nutricional, advertencias y condiciones de uso en su etiquetado o con el equipo Nutretium.';
+  rememberRecent(product.id);
+  const optionalDetails=[['Ingredientes',product.ingredients],['Información nutricional',product.nutrition||product.nutritionalInfo],['Alérgenos',product.allergens],['Modo de empleo',product.instructions||product.usage],['Advertencias',product.warnings],['Formato',product.format||product.size]].filter(([,value])=>String(value||'').trim());
+  const baseDetails=[['Marca',product.brand||'No indicada en el catálogo'],['Categoría',product.category||'No indicada'],['Referencia',product.code||'No indicada'],['Formato / descripción ERP',product.pdfDescription||product.name],...optionalDetails];
+  const rating=Number(product.rating||0),reviews=Number(product.reviews||0);const ratingHtml=reviews>0?`<div class="rating-line"><span class="stars">${renderStars(rating)}</span><strong>${rating.toFixed(1)}</strong><span>${reviews} ${reviews===1?'opinión':'opiniones'}</span></div>`:'<div class="rating-line"><span>Sin opiniones publicadas todavía</span></div>';const related=relatedProducts(product).slice(0,4);
+  app.innerHTML=`<div class="crumb"><a href="/">Inicio</a> · <a href="/categoria/${slugify(product.category||'')}">${escapeHtml(product.category||'Catálogo')}</a> · ${escapeHtml(product.name)}</div><section class="product"><div class="visual">${image}</div><div><span class="eyebrow">${escapeHtml(product.brand||product.category||'Nutretium')}</span><h1 class="title">${escapeHtml(product.name)}</h1>${ratingHtml}<div class="meta">${product.brand?`<span class="pill">Marca: ${escapeHtml(product.brand)}</span>`:''}${product.code?`<span class="pill">Ref. ${escapeHtml(product.code)}</span>`:''}<span class="pill">${escapeHtml(product.category||'Catálogo')}</span>${product.badge?`<span class="pill">${escapeHtml(product.badge)}</span>`:''}</div><div class="price">${money(product.price)}</div><div class="stock ${available?'ok':'out'}">${escapeHtml(stockText)}</div><p class="desc">${escapeHtml(product.description||'Producto disponible en el catálogo Nutretium. Esta ficha se está ampliando con información específica del fabricante.')}</p><div class="buy-panel"><div class="buy-row"><div class="qty" aria-label="Cantidad"><button type="button" id="qtyMinus" aria-label="Reducir cantidad">−</button><output id="qtyValue">1</output><button type="button" id="qtyPlus" aria-label="Aumentar cantidad">+</button></div><div class="buy">${available?`<a class="primary" id="addButton" href="/?add=${encodeURIComponent(product.id)}&qty=1">Añadir al carrito</a>`:'<button class="secondary" disabled style="opacity:.6">Producto agotado</button>'}</div></div><p class="buy-note">El importe final se valida de nuevo en servidor antes del pago. El stock mostrado procede del catálogo publicado cuando está disponible.</p></div><div class="utility-row"><button type="button" id="wishlistButton">♡ Guardar</button><button type="button" id="shareButton">↗ Compartir</button><a class="secondary" style="padding:9px 11px;border-radius:10px;font-size:.72rem;font-weight:800;text-decoration:none" href="tel:+34633753517">Consultar al equipo</a></div><div class="trust"><div><strong>Tienda física</strong><span>C/ La Albericia 1 · Santander</span></div><div><strong>Pago</strong><span>Pasarela bancaria Redsys</span></div><div><strong>Recogida</strong><span>Consulta disponibilidad para recogida en tienda</span></div><div><strong>Atención directa</strong><span>633 753 517</span></div></div></div></section><section class="details"><div class="section-head"><h2>Información del producto</h2><p>Mostramos únicamente información existente en el catálogo. Los campos regulatorios que todavía no consten se marcan expresamente como pendientes.</p></div><div class="detail-grid">${baseDetails.map(([label,value])=>`<div class="detail"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(value)}</span></div>`).join('')}<div class="detail pending"><strong>Información alimentaria / suplementación</strong><span>${escapeHtml(infoStatus)}</span></div><div class="detail"><strong>Disponibilidad</strong><span>${escapeHtml(stockText)}</span></div></div></section>${related.length?`<section class="related"><div class="section-head"><h2>También puede interesarte</h2><p>Productos publicados de la misma categoría, ordenados por disponibilidad y relevancia del catálogo.</p></div><div class="related-grid">${related.map(renderRelated).join('')}</div></section>`:''}<footer class="foot">Nutretium es un establecimiento de BAHÍA NORTE CAPITAL, S.L. · NIF B27659754 · C/ La Albericia 1, Santander. La información específica de composición y uso debe contrastarse con el etiquetado vigente del producto cuando corresponda.</footer>${available?`<div class="mobile-buy"><a id="mobileAddButton" href="/?add=${encodeURIComponent(product.id)}&qty=1">Añadir · ${money(product.price)}</a></div>`:''}`;
+  injectStructuredData(product,canonicalUrl,available,stockKnown);bindControls();loadOptions();
+  function upsertMeta(selector,attrs){let node=document.head.querySelector(selector);if(!node){node=document.createElement('meta');document.head.appendChild(node)}Object.entries(attrs).forEach(([k,v])=>node.setAttribute(k,v));return node}
+  function renderStars(value){const rounded=Math.round(Math.max(0,Math.min(5,value)));return'★'.repeat(rounded)+'☆'.repeat(5-rounded)}
+  function relatedProducts(current){return products.filter((p)=>p.id!==current.id&&p.category===current.category).sort((a,b)=>{const stockA=typeof a.stock!=='number'||a.stock>0?1:0,stockB=typeof b.stock!=='number'||b.stock>0?1:0;return stockB-stockA||Number(b.featured||false)-Number(a.featured||false)||Number(b.reviews||0)-Number(a.reviews||0)})}
+  function renderRelated(p){const media=p.image?`<img src="/${escapeHtml(p.image)}" alt="${escapeHtml(p.name)}" loading="lazy">`:escapeHtml(p.emoji||'📦');return`<a class="related-card" href="${productUrl(p)}"><span class="related-visual">${media}</span><span class="related-copy"><strong>${escapeHtml(p.name)}</strong><span>${money(p.price)}</span></span></a>`}
+  function rememberRecent(productId){const list=readList(RECENT_KEY).map(Number).filter(Number.isFinite);writeList(RECENT_KEY,[Number(productId),...list.filter((v)=>v!==Number(productId))].slice(0,12))}
+  function wishlistSet(){return new Set(readList(WISHLIST_KEY).map(Number).filter(Number.isFinite))}
+  function paintWishlist(){const button=document.getElementById('wishlistButton');if(!button)return;const active=wishlistSet().has(Number(product.id));button.classList.toggle('is-active',active);button.setAttribute('aria-pressed',active?'true':'false');button.textContent=active?'♥ Guardado':'♡ Guardar'}
+  function bindControls(){let quantity=1;const max=stockKnown&&product.stock>0?Math.max(1,Math.min(20,product.stock)):20;const output=document.getElementById('qtyValue');const update=()=>{output.textContent=quantity;const add=document.getElementById('addButton'),mobile=document.getElementById('mobileAddButton');const href=`/?add=${encodeURIComponent(product.id)}&qty=${quantity}`;if(add)add.href=href;if(mobile)mobile.href=href};document.getElementById('qtyMinus')?.addEventListener('click',()=>{quantity=Math.max(1,quantity-1);update()});document.getElementById('qtyPlus')?.addEventListener('click',()=>{quantity=Math.min(max,quantity+1);update()});document.getElementById('wishlistButton')?.addEventListener('click',()=>{const set=wishlistSet(),pid=Number(product.id);set.has(pid)?set.delete(pid):set.add(pid);writeList(WISHLIST_KEY,[...set]);paintWishlist()});document.getElementById('shareButton')?.addEventListener('click',async()=>{const data={title:product.name,text:`${product.name} en Nutretium`,url:canonicalUrl};try{if(navigator.share)await navigator.share(data);else{await navigator.clipboard.writeText(canonicalUrl);const b=document.getElementById('shareButton');b.textContent='✓ Enlace copiado';setTimeout(()=>{b.textContent='↗ Compartir'},1600)}}catch(_){}});paintWishlist();update()}
+  async function loadOptions(){try{const response=await fetch('/.netlify/functions/product-options?productId='+encodeURIComponent(product.id)),data=await response.json();if(!response.ok)return;const visual=document.querySelector('.visual'),media=Array.isArray(data.media)?data.media:[];if(visual&&media.length){const main=visual.querySelector('img');if(main){main.style.cursor='zoom-in';main.addEventListener('click',()=>{const zoomed=main.dataset.zoomed==='1';main.dataset.zoomed=zoomed?'0':'1';main.style.transform=zoomed?'':'scale(1.7)';main.style.cursor=zoomed?'zoom-in':'zoom-out';main.style.transition='transform .2s ease'});const strip=document.createElement('div');strip.setAttribute('aria-label','Galería del producto');strip.style.cssText='display:flex;gap:8px;overflow:auto;margin-top:10px';media.filter(item=>item.kind==='image').forEach(item=>{const button=document.createElement('button');button.type='button';button.style.cssText='width:58px;height:58px;border:1px solid #333;border-radius:8px;background:#111;padding:3px;flex:0 0 auto';const img=document.createElement('img');img.src=item.url;img.alt=item.alt||product.name;img.style.cssText='width:100%;height:100%;object-fit:contain';button.appendChild(img);button.onclick=()=>{main.src=item.url;main.alt=item.alt||product.name;main.style.transform='';main.dataset.zoomed='0'};strip.appendChild(button)});if(strip.children.length)visual.appendChild(strip)}}const variants=Array.isArray(data.variants)?data.variants.filter(v=>v.available!==false):[];if(variants.length){const panel=document.querySelector('.buy-panel'),row=panel?.querySelector('.buy-row');if(!panel||!row)return;const label=document.createElement('label');label.style.cssText='display:block;margin-bottom:12px;font-weight:800;font-size:.82rem';label.textContent='Elige formato / sabor';const select=document.createElement('select');select.id='variantSelect';select.required=true;select.style.cssText='display:block;width:100%;margin-top:6px;background:#080808;color:#fff;border:1px solid #444;border-radius:9px;padding:11px';select.innerHTML='<option value="">Selecciona una opción</option>'+variants.map(v=>'<option value="'+escapeHtml(v.sku)+'" data-price="'+(v.priceCents??'')+'">'+escapeHtml(v.name)+(Number.isInteger(v.priceCents)?' · '+money(v.priceCents/100):'')+'</option>').join('');label.appendChild(select);panel.insertBefore(label,row);const apply=()=>{const sku=select.value,option=select.selectedOptions[0];['addButton','mobileAddButton'].forEach(id=>{const link=document.getElementById(id);if(!link)return;if(!link.dataset.baseHref)link.dataset.baseHref=link.getAttribute('href');const url=new URL(link.dataset.baseHref,location.origin);if(sku){url.searchParams.set('variantSku',sku);link.href=url.pathname+url.search;link.style.pointerEvents='';link.style.opacity='';link.removeAttribute('aria-disabled')}else{link.href='#variantSelect';link.style.pointerEvents='none';link.style.opacity='.55';link.setAttribute('aria-disabled','true')}});const cents=Number(option?.dataset.price);if(Number.isInteger(cents)&&cents>0)document.querySelector('.price').textContent=money(cents/100)};select.addEventListener('change',apply);apply()}}catch(error){console.warn('[product-options]',error.message)}}
+  function injectStructuredData(p,url,isAvailable,knownStock){const data={'@context':'https://schema.org','@type':'Product',name:p.name,sku:p.code||String(p.id),url,description,category:p.category||undefined,brand:p.brand?{'@type':'Brand',name:p.brand}:undefined,image:p.image?[new URL('/'+String(p.image).replace(/^\//,''),location.origin).href]:undefined,offers:{'@type':'Offer',priceCurrency:'EUR',price:Number(p.price).toFixed(2),url}};if(knownStock)data.offers.availability=isAvailable?'https://schema.org/InStock':'https://schema.org/OutOfStock';if(reviews>0&&rating>0)data.aggregateRating={'@type':'AggregateRating',ratingValue:rating.toFixed(1),reviewCount:reviews};Object.keys(data).forEach((k)=>data[k]===undefined&&delete data[k]);Object.keys(data.offers).forEach((k)=>data.offers[k]===undefined&&delete data.offers[k]);const script=document.createElement('script');script.type='application/ld+json';script.textContent=JSON.stringify(data);document.head.appendChild(script)}
 })();
+
+
+

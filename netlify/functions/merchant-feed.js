@@ -1,0 +1,24 @@
+'use strict';
+const { NUTRETIUM_PRODUCTS } = require('../../products-data.js');
+const compliance = require('../lib/compliance-gate');
+function x(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');}
+function slug(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');}
+exports.handler=async function(){
+  const base='https://nutretium.com';
+  const statuses=await compliance.statuses();
+  const items=(NUTRETIUM_PRODUCTS||[])
+    .filter((p)=>{
+      if(!p||p.active===false||Number(p.price)<=0||!String(p.name||'').trim()||!String(p.image||'').trim())return false;
+      const state=statuses.get(String(p.code||'').trim().toUpperCase());
+      return !state||!['blocked','rejected'].includes(state.status);
+    })
+    .map((p)=>{
+      const link=`${base}/producto/${slug(p.name)}-${p.id}`;
+      const image=String(p.image).startsWith('http')?p.image:`${base}/${String(p.image).replace(/^\//,'')}`;
+      const availability=typeof p.stock==='number'&&p.stock<=0?'out_of_stock':'in_stock';
+      const desc=String(p.description||`${p.name}${p.category?` — ${p.category}`:''}`).slice(0,5000);
+      return `<item><g:id>${x(p.code||p.id)}</g:id><g:title>${x(p.name)}</g:title><g:description>${x(desc)}</g:description><g:link>${x(link)}</g:link><g:image_link>${x(image)}</g:image_link><g:condition>new</g:condition><g:availability>${availability}</g:availability><g:price>${Number(p.price).toFixed(2)} EUR</g:price>${p.brand?`<g:brand>${x(p.brand)}</g:brand>`:''}</item>`;
+    }).join('');
+  const xml=`<?xml version="1.0" encoding="UTF-8"?>\n<rss xmlns:g="http://base.google.com/ns/1.0" version="2.0"><channel><title>Nutretium</title><link>${base}</link><description>Catálogo Nutretium</description>${items}</channel></rss>`;
+  return{statusCode:200,headers:{'Content-Type':'application/xml; charset=utf-8','Cache-Control':'public, max-age=900, s-maxage=3600','X-Content-Type-Options':'nosniff'},body:xml};
+};

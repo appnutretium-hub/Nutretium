@@ -27,6 +27,43 @@ async function summary(){
   }
   return result;
 }
+async function bulkImport(domain,records,auth,reason){
+  if(!schema.definition(domain))throw Object.assign(new Error('Dominio de importación no reconocido.'),{statusCode:400});
+  if(!Array.isArray(records)||!records.length||records.length>250)throw Object.assign(new Error('La importación debe contener entre 1 y 250 registros.'),{statusCode:400});
+  const checked=records.map((record,index)=>({index,result:schema.validate(domain,record)}));
+  const invalid=checked.filter(x=>!x.result.ok);
+  if(invalid.length)throw Object.assign(new Error(`La importación contiene ${invalid.length} registros inválidos; no se ha escrito nada.`),{statusCode:400,details:invalid.slice(0,50).map(x=>({row:x.index+1,errors:x.result.errors}))});
+  const saved=[];
+  for(const entry of checked)saved.push(await store.save(domain,entry.result.data,auth,{id:entry.result.data.id,reason:reason||'bulk-import'}));
+  return saved;
+}
+async function receivePurchaseOrder(po,receipts,auth){
+  if(!Array.isArray(receipts)||!receipts.length)throw Object.assign(new Error('Faltan líneas recibidas.'),{statusCode:400});
+  const normalized=receipts.map((line)=>({sku:String(line.sku||'').trim(),warehouseId:String(line.warehouseId||'').trim(),qty:Number(line.qty)}));
+  if(normalized.some(line=>!line.sku||!line.warehouseId||!Number.isInteger(line.qty)||line.qty<=0))throw Object.assign(new Error('Cada recepción necesita sku, almacén y cantidad entera positiva.'),{statusCode:400});
+  const poSkus=new Set((po.lines||[]).map(line=>String(line.sku||line.code||'').trim()));
+  if(normalized.some(line=>!poSkus.has(line.sku)))throw Object.assign(new Error('La recepción contiene un SKU que no figura en el pedido de compra.'),{statusCode:400});
+  const prepared=[];
+  for(const line of normalized){
+    const id=`${line.warehouseId}:${line.sku}`;
+    const current=await store.get('inventory',id)||{id,sku:line.sku,warehouseId:line.warehouseId,onHand:0,reserved:0,reorderPoint:0,reorderQty:0};
+    const changed=actions.adjustInventory(current,{delta:line.qty,reason:'purchase-receipt',reference:po.id});
+    if(!changed.ok)throw Object.assign(new Error(changed.error),{statusCode:409});
+    const valid=schema.validate('inventory',changed.record);if(!valid.ok)throw Object.assign(new Error(valid.errors[0]),{statusCode:400});
+    prepared.push({id,record:valid.data});
+  }
+  const inventory=[];
+  for(const item of prepared)inventory.push(await store.save('inventory',item.record,auth,{id:item.id,reason:`receive:${po.id}`}));
+  const received=[...(po.receipts||[]),{at:new Date().toISOString(),by:auth.email,lines:normalized}];
+  const orderedBySku=new Map((po.lines||[]).map(line=>[String(line.sku||line.code||''),Number(line.qty||line.quantity||0)]));
+  const receivedTotals=new Map();
+  for(const batch of received)for(const line of batch.lines||[])receivedTotals.set(line.sku,(receivedTotals.get(line.sku)||0)+Number(line.qty||0));
+  const complete=[...orderedBySku].every(([sku,qty])=>qty>0&&(receivedTotals.get(sku)||0)>=qty);
+  const next={...po,receipts:received,status:complete?'received':'partially_received'};
+  const savedPo=await store.save('purchase-orders',next,auth,{id:po.id,reason:'receive-purchase-order'});
+  return{purchaseOrder:savedPo,inventory};
+}
+
 exports.handler=async function(event){
   if(event.httpMethod==='OPTIONS') return {statusCode:204,headers:CORS,body:''};
   if(event.httpMethod!=='POST') return response(405,{error:'Method Not Allowed'});
@@ -41,6 +78,11 @@ exports.handler=async function(event){
       if(!['owner','admin'].includes(auth.role)) return response(403,{error:'Solo propietario o administrador pueden exportar una copia completa.'});
       return response(200,{snapshot:await store.snapshot()});
     }catch(err){return response(err.code==='STORE_UNAVAILABLE'?503:500,{error:err.message});}
+  }
+  if(action==='bulk-import'){
+    const target=String(body.targetDomain||'');const def=schema.definition(target);if(!def)return response(400,{error:'Dominio de importación no reconocido.'});
+    const auth=authFor(event,target,'create');if(!auth.ok)return response(auth.statusCode,{error:auth.error});
+    try{return response(200,{records:await bulkImport(target,body.records,auth,body.reason)});}catch(err){return response(err.statusCode||500,{error:err.message,details:err.details});}
   }
   const domain=String(body.domain||'').trim(), def=schema.definition(domain);
   if(!def) return response(400,{error:'Dominio no reconocido.'});
@@ -67,6 +109,12 @@ exports.handler=async function(event){
       const checked=schema.validate(domain,changed.record); if(!checked.ok) return response(400,{error:checked.errors[0],errors:checked.errors});
       return response(200,{record:await store.save(domain,checked.data,auth,{id:body.id,reason:body.reason})});
     }
+    if(action==='receive-purchase-order'){
+      if(domain!=='purchase-orders')return response(400,{error:'Esta operación solo se admite en pedidos de compra.'});
+      const po=await store.get(domain,body.id);if(!po)return response(404,{error:'Pedido de compra no encontrado.'});
+      if(!['approved','ordered','partially_received'].includes(po.status))return response(409,{error:'El pedido no está en un estado que permita recepción.'});
+      return response(200,await receivePurchaseOrder(po,body.receipts,auth));
+    }
     if(['inventory-adjust','inventory-reserve','inventory-release'].includes(action)){
       if(domain!=='inventory') return response(400,{error:'La operación solo se admite en inventario.'});
       const previous=await store.get(domain,body.id); if(!previous) return response(404,{error:'Registro no encontrado.'});
@@ -81,5 +129,7 @@ exports.handler=async function(event){
       return response(200,{record:await store.save(domain,changed.record,auth,{id:body.id,reason:body.reason})});
     }
     return response(400,{error:'Acción no reconocida.'});
-  }catch(err){const code=err.code==='STORE_UNAVAILABLE'?503:err.code==='CONFLICT'?409:500;return response(code,{error:err.message});}
+  }catch(err){const code=err.statusCode|| (err.code==='STORE_UNAVAILABLE'?503:err.code==='CONFLICT'?409:500);return response(code,{error:err.message,details:err.details});}
 };
+
+exports._test={bulkImport,receivePurchaseOrder};

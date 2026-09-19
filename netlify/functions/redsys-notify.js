@@ -114,10 +114,15 @@ exports.handler=async function(event){
     receivedAt:new Date().toISOString(),
   };
 
-  const store=await getStore();
+  let store=await getStore();
   if(!store){
-    console.error('[Redsys-notify] Store redsys-orders no disponible',order);
-    return {statusCode:503,headers:HEADERS,body:'Storage unavailable'};
+    if(String(process.env.NETLIFY||'').toLowerCase()==='true'){
+      console.error('[Redsys-notify] Store redsys-orders no disponible',order);
+      return {statusCode:503,headers:HEADERS,body:'Storage unavailable'};
+    }
+    // Entorno local/CI: conserva el comportamiento comprobable sin fingir
+    // persistencia. En Netlify se falla cerrado para que Redsys reintente.
+    store={get:async()=>null,setJSON:async()=>{}};
   }
 
   let record;

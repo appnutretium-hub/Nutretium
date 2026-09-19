@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#080b0a">
+  <title>Carta digital | NUTRETIUM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/carta.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Volver a Nutretium"><span>N</span>NUTRETIUM</a>
+    <button id="cartButton" class="cart-button" type="button">Mi pedido <b id="cartCount">0</b></button>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="eyebrow">SANTANDER · HECHO AL MOMENTO</p>
+      <h1>Come fuerte.<br><em>Vive ligero.</em></h1>
+      <p>Tu carta fitness con recogida en tienda o entrega en Santander.</p>
+    </section>
+
+    <nav id="categories" class="categories" aria-label="Categorías"></nav>
+    <section class="section-heading">
+      <div><p class="eyebrow">ELIGE TU FAVORITO</p><h2 id="categoryTitle">Toda la carta</h2></div>
+      <span id="resultCount"></span>
+    </section>
+    <section id="menu" class="menu" aria-live="polite"></section>
+  </main>
+
+  <button id="floatingCart" class="floating-cart" type="button" hidden>
+    <span><b id="floatingCount">0</b> productos</span><strong id="floatingTotal">0,00 €</strong>
+  </button>
+
+  <div id="drawerBackdrop" class="backdrop" hidden></div>
+  <aside id="cartDrawer" class="drawer" aria-label="Tu pedido" aria-hidden="true">
+    <div class="drawer-head"><div><p class="eyebrow">TU SELECCIÓN</p><h2>Tu pedido</h2></div><button id="closeCart" aria-label="Cerrar">×</button></div>
+    <div id="cartLines" class="cart-lines"></div>
+
+    <fieldset class="fulfillment">
+      <legend>¿Cómo lo quieres?</legend>
+      <label><input type="radio" name="fulfillment" value="pickup" checked><span><b>Recoger</b><small>C/ La Albericia 1</small></span></label>
+      <label><input type="radio" name="fulfillment" value="delivery"><span><b>A domicilio</b><small>Santander · 2,99 € · mínimo 15 €</small></span></label>
+    </fieldset>
+
+    <form id="checkoutForm" class="checkout-form">
+      <label>Nombre<input name="name" autocomplete="name" required maxlength="80"></label>
+      <label>Teléfono<input name="phone" type="tel" autocomplete="tel" required maxlength="24"></label>
+      <label>Email<input name="email" type="email" autocomplete="email" required maxlength="120"></label>
+      <div id="addressFields" hidden>
+        <label>Dirección<input name="address" autocomplete="street-address" maxlength="160"></label>
+        <div class="split"><label>Código postal<input name="postalCode" inputmode="numeric" maxlength="5"></label><label>Localidad<input name="city" value="Santander" maxlength="80"></label></div>
+      </div>
+      <div class="summary"><span>Productos</span><b id="subtotal">0,00 €</b><span>Entrega</span><b id="deliveryFee">Gratis</b><strong>Total</strong><strong id="grandTotal">0,00 €</strong></div>
+      <p id="checkoutError" class="error" role="alert"></p>
+      <button id="checkoutButton" class="checkout-button" type="submit">Pagar con Stripe · modo pruebas</button>
+      <p class="secure">Pago seguro · No se realizará ningún cobro real durante las pruebas</p>
+    </form>
+  </aside>
+
+  <script src="/products-data.js"></script>
+  <script src="/carta.js"></script>
+</body>
+</html>

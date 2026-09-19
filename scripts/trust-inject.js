@@ -10,7 +10,7 @@ const marker = '  <script src="animations.js"></script>';
 if (!html.includes(marker)) throw new Error('No se encontró el punto seguro de inyección en index.html');
 
 const scripts = [
-  'trust-fixes.js','commerce-pro.js','final-hardening.js','commerce-suite.js','commercial-finish.js','compare-suite.js','pro-qa-fixes.js','production-finish.js','mobile-commerce-pro.js','runtime-content.js','runtime-performance.js','runtime-guard.js',
+  'trust-fixes.js','commerce-pro.js','wishlist-sync.js','final-hardening.js','commerce-suite.js','commercial-finish.js','compare-suite.js','pro-qa-fixes.js','production-finish.js','mobile-commerce-pro.js','runtime-content.js','runtime-performance.js','runtime-guard.js',
 ];
 for (const src of scripts) if (!html.includes(`src="${src}"`)) html = html.replace(marker, `  <script src="${src}"></script>\n${marker}`);
 if (!html.includes('href="runtime-guard.css"')) html = html.replace('</head>', '  <link rel="stylesheet" href="runtime-guard.css">\n</head>');
@@ -58,4 +58,4 @@ NUTRETIUM_CATEGORIES.forEach(c => urls.add(`https://nutretium.com/categoria/${sl
 NUTRETIUM_PRODUCTS.filter(p => p.active !== false).forEach(p => urls.add(`https://nutretium.com/producto/${slugify(p.name)}-${p.id}`));
 const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...urls].map((u,i)=>`  <url><loc>${u}</loc><changefreq>${i===0?'daily':'weekly'}</changefreq><priority>${i===0?'1.0':'0.7'}</priority></url>`).join('\n')}\n</urlset>\n`;
 fs.writeFileSync(path.join(process.cwd(),'sitemap.xml'), xml, 'utf8');
-console.log(`[trust-inject] comercio + contenido editable + rendimiento + runtime guard · sitemap ${urls.size} URLs`);
+console.log(`[trust-inject] comercio + favoritos sincronizados + contenido editable + rendimiento · sitemap ${urls.size} URLs`);

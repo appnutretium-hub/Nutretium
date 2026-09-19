@@ -35,7 +35,13 @@ html = html
   .replaceAll('Envío a península gratis a partir de 50€', 'Compra online y atención desde Santander')
   .replaceAll('10% de descuento en tu primer pedido', 'Crea tu cuenta para guardar pedidos y favoritos')
   .replaceAll('Formulaciones avanzadas para atletas que no aceptan compromisos.', 'Suplementación deportiva, alimentación saludable y atención cercana desde nuestra tienda física en Santander.')
-  .replaceAll('Opiniones verificadas de compradores reales.', 'Opiniones publicadas tras revisión.');
+  .replaceAll('Opiniones verificadas de compradores reales.', 'Opiniones publicadas tras revisión.')
+  .replaceAll('Trabaja con profesionales certificados y consigue resultados reales con un acompañamiento 100% personalizado.', 'Solicita información sobre entrenamiento y el equipo te confirmará disponibilidad, alcance y condiciones del servicio.')
+  .replaceAll('Planes nutricionales adaptados a tus metas, gustos y alergias.', 'Información sobre hábitos y objetivos dentro del alcance del profesional que preste el servicio.')
+  .replaceAll('Primera evaluación gratuita · Respuesta en menos de 24 h', 'El equipo confirmará disponibilidad y condiciones del servicio.')
+  .replaceAll('Pide online y recoge en tienda en minutos. Batidos recién preparados, snacks proteicos y productos listos para llevar, sin esperas ni colas.', 'Consulta directamente con Nutretium la carta y disponibilidad actual de productos preparados y recogida en tienda.')
+  .replaceAll('Pedido listo en 15 minutos', 'Disponibilidad sujeta a confirmación')
+  .replaceAll('Paga online o al recoger', 'Condiciones de pago según el pedido confirmado');
 
 const localBusiness = {
   '@context':'https://schema.org',

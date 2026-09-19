@@ -1,28 +1,6 @@
 {
-  "name": "nutretium-web",
-  "version": "1.0.0",
-  "private": true,
-  "description": "NUTRETIUM — tienda online (Netlify Functions + Redsys)",
-  "dependencies": {"@netlify/blobs":"^10.7.11"},
-  "devDependencies": {"tailwindcss":"^3.4.19"},
-  "optionalDependencies": {"sharp":"^0.35.3"},
-  "scripts": {
-    "build:css":"tailwindcss -c tailwind.config.js -i src/tailwind.css -o styles.css --minify && node scripts/trust-inject.js && node scripts/build-seo-pages.js",
-    "watch:css":"tailwindcss -c tailwind.config.js -i src/tailwind.css -o styles.css --watch",
-    "build":"npm run build:css",
-    "dev":"node scripts/dev-server.js",
-    "test":"node scripts/test-precios.js",
-    "fotos":"node scripts/fotos-incorporar.js",
-    "stock":"node scripts/stock-actualizar.js",
-    "test:redsys":"node scripts/test-commerce-core.js",
-    "catalogo":"node scripts/catalogo-actualizar.js",
-    "panel":"node scripts/panel-servidor.js",
-    "test:catalogo":"node scripts/test-catalogo.js",
-    "test:pim":"node scripts/test-pim-seo.js",
-    "test:customer":"node scripts/test-customer-postsale.js",
-    "test:security":"node scripts/test-security-tokens.js",
-    "test:admin":"node scripts/test-admin.js",
-    "test:cuentas":"node scripts/test-cuentas.js"
-  },
+  "name":"nutretium-web","version":"1.0.0","private":true,"description":"NUTRETIUM — tienda online (Netlify Functions + Redsys)",
+  "dependencies":{"@netlify/blobs":"^10.7.11"},"devDependencies":{"tailwindcss":"^3.4.19"},"optionalDependencies":{"sharp":"^0.35.3"},
+  "scripts":{"build:css":"tailwindcss -c tailwind.config.js -i src/tailwind.css -o styles.css --minify && node scripts/trust-inject.js && node scripts/build-seo-pages.js","watch:css":"tailwindcss -c tailwind.config.js -i src/tailwind.css -o styles.css --watch","build":"npm run build:css","dev":"node scripts/dev-server.js","test":"node scripts/test-precios.js","fotos":"node scripts/fotos-incorporar.js","stock":"node scripts/stock-actualizar.js","test:redsys":"node scripts/test-commerce-core.js","catalogo":"node scripts/catalogo-actualizar.js","panel":"node scripts/panel-servidor.js","test:catalogo":"node scripts/test-catalogo.js","test:pim":"node scripts/test-pim-seo.js","test:customer":"node scripts/test-customer-postsale.js","test:security":"node scripts/test-security-tokens.js","test:admin-security":"node scripts/test-admin-security.js","test:admin":"node scripts/test-admin.js","test:cuentas":"node scripts/test-cuentas.js"},
   "engines":{"node":">=20"}
 }

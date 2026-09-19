@@ -17,6 +17,7 @@ const scripts = [
   'commercial-finish.js',
   'compare-suite.js',
   'pro-qa-fixes.js',
+  'production-finish.js',
 ];
 
 for (const src of scripts) {
@@ -53,4 +54,4 @@ NUTRETIUM_CATEGORIES.forEach(c => urls.add(`https://nutretium.com/categoria/${sl
 NUTRETIUM_PRODUCTS.filter(p => p.active !== false).forEach(p => urls.add(`https://nutretium.com/producto/${slugify(p.name)}-${p.id}`));
 const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...urls].map((u,i)=>`  <url><loc>${u}</loc><changefreq>${i===0?'daily':'weekly'}</changefreq><priority>${i===0?'1.0':'0.7'}</priority></url>`).join('\n')}\n</urlset>\n`;
 fs.writeFileSync(path.join(process.cwd(),'sitemap.xml'), xml, 'utf8');
-console.log(`[trust-inject] capas de confianza/comercio/QA inyectadas · sitemap ${urls.size} URLs`);
+console.log(`[trust-inject] capas de confianza/comercio/QA/final inyectadas · sitemap ${urls.size} URLs`);

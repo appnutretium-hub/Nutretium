@@ -23,3 +23,4 @@
   $('consentAnalytics').onchange=e=>setConsent('analytics',e.target.checked);$('consentMarketing').onchange=e=>setConsent('marketing',e.target.checked);$('consentPersonalization').onchange=e=>setConsent('personalization',e.target.checked);
   load();
 })();
+

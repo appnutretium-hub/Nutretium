@@ -2,19 +2,63 @@
 
 const fs = require('fs');
 const path = require('path');
+const { NUTRETIUM_PRODUCTS = [], NUTRETIUM_CATEGORIES = [] } = require('../products-data.js');
 
 const file = path.join(process.cwd(), 'index.html');
-const tag = '  <script src="trust-fixes.js"></script>\n';
 let html = fs.readFileSync(file, 'utf8');
+const marker = '  <script src="animations.js"></script>';
+if (!html.includes(marker)) throw new Error('No se encontró el punto seguro de inyección en index.html');
 
-if (!html.includes('trust-fixes.js')) {
-  const marker = '  <script src="animations.js"></script>';
-  if (!html.includes(marker)) {
-    throw new Error('No se encontró el punto seguro de inyección en index.html');
+const scripts = [
+  'trust-fixes.js',
+  'commerce-pro.js',
+  'final-hardening.js',
+  'commerce-suite.js',
+  'commercial-finish.js',
+  'compare-suite.js',
+  'pro-qa-fixes.js',
+  'production-finish.js',
+  'mobile-commerce-pro.js',
+];
+
+for (const src of scripts) {
+  if (!html.includes(`src="${src}"`)) {
+    html = html.replace(marker, `  <script src="${src}"></script>\n${marker}`);
   }
-  html = html.replace(marker, `${tag}${marker}`);
-  fs.writeFileSync(file, html, 'utf8');
-  console.log('[trust-inject] trust-fixes.js inyectado en index.html');
-} else {
-  console.log('[trust-inject] index.html ya contiene trust-fixes.js');
 }
+
+html = html
+  .replaceAll('Lun – Sáb 09:00 – 21:00', 'Lun – Sáb 09:30 – 22:00')
+  .replaceAll('Lunes – Sábado: 09:00 – 21:00', 'Lunes – Sábado: 09:30 – 22:00')
+  .replaceAll('633 653 517', '633 753 517')
+  .replaceAll('Envío express 48h · Devolución gratuita 30 días', 'Tienda física en Santander · Atención personalizada')
+  .replaceAll('Envío a península gratis a partir de 50€', 'Compra online y atención desde Santander')
+  .replaceAll('10% de descuento en tu primer pedido', 'Crea tu cuenta para guardar pedidos y favoritos')
+  .replaceAll('Formulaciones avanzadas para atletas que no aceptan compromisos.', 'Suplementación deportiva, alimentación saludable y atención cercana desde nuestra tienda física en Santander.')
+  .replaceAll('Opiniones verificadas de compradores reales.', 'Opiniones publicadas tras revisión.')
+  .replaceAll('Trabaja con profesionales certificados y consigue resultados reales con un acompañamiento 100% personalizado.', 'Solicita información sobre entrenamiento y el equipo te confirmará disponibilidad, alcance y condiciones del servicio.')
+  .replaceAll('Planes nutricionales adaptados a tus metas, gustos y alergias.', 'Información sobre hábitos y objetivos dentro del alcance del profesional que preste el servicio.')
+  .replaceAll('Primera evaluación gratuita · Respuesta en menos de 24 h', 'El equipo confirmará disponibilidad y condiciones del servicio.')
+  .replaceAll('Pide online y recoge en tienda en minutos. Batidos recién preparados, snacks proteicos y productos listos para llevar, sin esperas ni colas.', 'Consulta directamente con Nutretium la carta y disponibilidad actual de productos preparados y recogida en tienda.')
+  .replaceAll('Pedido listo en 15 minutos', 'Disponibilidad sujeta a confirmación')
+  .replaceAll('Paga online o al recoger', 'Condiciones de pago según el pedido confirmado');
+
+const localBusiness = {
+  '@context':'https://schema.org',
+  '@type':'SportingGoodsStore',
+  name:'Nutretium',
+  url:'https://nutretium.com/',
+  telephone:'+34633753517',
+  address:{'@type':'PostalAddress',streetAddress:'Calle La Albericia 1',addressLocality:'Santander',addressRegion:'Cantabria',postalCode:'39012',addressCountry:'ES'},
+  openingHoursSpecification:[{'@type':'OpeningHoursSpecification',dayOfWeek:['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],opens:'09:30',closes:'22:00'}]
+};
+if (!html.includes('"@type":"SportingGoodsStore"')) html = html.replace('</head>', `  <script type="application/ld+json">${JSON.stringify(localBusiness)}</script>\n</head>`);
+fs.writeFileSync(file, html, 'utf8');
+
+const slugify = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+const urls = new Set(['https://nutretium.com/','https://nutretium.com/ayuda','https://nutretium.com/aprende','https://nutretium.com/recomendador']);
+NUTRETIUM_CATEGORIES.forEach(c => urls.add(`https://nutretium.com/categoria/${slugify(c)}`));
+NUTRETIUM_PRODUCTS.filter(p => p.active !== false).forEach(p => urls.add(`https://nutretium.com/producto/${slugify(p.name)}-${p.id}`));
+const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...urls].map((u,i)=>`  <url><loc>${u}</loc><changefreq>${i===0?'daily':'weekly'}</changefreq><priority>${i===0?'1.0':'0.7'}</priority></url>`).join('\n')}\n</urlset>\n`;
+fs.writeFileSync(path.join(process.cwd(),'sitemap.xml'), xml, 'utf8');
+console.log(`[trust-inject] capas de confianza/comercio/QA/final/móvil inyectadas · sitemap ${urls.size} URLs`);

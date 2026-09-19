@@ -11,11 +11,13 @@
   # Importante: el listado del ERP, el Excel y la auditoría llevan precios,
   # stock y datos de proveedor. Publicados serían descargables por cualquiera.
   #
-  # El comando hace tres cosas: 1) compila Tailwind a styles.css,
-  # 2) añade la capa visual Human Touch, 3) borra de la copia desplegada lo sensible.
+  # El comando hace cuatro cosas: 1) compila Tailwind a styles.css,
+  # 2) añade la capa visual Human Touch, 3) añade la capa de confianza/franquicia
+  # al JS público, 4) borra de la copia desplegada lo sensible.
   command = """
     npm run build:css &&
     cat human-touch.css >> styles.css &&
+    cat franchise-trust.js >> app.js &&
     rm -rf \
       'Listado de stock disponible.pdf' \
       'CATALOGO_NUTRETIUM.xlsx' \
@@ -88,6 +90,17 @@
   for = "/sources/productos/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+
+# URLs limpias para categorías y fichas de producto.
+[[redirects]]
+  from = "/categoria/*"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/producto/*"
+  to = "/producto.html"
+  status = 200
 
 [[redirects]]
   from = "/pago-ok"

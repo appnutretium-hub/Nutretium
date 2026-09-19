@@ -101,11 +101,13 @@
   function filterBrand(brand) {
     ['searchInput', 'navSearchInput', 'mobileSearchInput'].forEach((id) => {
       const el = document.getElementById(id);
-      if (el) el.value = brand;
+      if (el) el.value = '';
     });
     activeFilter = 'Todos';
     document.querySelectorAll('.filter-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.filter === 'Todos'));
-    applyFilters();
+    const list = (typeof PRODUCTS !== 'undefined' ? PRODUCTS : []).filter((p) => String(p.brand || '').trim() === brand);
+    renderProducts(list);
+    history.pushState({ brand }, '', `/?marca=${encodeURIComponent(slugify(brand))}#products`);
     document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
   }
 

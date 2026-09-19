@@ -10,15 +10,24 @@ const DOMAIN_DEFS = Object.freeze({
   'shipping-rules': { permission:'shipping.manage', required:['name','country'], statuses:['active','inactive'] },
   promotions: { permission:'marketing.manage', required:['code','type'], statuses:['draft','active','paused','expired','archived'] },
   bundles: { permission:'marketing.manage', required:['name','items'], statuses:['draft','active','paused','archived'] },
+  'gift-cards': { permission:'marketing.manage', required:['code','currency','initialCents'], numeric:['initialCents','balanceCents'], statuses:['active','suspended','redeemed','expired'] },
+  referrals: { permission:'marketing.manage', required:['code','ownerEmail'], statuses:['active','paused','completed','cancelled'] },
   subscriptions: { permission:'subscriptions.manage', required:['customerEmail','items','cadence'], statuses:['trial','active','paused','past_due','cancelled'] },
   loyalty: { permission:'loyalty.manage', required:['customerEmail'], statuses:['active','suspended'] },
   'crm-tickets': { permission:'crm.manage', required:['subject','customerEmail'], statuses:['open','pending','closed'] },
+  reviews: { permission:'crm.manage', required:['productId','customerEmail','rating'], numeric:['rating'], statuses:['pending','published','rejected'] },
   'notification-templates': { permission:'marketing.manage', required:['key','channel','subject','body'], statuses:['draft','active','archived'] },
   'notification-jobs': { permission:'marketing.manage', required:['templateKey','recipient'], statuses:['queued','processing','sent','failed','cancelled'] },
   experiments: { permission:'marketing.manage', required:['key','variants'], statuses:['draft','running','paused','completed','archived'] },
   'feature-flags': { permission:'marketing.manage', required:['key'], statuses:['active','inactive'] },
+  'cms-blocks': { permission:'marketing.manage', required:['key','type'], statuses:['draft','active','archived'] },
+  'seo-redirects': { permission:'marketing.manage', required:['from','to'], statuses:['active','inactive'] },
+  'recommendation-rules': { permission:'marketing.manage', required:['key','strategy'], statuses:['draft','active','paused'] },
+  'automation-rules': { permission:'platform.write', required:['key','event','actions'], statuses:['draft','active','paused'] },
   webhooks: { permission:'integrations.manage', required:['name','url','events'], statuses:['active','paused','disabled'] },
+  'webhook-deliveries': { permission:'integrations.manage', required:['webhookId','event'], statuses:['queued','sent','failed'] },
   integrations: { permission:'integrations.manage', required:['key','provider'], statuses:['configured','pending','disabled','error'] },
+  'marketplace-listings': { permission:'integrations.manage', required:['channel','sku'], statuses:['draft','active','paused','error'] },
   'b2b-accounts': { permission:'finance.read', required:['companyName','email'], statuses:['pending','active','suspended','closed'] },
   'price-lists': { permission:'finance.read', required:['name','currency'], statuses:['draft','active','archived'] },
   'product-compliance': { permission:'compliance.read', required:['sku','market'], statuses:['draft','under_review','approved','rejected','blocked'] },
@@ -28,9 +37,14 @@ const DOMAIN_DEFS = Object.freeze({
   media: { permission:'media.manage', required:['name','url','kind'], statuses:['active','archived'] },
   'saved-carts': { permission:'orders.manage', required:['customerEmail','items'], statuses:['active','converted','abandoned','archived'] },
   'privacy-requests': { permission:'privacy.manage', required:['customerEmail','type'], statuses:['requested','verified','processing','completed','rejected'] },
+  'consent-settings': { permission:'privacy.manage', required:['customerEmail','purpose'], statuses:['granted','withdrawn'] },
   'import-jobs': { permission:'imports.manage', required:['type'], statuses:['queued','validating','ready','running','completed','failed','cancelled'] },
   'analytics-settings': { permission:'analytics.read', required:['key'] },
+  'analytics-events': { permission:'analytics.read', required:['name','occurredAt'] },
   'tax-rules': { permission:'finance.read', required:['name','country'], statuses:['active','inactive'] },
+  'currency-rules': { permission:'finance.read', required:['currency','country'], statuses:['active','inactive'] },
+  'fraud-rules': { permission:'finance.read', required:['key','type'], statuses:['active','inactive'] },
+  'system-incidents': { permission:'platform.write', required:['title','severity'], statuses:['open','monitoring','resolved'] },
 });
 
 const MAX_TEXT = 5000;
@@ -87,6 +101,13 @@ function validate(domain, raw, { partial = false } = {}) {
   if (domain === 'inventory' && data.reserved !== undefined && data.onHand !== undefined && Number(data.reserved) > Number(data.onHand)) errors.push('El stock reservado no puede superar el stock físico.');
   if (domain === 'shipping-rules' && data.priceCents !== undefined && (!Number.isInteger(Number(data.priceCents)) || Number(data.priceCents) < 0)) errors.push('priceCents debe ser un entero no negativo.');
   if (domain === 'tax-rules' && data.rate !== undefined && (Number(data.rate) < 0 || Number(data.rate) > 100)) errors.push('El tipo impositivo debe estar entre 0 y 100.');
+  if (domain === 'reviews' && data.rating !== undefined && (!Number.isInteger(Number(data.rating)) || Number(data.rating) < 1 || Number(data.rating) > 5)) errors.push('La valoración debe ser un entero entre 1 y 5.');
+  if (domain === 'gift-cards' && data.balanceCents !== undefined && Number(data.balanceCents) > Number(data.initialCents || 0)) errors.push('El saldo no puede superar el importe inicial.');
+  if (domain === 'webhooks' && data.url) {
+    try { if (new URL(data.url).protocol !== 'https:') errors.push('Los webhooks deben usar HTTPS.'); }
+    catch { errors.push('La URL del webhook no es válida.'); }
+  }
+  if (domain === 'seo-redirects' && data.from && data.to && data.from === data.to) errors.push('Una redirección no puede apuntarse a sí misma.');
   return { ok: errors.length === 0, errors, data };
 }
 

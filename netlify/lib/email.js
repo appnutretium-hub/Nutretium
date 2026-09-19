@@ -1,122 +1,140 @@
 /**
  * netlify/lib/email.js — NUTRETIUM
- *
- * Envío de correo mediante la API de Resend (https://resend.com).
- * Netlify no ofrece servicio de correo, por eso hace falta un proveedor.
+ * Correo transaccional de pedidos mediante Resend.
  *
  * Variables de entorno:
- *   RESEND_API_KEY            — clave de API de Resend (obligatoria para enviar)
- *   ORDER_NOTIFICATION_EMAIL  — dirección que recibe los avisos de pedido
- *   ORDER_EMAIL_FROM          — remitente. Sin dominio verificado en Resend
- *                               debe ser "onboarding@resend.dev"; con
- *                               nutretium.com verificado, "pedidos@nutretium.com"
- *
- * Si falta RESEND_API_KEY no se envía nada y se deja constancia en el log:
- * el envío de correo NUNCA debe tumbar el procesamiento de un pago.
+ *   RESEND_API_KEY
+ *   ORDER_NOTIFICATION_EMAIL  — buzón interno de pedidos
+ *   ORDER_EMAIL_FROM          — remitente verificado, p.ej. "Nutretium <pedidos@nutretium.com>"
  */
-
 'use strict';
 
-// La dirección se pinta con el mismo formato que en «Mi perfil»: una sola
-// función para que el correo y la pantalla no digan la dirección de dos formas.
 const direccion = require('./direccion');
-
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
-/**
- * Envía un correo. Devuelve true si se envió, false si no.
- * No lanza nunca: quien llama no debe verse afectado por un fallo de correo.
- */
-async function sendEmail({ to, subject, html }) {
+async function sendEmail({ to, subject, html, idempotencyKey }) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from   = process.env.ORDER_EMAIL_FROM || 'onboarding@resend.dev';
-
+  const from = process.env.ORDER_EMAIL_FROM || 'onboarding@resend.dev';
   if (!apiKey) {
-    console.warn('[email] TODO: falta RESEND_API_KEY; no se envia correo. Asunto:', subject);
-    return false;
+    console.warn('[email] Falta RESEND_API_KEY; correo no enviado:', subject);
+    return { ok:false, reason:'missing-api-key' };
   }
   if (!to) {
-    console.warn('[email] Sin destinatario; no se envia. Asunto:', subject);
-    return false;
+    console.warn('[email] Sin destinatario; correo no enviado:', subject);
+    return { ok:false, reason:'missing-recipient' };
   }
 
   try {
+    const headers = {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    };
+    if (idempotencyKey) headers['Idempotency-Key'] = String(idempotencyKey).slice(0,256);
+
     const res = await fetch(RESEND_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        Authorization:  `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ from, to: [to], subject, html }),
+      method:'POST',
+      headers,
+      body:JSON.stringify({ from, to:[to], subject, html }),
     });
-
+    const payload = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const detalle = await res.text().catch(() => '');
-      console.error('[email] Resend devolvio', res.status, detalle.slice(0, 300));
-      return false;
+      console.error('[email] Resend devolvió', res.status, JSON.stringify(payload).slice(0,400));
+      return { ok:false, reason:'provider-error', status:res.status };
     }
-
-    console.log('[email] Enviado:', subject, '->', to);
-    return true;
+    console.log('[email] Enviado:', subject, '->', to, payload.id || '');
+    return { ok:true, id:payload.id || null };
   } catch (err) {
-    console.error('[email] Error de red al enviar:', err);
-    return false;
+    console.error('[email] Error de red:', err);
+    return { ok:false, reason:'network-error' };
   }
 }
 
-/** Escapa texto para incrustarlo en el HTML del correo. */
 function esc(str) {
   return String(str ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
   ));
 }
 
-/** Construye el aviso de pedido pagado que recibe la tienda. */
-function buildOrderEmail(record) {
-  const filas = (record.items || []).length
+function orderRows(record) {
+  return (record.items || []).length
     ? record.items.map(i => `
-        <tr>
-          <td style="padding:6px 0;border-bottom:1px solid #eee;">${esc(i.name)} &times;${esc(i.qty)}</td>
-          <td style="padding:6px 0;border-bottom:1px solid #eee;text-align:right;white-space:nowrap;">
-            ${(Number(i.price) * Number(i.qty)).toFixed(2)} &euro;
-          </td>
-        </tr>`).join('')
-    : '<tr><td colspan="2" style="padding:6px 0;color:#888;">Sin detalle de art&iacute;culos.</td></tr>';
+      <tr>
+        <td style="padding:9px 0;border-bottom:1px solid #eee;">${esc(i.name)} &times;${esc(i.qty)}</td>
+        <td style="padding:9px 0;border-bottom:1px solid #eee;text-align:right;white-space:nowrap;">${(Number(i.price) * Number(i.qty)).toFixed(2)} &euro;</td>
+      </tr>`).join('')
+    : '<tr><td colspan="2" style="padding:9px 0;color:#777;">Sin detalle de artículos.</td></tr>';
+}
 
-  const html = `
-    <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#222;">
-      <h2 style="margin:0 0 4px;">Nuevo pedido pagado</h2>
-      <p style="margin:0 0 18px;color:#666;font-size:14px;">Pedido ${esc(record.order)}</p>
+function shell({ eyebrow, title, intro, body, footer }) {
+  return `<!doctype html><html><body style="margin:0;background:#0b0b0b;padding:28px 12px;font-family:Arial,Helvetica,sans-serif;color:#222">
+    <div style="max-width:620px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden">
+      <div style="background:#0e0e0e;padding:24px 28px;color:#fff;border-bottom:3px solid #d4af37">
+        <div style="font-size:12px;letter-spacing:.16em;color:#d4af37;font-weight:700">${esc(eyebrow)}</div>
+        <h1 style="margin:8px 0 0;font-size:26px;line-height:1.2">${esc(title)}</h1>
+      </div>
+      <div style="padding:28px">
+        <p style="font-size:15px;line-height:1.7;color:#555;margin:0 0 22px">${intro}</p>
+        ${body}
+      </div>
+      <div style="padding:18px 28px;background:#f7f7f5;color:#666;font-size:12px;line-height:1.6">${footer}</div>
+    </div>
+  </body></html>`;
+}
 
-      <table style="width:100%;border-collapse:collapse;font-size:14px;">
-        ${filas}
-        <tr>
-          <td style="padding:10px 0;font-weight:bold;">Total</td>
-          <td style="padding:10px 0;text-align:right;font-weight:bold;">
-            ${Number(record.amount || 0).toFixed(2)} &euro;
-          </td>
-        </tr>
-      </table>
-
-      <p style="font-size:14px;line-height:1.6;margin-top:18px;">
-        <strong>Cliente:</strong> ${esc([record.cliente, record.email].filter(Boolean).join(' — ') || 'Sin datos')}<br/>
-        ${record.telefono ? `<strong>Tel&eacute;fono:</strong> ${esc(record.telefono)}<br/>` : ''}
-        <strong>Autorizaci&oacute;n:</strong> ${esc(record.authCode || '—')}<br/>
-        <strong>Fecha:</strong> ${esc(record.receivedAt || record.createdAt || '')}
-      </p>
-
-      <!-- Sin esto el pedido llega cobrado y sin saber a dónde mandarlo. Los
-           pedidos anteriores a que la dirección fuese obligatoria no la traen. -->
-      <p style="font-size:14px;line-height:1.6;margin-top:14px;">
-        <strong>Enviar a:</strong><br/>
-        ${record.envio ? esc(direccion.comoTexto(record.envio)) : 'Pedido antiguo, sin direcci&oacute;n guardada.'}
-      </p>
-    </div>`;
-
+function buildStoreOrderEmail(record) {
+  const body = `
+    <div style="padding:14px 16px;border-radius:10px;background:#fff5d8;border:1px solid #eed58b;margin-bottom:20px">
+      <strong>Estado operativo:</strong> PAGO CONFIRMADO · PENDIENTE DE PREPARAR / ENVIAR
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">${orderRows(record)}
+      <tr><td style="padding:12px 0;font-weight:bold">Total</td><td style="padding:12px 0;text-align:right;font-weight:bold">${Number(record.amount || 0).toFixed(2)} &euro;</td></tr>
+    </table>
+    <p style="font-size:14px;line-height:1.7;margin:20px 0 0">
+      <strong>Pedido:</strong> ${esc(record.order)}<br/>
+      <strong>Cliente:</strong> ${esc([record.cliente, record.email].filter(Boolean).join(' — ') || 'Sin datos')}<br/>
+      ${record.telefono ? `<strong>Teléfono:</strong> ${esc(record.telefono)}<br/>` : ''}
+      <strong>Enviar a:</strong> ${record.envio ? esc(direccion.comoTexto(record.envio)) : 'Sin dirección registrada'}<br/>
+      <strong>Autorización:</strong> ${esc(record.authCode || '—')}
+    </p>`;
   return {
-    subject: `Nuevo pedido ${record.order} — ${Number(record.amount || 0).toFixed(2)} €`,
-    html,
+    subject:`[PENDIENTE DE ENVIAR] Pedido ${record.order} — ${Number(record.amount || 0).toFixed(2)} €`,
+    html:shell({
+      eyebrow:'NUTRETIUM · PEDIDOS',
+      title:'Nuevo pedido pagado',
+      intro:'Redsys ha confirmado el pago. Este pedido necesita preparación y gestión de envío.',
+      body,
+      footer:'Nutretium · C/ La Albericia 1, Santander',
+    }),
   };
 }
 
-module.exports = { sendEmail, buildOrderEmail };
+function buildCustomerOrderEmail(record) {
+  const firstName = String(record.cliente || '').trim().split(/\s+/)[0] || 'cliente';
+  const body = `
+    <div style="padding:14px 16px;border-radius:10px;background:#eef8ef;border:1px solid #cce5cf;margin-bottom:20px">
+      <strong>Pago confirmado.</strong> Tu pedido ya está registrado y pasa a preparación.
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">${orderRows(record)}
+      <tr><td style="padding:12px 0;font-weight:bold">Total pagado</td><td style="padding:12px 0;text-align:right;font-weight:bold">${Number(record.amount || 0).toFixed(2)} &euro;</td></tr>
+    </table>
+    <p style="font-size:14px;line-height:1.7;margin:20px 0 0">
+      <strong>Número de pedido:</strong> ${esc(record.order)}<br/>
+      <strong>Dirección registrada:</strong> ${record.envio ? esc(direccion.comoTexto(record.envio)) : 'Consulta con Nutretium'}
+    </p>
+    <p style="font-size:14px;line-height:1.7;color:#555;margin:18px 0 0">Conserva este email como comprobante. Si necesitas modificar un dato o tienes una incidencia, contacta con Nutretium indicando el número de pedido.</p>`;
+  return {
+    subject:`Pedido ${record.order} confirmado · Nutretium`,
+    html:shell({
+      eyebrow:'NUTRETIUM · CONFIRMACIÓN',
+      title:`Gracias, ${firstName}`,
+      intro:'Hemos recibido correctamente tu pago y tu pedido está en marcha.',
+      body,
+      footer:'Atención Nutretium · 633 753 517 · appnutretium@gmail.com · C/ La Albericia 1, Santander',
+    }),
+  };
+}
+
+// Compatibilidad con llamadas antiguas.
+const buildOrderEmail = buildStoreOrderEmail;
+
+module.exports = { sendEmail, buildOrderEmail, buildStoreOrderEmail, buildCustomerOrderEmail };

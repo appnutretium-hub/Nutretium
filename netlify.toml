@@ -18,6 +18,7 @@
     node --check runtime-content.js &&
     node --check runtime-performance.js &&
     node --check runtime-guard.js &&
+    node --check product-pim.js &&
     node --check product-variants.js &&
     node --check producto.js &&
     node --check product-education.js &&
@@ -69,6 +70,7 @@
       'test_write.txt' \
       'Nuevo Documento de texto.txt' \
       '_backup_pre_actualizacion' \
+      'pim-audit.json' \
       'scripts' \
       '.vscode' \
       '.claude' \
@@ -157,14 +159,6 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-[[redirects]]
-  from = "/categoria/*"
-  to = "/index.html"
-  status = 200
-[[redirects]]
-  from = "/producto/*"
-  to = "/producto.html"
-  status = 200
 [[redirects]]
   from = "/ayuda"
   to = "/ayuda.html"
@@ -258,4 +252,3 @@
   from = "/.env*"
   to = "/index.html"
   status = 404
-  force = true

@@ -13,10 +13,10 @@ function permissionFor(domain, action){
   if(action==='list'||action==='get') return def.permission.replace('.manage','.read');
   return def.permission;
 }
-function authFor(event, domain, action){
+async function authFor(event, domain, action){
   let permission=permissionFor(domain,action)||'platform.read';
-  let auth=requireStaff(event,permission);
-  if(!auth.ok && permission.endsWith('.read')) auth=requireStaff(event,schema.definition(domain)?.permission||'platform.read');
+  let auth=await requireStaff(event,permission);
+  if(!auth.ok && permission.endsWith('.read')) auth=await requireStaff(event,schema.definition(domain)?.permission||'platform.read');
   return auth;
 }
 async function summary(){
@@ -70,7 +70,7 @@ exports.handler=async function(event){
   let body; try{body=JSON.parse(event.body||'{}');}catch{return response(400,{error:'JSON no válido.'});}
   const action=String(body.action||'').trim();
   if(action==='definitions'||action==='summary'||action==='audit'||action==='snapshot'){
-    const auth=requireStaff(event,action==='snapshot'?'platform.write':'platform.read'); if(!auth.ok) return response(auth.statusCode,{error:auth.error});
+    const auth=await requireStaff(event,action==='snapshot'?'platform.write':'platform.read'); if(!auth.ok) return response(auth.statusCode,{error:auth.error});
     try{
       if(action==='definitions') return response(200,{domains:Object.fromEntries(schema.domains().map(d=>[d,schema.definition(d)])),permissions:auth.role,staff:staffConfig()});
       if(action==='summary') return response(200,{summary:await summary(),role:auth.role});
@@ -81,12 +81,12 @@ exports.handler=async function(event){
   }
   if(action==='bulk-import'){
     const target=String(body.targetDomain||'');const def=schema.definition(target);if(!def)return response(400,{error:'Dominio de importación no reconocido.'});
-    const auth=authFor(event,target,'create');if(!auth.ok)return response(auth.statusCode,{error:auth.error});
+    const auth=await authFor(event,target,'create');if(!auth.ok)return response(auth.statusCode,{error:auth.error});
     try{return response(200,{records:await bulkImport(target,body.records,auth,body.reason)});}catch(err){return response(err.statusCode||500,{error:err.message,details:err.details});}
   }
   const domain=String(body.domain||'').trim(), def=schema.definition(domain);
   if(!def) return response(400,{error:'Dominio no reconocido.'});
-  const auth=authFor(event,domain,action); if(!auth.ok) return response(auth.statusCode,{error:auth.error});
+  const auth=await authFor(event,domain,action); if(!auth.ok) return response(auth.statusCode,{error:auth.error});
   try{
     if(action==='list') return response(200,{records:await store.list(domain,{includeArchived:Boolean(body.includeArchived),limit:body.limit})});
     if(action==='get'){const record=await store.get(domain,body.id);return record?response(200,{record}):response(404,{error:'Registro no encontrado.'});}

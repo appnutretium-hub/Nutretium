@@ -12,6 +12,7 @@ const scripts = [
   'trust-fixes.js',
   'commerce-pro.js',
   'final-hardening.js',
+  'commerce-suite.js',
 ];
 
 for (const src of scripts) {

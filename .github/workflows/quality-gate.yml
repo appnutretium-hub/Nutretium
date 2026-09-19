@@ -27,6 +27,7 @@ jobs:
           npm run test:pim
           npm run test:customer
           npm run test:security
+          npm run test:admin-security
           npm run test:admin
           npm run test:cuentas
       - name: Syntax hardening
@@ -35,6 +36,7 @@ jobs:
           node --check product-variants.js
           node --check producto.js
           node --check wishlist-sync.js
+          node --check staff-session-bridge.js
           node --check scripts/build-seo-pages.js
           node --check runtime-content.js
           node --check runtime-performance.js
@@ -46,6 +48,7 @@ jobs:
           node --check netlify/lib/rate-limit.js
           node --check netlify/lib/guest-access.js
           node --check netlify/lib/settings.js
+          node --check netlify/lib/audit-log.js
           node --check netlify/functions/auth.js
           node --check netlify/functions/account-security.js
           node --check netlify/functions/customer-data.js
@@ -54,6 +57,10 @@ jobs:
           node --check netlify/functions/client-error.js
           node --check netlify/functions/site-status.js
           node --check netlify/functions/site-config.js
+          node --check netlify/functions/admin-session.js
+          node --check netlify/functions/admin-audit.js
+          node --check netlify/functions/admin-orders.js
+          node --check netlify/functions/admin-catalogo.js
           node --check netlify/functions/admin-settings.js
           node --check netlify/functions/checkout.js
           node --check netlify/functions/system-health.js

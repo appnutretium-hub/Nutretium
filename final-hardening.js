@@ -45,7 +45,7 @@
     const original = paymentOverlayHTML;
     paymentOverlayHTML = function(state, order){
       let html = original(state, order);
-      html = html.replace('Te enviaremos la confirmación del pedido por email.','Puedes consultar el pedido desde tu cuenta.');
+      html = html.replace('Te enviaremos la confirmación del pedido por email.','Tu pedido ha quedado registrado. Si el servicio de correo transaccional está disponible, recibirás también una confirmación por email.');
       html = html.replace('recibirás la confirmación en breve por email.','puedes consultar el estado desde tu cuenta o contactar con Nutretium.');
       return html;
     };
@@ -58,12 +58,25 @@
     });
   }
 
+  function handleProductCartReturn(){
+    const params=new URLSearchParams(location.search);
+    if(params.get('cart')!=='1') return;
+    setTimeout(()=>{
+      try{
+        if(typeof openCart==='function') openCart();
+        document.getElementById('products')?.scrollIntoView({behavior:'smooth',block:'start'});
+        history.replaceState({},'',location.pathname + (location.hash || ''));
+      }catch(_){ /* no rompe la tienda */ }
+    },180);
+  }
+
   function init(){
     hideUnsupportedTakeaway();
     neutralizeUnsupportedPrograms();
     replaceVisibleText();
     hardenPaymentCopy();
     makeExternalLinksSafe();
+    handleProductCartReturn();
   }
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(init,80),{once:true});

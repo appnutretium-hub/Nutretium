@@ -19,4 +19,8 @@ async function consume({scope,event,extra='',limit=10,windowMs=10*60*1000}){
  }
  return{allowed:false,degraded:true,retryAfter:5};
 }
-module.exports={consume,ipOf};
+async function reset({scope,event,extra=''}){
+ const store=getBlobStore(`rate-${scope}`);if(!store)return false;
+ try{await store.delete(keyFor(scope,event,extra));return true}catch{return false}
+}
+module.exports={consume,reset,ipOf,keyFor};

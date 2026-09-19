@@ -44,6 +44,7 @@ function parseBody(event){
 
 async function sendOrderEmails(record){
   const results={ store:false, customer:false };
+  if(record.missingOrderRecord) return results;
   try {
     const storeMail=buildStoreOrderEmail(record);
     const r=await sendEmail({
@@ -55,9 +56,8 @@ async function sendOrderEmails(record){
     results.store=Boolean(r?.ok);
   } catch(err){ console.error('[Redsys-notify] Email tienda:',err); }
 
-  // Si el cobro no cuadra con el pedido esperado, no afirmamos al cliente que
-  // el pedido está en preparación: queda para revisión interna.
-  if(record.email && !record.amountMismatch){
+  // Solo se confirma al cliente cuando existe el pedido esperado y el importe cuadra.
+  if(record.email && !record.amountMismatch && !record.missingOrderRecord){
     try {
       const customerMail=buildCustomerOrderEmail(record);
       const r=await sendEmail({
@@ -113,16 +113,29 @@ exports.handler=async function(event){
     receivedAt:new Date().toISOString(),
   };
 
-  let record=resultado;
-  let store=null;
+  const store=await getStore();
+  if(!store){
+    console.error('[Redsys-notify] Store redsys-orders no disponible',order);
+    return {statusCode:503,headers:HEADERS,body:'Storage unavailable'};
+  }
+
+  let record;
   try{
-    store=await getStore();
-    if(store){
-      const previo=await store.get(order,{type:'json'}).catch(()=>null);
-      record={...(previo||{}),...resultado};
-      const esperadoCents=Math.round(Number(previo&&previo.amount)*100);
+    const previo=await store.get(order,{type:'json'}).catch(()=>null);
+    if(!previo){
+      // Una firma válida puede corresponder a un cobro real aunque falte el registro local.
+      // Nunca se pierde la evidencia del banco ni se avanza logística automáticamente.
+      record={...resultado,missingOrderRecord:true,fulfilmentStatus:authorised?'REVIEW_REQUIRED':null};
+      await store.setJSON(order,record);
+      console.error('[Redsys-notify] PEDIDO PREVIO AUSENTE',order);
+    }else{
+      record={...previo,...resultado};
+      const esperadoCents=Math.round(Number(previo.amount)*100);
       const cobradoCents=parseInt(params.Ds_Amount,10);
-      if(Number.isFinite(esperadoCents)&&esperadoCents!==cobradoCents){
+      if(!Number.isFinite(esperadoCents)||esperadoCents<=0){
+        record.amountMismatch={esperado:null,cobrado:cobradoCents/100,motivo:'importe esperado no válido'};
+        record.fulfilmentStatus='REVIEW_REQUIRED';
+      }else if(esperadoCents!==cobradoCents){
         record.amountMismatch={esperado:esperadoCents/100,cobrado:cobradoCents/100};
         record.fulfilmentStatus='REVIEW_REQUIRED';
         console.error('[Redsys-notify] IMPORTE DISTINTO',order,esperadoCents,cobradoCents);
@@ -131,9 +144,10 @@ exports.handler=async function(event){
     }
   }catch(err){
     console.error('[Redsys-notify] No se pudo persistir',order,err);
+    return {statusCode:503,headers:HEADERS,body:'Persistence failed'};
   }
 
-  if(authorised){
+  if(authorised && !record.missingOrderRecord){
     const emailResults=await sendOrderEmails(record);
     record.emailNotifications={
       ...(record.emailNotifications||{}),
@@ -141,12 +155,10 @@ exports.handler=async function(event){
       customerSent:Boolean(emailResults.customer),
       attemptedAt:new Date().toISOString(),
     };
-    if(store){
-      try{ await store.setJSON(order,record); }
-      catch(err){ console.error('[Redsys-notify] No se pudo guardar estado de emails',order,err); }
-    }
+    try{ await store.setJSON(order,record); }
+    catch(err){ console.error('[Redsys-notify] No se pudo guardar estado de emails',order,err); return {statusCode:503,headers:HEADERS,body:'Persistence failed'}; }
   }
 
-  console.log('[Redsys-notify]',JSON.stringify({order,status:record.status,fulfilmentStatus:record.fulfilmentStatus,emailNotifications:record.emailNotifications||null}));
+  console.log('[Redsys-notify]',JSON.stringify({order,status:record.status,fulfilmentStatus:record.fulfilmentStatus,missingOrderRecord:Boolean(record.missingOrderRecord),emailNotifications:record.emailNotifications||null}));
   return {statusCode:200,headers:HEADERS,body:'OK'};
 };

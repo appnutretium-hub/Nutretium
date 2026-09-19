@@ -1,199 +1,137 @@
 /**
  * netlify/functions/redsys-notify.js — NUTRETIUM
- *
- * Notificación online (servidor a servidor) de Redsys.
- *
- * Redsys hace un POST a esta URL (Ds_Merchant_MerchantURL) con el resultado
- * REAL del pago. Es la ÚNICA fuente fiable de confirmación: el redirect del
- * navegador a /pago-ok es solo estético y se puede falsear, así que el cobro
- * SOLO debe darse por bueno cuando esta función valida la firma aquí.
- *
- * Flujo de verificación (HMAC_SHA256_V1):
- *   1. Base64-decodificar Ds_MerchantParameters → JSON → obtener Ds_Order.
- *   2. Derivar clave por pedido: 3DES-CBC del nº de pedido con la clave secreta.
- *   3. HMAC-SHA256 sobre la cadena Base64 de Ds_MerchantParameters.
- *   4. Convertir a Base64 URL-safe y comparar (constant-time) con Ds_Signature.
- *
- * Variables de entorno requeridas:
- *   REDSYS_SECRET_KEY — La misma clave usada para firmar la petición.
+ * Server-to-server Redsys notification. The browser redirect is never proof of payment.
  */
-
 'use strict';
 
 const crypto = require('crypto');
-
 const HEADERS = { 'Content-Type': 'text/plain; charset=utf-8' };
-
-// ─── PERSISTENCIA (Netlify Blobs, opcional) ────────────────────────────────────
-
-const { getBlobStore }            = require('../lib/blob-store');
+const { getBlobStore } = require('../lib/blob-store');
 const { sendEmail, buildOrderEmail } = require('../lib/email');
+const enterprise = require('../lib/enterprise-store');
+const webhooks = require('../lib/webhooks');
+const SYSTEM = { email: 'system@nutretium.local', role: 'system' };
 
-async function getStore() {
-  return getBlobStore('redsys-orders');
-}
-
-// ─── CRIPTOGRAFÍA (idéntica a redsys.js) ───────────────────────────────────────
+async function getStore() { return getBlobStore('redsys-orders'); }
 
 function deriveSigningKey(secretKeyBase64, orderNumber) {
   const keyBuffer = Buffer.from(secretKeyBase64, 'base64');
-  const iv = Buffer.alloc(8, 0); // IV de 8 bytes a cero para 3DES-CBC
+  const iv = Buffer.alloc(8, 0);
   const cipher = crypto.createCipheriv('des-ede3-cbc', keyBuffer, iv);
   cipher.setAutoPadding(false);
-
   const orderBuffer = Buffer.alloc(Math.ceil(orderNumber.length / 8) * 8, 0);
   orderBuffer.write(orderNumber, 'utf8');
-
   return Buffer.concat([cipher.update(orderBuffer), cipher.final()]);
 }
-
-function hmacBase64(dataBase64, signingKey) {
-  return crypto.createHmac('sha256', signingKey).update(dataBase64).digest('base64');
-}
-
-/** Redsys firma las notificaciones en Base64 URL-safe. Normalizamos ambos lados. */
-function toBase64Url(b64) {
-  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function safeEqual(a, b) {
-  const ba = Buffer.from(String(a));
-  const bb = Buffer.from(String(b));
-  if (ba.length !== bb.length) return false;
-  return crypto.timingSafeEqual(ba, bb);
-}
-
-// ─── PARSEO DEL CUERPO ──────────────────────────────────────────────────────────
-
+function hmacBase64(dataBase64, signingKey) { return crypto.createHmac('sha256', signingKey).update(dataBase64).digest('base64'); }
+function toBase64Url(b64) { return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function safeEqual(a, b) { const ba = Buffer.from(String(a)), bb = Buffer.from(String(b)); return ba.length === bb.length && crypto.timingSafeEqual(ba, bb); }
 function parseBody(event) {
   const headers = event.headers || {};
   const ct = (headers['content-type'] || headers['Content-Type'] || '').toLowerCase();
   const raw = event.body || '';
-
-  if (ct.includes('application/json')) {
-    return JSON.parse(raw);
-  }
-  // Por defecto Redsys notifica como application/x-www-form-urlencoded.
-  // URLSearchParams decodifica el percent-encoding (%2B → "+", etc.).
+  if (ct.includes('application/json')) return JSON.parse(raw);
   const params = new URLSearchParams(raw);
   return {
-    Ds_SignatureVersion:   params.get('Ds_SignatureVersion'),
+    Ds_SignatureVersion: params.get('Ds_SignatureVersion'),
     Ds_MerchantParameters: params.get('Ds_MerchantParameters'),
-    Ds_Signature:          params.get('Ds_Signature'),
+    Ds_Signature: params.get('Ds_Signature'),
   };
 }
 
-// ─── HANDLER ──────────────────────────────────────────────────────────────────
+async function postProcess(record, wasPaidBefore) {
+  const eventName = record.status === 'PAID' ? 'order.paid' : 'order.payment_failed';
+  if (record.status === 'PAID' && !wasPaidBefore && !record.amountMismatch) {
+    try {
+      const reconciliationId = `redsys:${record.order}`;
+      const existing = await enterprise.get('reconciliation', reconciliationId).catch(() => null);
+      if (!existing) await enterprise.save('reconciliation', {
+        id: reconciliationId,
+        reference: record.order,
+        source: 'redsys',
+        status: 'matched',
+        amountCents: Math.round(Number(record.amount || 0) * 100),
+        currency: record.currency || '978',
+        authCode: record.authCode || null,
+      }, SYSTEM, { id: reconciliationId, create: true, reason: 'redsys-authorised' });
+    } catch (err) { console.error('[Redsys-notify] Conciliación enterprise pendiente:', err.message); }
+
+    try {
+      const shipmentId = `order:${record.order}`;
+      const existing = await enterprise.get('shipments', shipmentId).catch(() => null);
+      if (!existing) await enterprise.save('shipments', {
+        id: shipmentId,
+        orderId: record.order,
+        customerEmail: record.email || '',
+        address: record.envio || null,
+        status: 'pending',
+      }, SYSTEM, { id: shipmentId, create: true, reason: 'payment-confirmed' });
+    } catch (err) { console.error('[Redsys-notify] Fulfillment enterprise pendiente:', err.message); }
+  }
+  try { await webhooks.emit(eventName, { order: record.order, status: record.status, amount: record.amount, currency: record.currency }); }
+  catch (err) { console.error('[Redsys-notify] Webhook no entregado:', err.message); }
+}
 
 exports.handler = async function (event) {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: HEADERS, body: '' };
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers: HEADERS, body: 'Method Not Allowed' };
-  }
-
+  if (event.httpMethod !== 'POST') return { statusCode: 405, headers: HEADERS, body: 'Method Not Allowed' };
   const secretKey = process.env.REDSYS_SECRET_KEY;
-  if (!secretKey) {
-    console.error('[Redsys-notify] Falta REDSYS_SECRET_KEY.');
-    return { statusCode: 500, headers: HEADERS, body: 'Server misconfigured' };
-  }
+  if (!secretKey) return { statusCode: 500, headers: HEADERS, body: 'Server misconfigured' };
 
   let data;
-  try { data = parseBody(event); }
-  catch { return { statusCode: 400, headers: HEADERS, body: 'Bad body' }; }
-
+  try { data = parseBody(event); } catch { return { statusCode: 400, headers: HEADERS, body: 'Bad body' }; }
   const { Ds_MerchantParameters, Ds_Signature } = data;
-  if (!Ds_MerchantParameters || !Ds_Signature) {
-    return { statusCode: 400, headers: HEADERS, body: 'Missing parameters' };
-  }
+  if (!Ds_MerchantParameters || !Ds_Signature) return { statusCode: 400, headers: HEADERS, body: 'Missing parameters' };
 
-  // ── Decodificar parámetros ─────────────────────────────────────────────────
   let params;
-  try {
-    const json = Buffer.from(Ds_MerchantParameters, 'base64').toString('utf8');
-    params = JSON.parse(json);
-  } catch {
-    return { statusCode: 400, headers: HEADERS, body: 'Invalid parameters' };
-  }
-
+  try { params = JSON.parse(Buffer.from(Ds_MerchantParameters, 'base64').toString('utf8')); }
+  catch { return { statusCode: 400, headers: HEADERS, body: 'Invalid parameters' }; }
   const order = params.Ds_Order || params.DS_ORDER;
   if (!order) return { statusCode: 400, headers: HEADERS, body: 'Missing order' };
 
-  // ── Verificar firma ────────────────────────────────────────────────────────
   let computed;
-  try {
-    const signingKey = deriveSigningKey(secretKey, order);
-    computed = toBase64Url(hmacBase64(Ds_MerchantParameters, signingKey));
-  } catch (err) {
-    console.error('[Redsys-notify] Error verificando firma:', err);
-    return { statusCode: 500, headers: HEADERS, body: 'Signature error' };
-  }
+  try { computed = toBase64Url(hmacBase64(Ds_MerchantParameters, deriveSigningKey(secretKey, order))); }
+  catch { return { statusCode: 500, headers: HEADERS, body: 'Signature error' }; }
+  if (!safeEqual(computed, toBase64Url(Ds_Signature))) return { statusCode: 403, headers: HEADERS, body: 'Invalid signature' };
 
-  if (!safeEqual(computed, toBase64Url(Ds_Signature))) {
-    console.warn('[Redsys-notify] FIRMA INVÁLIDA — pedido', order, '(posible fraude, se ignora)');
-    return { statusCode: 403, headers: HEADERS, body: 'Invalid signature' };
-  }
-
-  // ── Interpretar resultado ──────────────────────────────────────────────────
-  // Ds_Response 0000–0099 = operación autorizada. Cualquier otro valor = denegada.
   const responseCode = parseInt(params.Ds_Response, 10);
   const authorised = Number.isInteger(responseCode) && responseCode >= 0 && responseCode <= 99;
-
-  // ── Persistir (para poder consultar el estado real del pedido) ─────────────
-  // Se FUSIONA con lo que registró redsys.js al iniciar el pago (usuario y
-  // artículos), porque la notificación no incluye esos datos.
-  const resultado = {
+  const result = {
     order,
-    amount:       Number(params.Ds_Amount) / 100,  // Redsys manda céntimos
-    currency:     params.Ds_Currency,
+    amount: Number(params.Ds_Amount) / 100,
+    currency: params.Ds_Currency,
     responseCode: params.Ds_Response,
-    authCode:     params.Ds_AuthorisationCode || null,
-    paymentType:  params.Ds_PayMethod || null,     // p.ej. "z" = Bizum
-    status:       authorised ? 'PAID' : 'FAILED',
-    receivedAt:   new Date().toISOString(),
+    authCode: params.Ds_AuthorisationCode || null,
+    paymentType: params.Ds_PayMethod || null,
+    status: authorised ? 'PAID' : 'FAILED',
+    receivedAt: new Date().toISOString(),
   };
 
-  let record = resultado;
+  let record = result, wasPaidBefore = false;
   try {
     const store = await getStore();
     if (store) {
-      const previo = await store.get(order, { type: 'json' }).catch(() => null);
-      record = { ...(previo || {}), ...resultado };
-
-      // El importe cobrado debe ser el que calculó redsys.js con los precios del
-      // catálogo. Si no cuadra, el pago es válido (Redsys lo firma) pero el pedido
-      // queda marcado para revisarlo a mano en vez de darlo por bueno en silencio.
-      const esperadoCents = Math.round(Number(previo && previo.amount) * 100);
-      const cobradoCents  = parseInt(params.Ds_Amount, 10);
-      if (Number.isFinite(esperadoCents) && esperadoCents !== cobradoCents) {
-        record.amountMismatch = { esperado: esperadoCents / 100, cobrado: cobradoCents / 100 };
-        console.error(
-          '[Redsys-notify] IMPORTE DISTINTO AL ESPERADO — pedido', order,
-          '| esperado', esperadoCents, 'céntimos | cobrado', cobradoCents, 'céntimos'
-        );
+      const previous = await store.get(order, { type: 'json' }).catch(() => null);
+      wasPaidBefore = previous && previous.status === 'PAID';
+      record = { ...(previous || {}), ...result };
+      const expectedCents = Math.round(Number(previous && previous.amount) * 100);
+      const chargedCents = parseInt(params.Ds_Amount, 10);
+      if (Number.isFinite(expectedCents) && expectedCents !== chargedCents) {
+        record.amountMismatch = { esperado: expectedCents / 100, cobrado: chargedCents / 100 };
+        console.error('[Redsys-notify] IMPORTE DISTINTO AL ESPERADO', order, expectedCents, chargedCents);
       }
-
       await store.setJSON(order, record);
     }
-  } catch (err) {
-    // No hacemos fallar la notificación por un error de almacenamiento:
-    // Redsys reintentaría y el cobro ya es válido. Solo lo registramos.
-    console.error('[Redsys-notify] No se pudo persistir el pedido', order, err);
-  }
+  } catch (err) { console.error('[Redsys-notify] No se pudo persistir el pedido', order, err); }
 
-  console.log('[Redsys-notify]', JSON.stringify({ order, status: record.status, responseCode: record.responseCode }));
-
-  // ── Avisar a la tienda por correo (solo si el pago se autorizó) ────────────
-  // Va después de persistir y nunca puede tumbar la notificación: si el correo
-  // falla, el pedido ya está guardado y sigue visible en "Mis pedidos".
-  if (authorised) {
+  if (authorised && !wasPaidBefore) {
     try {
       const { subject, html } = buildOrderEmail(record);
       await sendEmail({ to: process.env.ORDER_NOTIFICATION_EMAIL, subject, html });
-    } catch (err) {
-      console.error('[Redsys-notify] Fallo al enviar el aviso de pedido:', err);
-    }
+    } catch (err) { console.error('[Redsys-notify] Fallo aviso de pedido:', err); }
   }
-
-  // Redsys solo necesita un 200 OK para dar por entregada la notificación.
+  await postProcess(record, wasPaidBefore);
   return { statusCode: 200, headers: HEADERS, body: 'OK' };
 };
+
+exports._test = { deriveSigningKey, hmacBase64, toBase64Url, safeEqual, parseBody, postProcess };

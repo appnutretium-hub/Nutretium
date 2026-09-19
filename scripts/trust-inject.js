@@ -52,10 +52,22 @@ const localBusiness = {
 if (!html.includes('"@type":"SportingGoodsStore"')) html = html.replace('</head>', `  <script type="application/ld+json">${JSON.stringify(localBusiness)}</script>\n</head>`);
 fs.writeFileSync(file, html, 'utf8');
 
+function injectStaffBridge(filename, appScript) {
+  const target=path.join(process.cwd(),filename);if(!fs.existsSync(target))throw new Error(`Falta ${filename}`);
+  let source=fs.readFileSync(target,'utf8');
+  if(source.includes('staff-session-bridge.js'))return;
+  const needle=`<script src="${appScript}"></script>`;
+  if(!source.includes(needle))throw new Error(`No se encontró ${needle} en ${filename}`);
+  source=source.replace(needle,`<script src="/staff-session-bridge.js"></script>\n${needle}`);
+  fs.writeFileSync(target,source,'utf8');
+}
+injectStaffBridge('admin.html','admin.js');
+injectStaffBridge('backoffice.html','backoffice.js');
+
 const slugify = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const urls = new Set(['https://nutretium.com/','https://nutretium.com/ayuda','https://nutretium.com/aprende','https://nutretium.com/recomendador']);
 NUTRETIUM_CATEGORIES.forEach(c => urls.add(`https://nutretium.com/categoria/${slugify(c)}`));
 NUTRETIUM_PRODUCTS.filter(p => p.active !== false).forEach(p => urls.add(`https://nutretium.com/producto/${slugify(p.name)}-${p.id}`));
 const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...urls].map((u,i)=>`  <url><loc>${u}</loc><changefreq>${i===0?'daily':'weekly'}</changefreq><priority>${i===0?'1.0':'0.7'}</priority></url>`).join('\n')}\n</urlset>\n`;
 fs.writeFileSync(path.join(process.cwd(),'sitemap.xml'), xml, 'utf8');
-console.log(`[trust-inject] comercio + favoritos sincronizados + contenido editable + rendimiento · sitemap ${urls.size} URLs`);
+console.log(`[trust-inject] comercio + sesión interna HttpOnly + favoritos + SEO · sitemap ${urls.size} URLs`);

@@ -17,6 +17,14 @@
     return `/producto/${slugify(product.name)}-${product.id}`;
   }
 
+  function productIdFromCard(card) {
+    const fromDataset = Number(card?.dataset?.productId);
+    if (Number.isFinite(fromDataset) && fromDataset > 0) return fromDataset;
+    const source = card?.querySelector('.add-to-cart-btn[onclick*="addToCart"],.add-to-cart-btn[onclick*="openCustomModal"]');
+    const match = source?.getAttribute('onclick')?.match(/(?:addToCart|openCustomModal)\((\d+)\)/);
+    return match ? Number(match[1]) : null;
+  }
+
   function renderTrustFacts() {
     const stats = document.getElementById('statsBar');
     if (!stats) return;
@@ -24,7 +32,7 @@
     const facts = [
       ['📍', 'Tienda física', 'C/ La Albericia 1 · Santander'],
       ['💳', 'Pago bancario', 'Tarjeta mediante Redsys'],
-      ['🛍️', 'Recogida en tienda', 'Compra online y recoge en Nutretium'],
+      ['🛒', 'Compra online', 'Catálogo y pedidos desde la web'],
       ['☎️', 'Atención directa', '633 753 517'],
     ];
     facts.forEach(([icon, title, text]) => {
@@ -151,7 +159,7 @@
         <div class="nt-store-proof-copy">
           <span class="nt-franchise-eyebrow">Detrás de la web hay una tienda real</span>
           <h2>Nutretium también está en Santander</h2>
-          <p>Puedes visitarnos en C/ La Albericia 1, hablar directamente con el equipo y recoger tu pedido en tienda. La web no sustituye la atención personal: la complementa.</p>
+          <p>Puedes visitarnos en C/ La Albericia 1 y hablar directamente con el equipo. La web complementa la atención de la tienda física con catálogo, fichas y compra online.</p>
           <div class="nt-store-actions">
             <a href="#location">Ver ubicación y horario</a>
             <a href="tel:+34633753517" class="secondary">Llamar al 633 753 517</a>
@@ -161,7 +169,7 @@
           <div><strong>09:30–22:00</strong><span>Horario continuo</span></div>
           <div><strong>Redsys</strong><span>Pasarela bancaria</span></div>
           <div><strong>Santander</strong><span>Tienda física</span></div>
-          <div><strong>Recogida</strong><span>Disponible en tienda</span></div>
+          <div><strong>Online</strong><span>Catálogo y pedidos</span></div>
         </div>
       </div>`;
     products.insertAdjacentElement('afterend', section);
@@ -177,21 +185,30 @@
     footer.prepend(box);
   }
 
-  function decorateProductCards(list) {
-    const cards = [...document.querySelectorAll('#productGrid .product-card')];
-    const ordered = [...(list || PRODUCTS)].sort((a, b) => inStock(b) - inStock(a));
-    cards.forEach((card, index) => {
-      const product = ordered[index];
-      if (!product || card.querySelector('.nt-product-detail-link')) return;
-      const actions = card.querySelector('.p-5 .flex.items-center.justify-between');
-      if (!actions) return;
-      const link = document.createElement('a');
-      link.className = 'nt-product-detail-link';
-      link.href = productUrl(product);
-      link.textContent = 'Ver ficha';
-      link.setAttribute('aria-label', `Ver ficha de ${cleanText(product.name)}`);
-      const buttonWrap = actions.lastElementChild;
-      if (buttonWrap) buttonWrap.prepend(link);
+  function decorateProductCards() {
+    if (typeof PRODUCTS === 'undefined') return;
+    document.querySelectorAll('#productGrid .product-card').forEach((card) => {
+      const id = productIdFromCard(card);
+      if (!Number.isFinite(id)) return;
+      const product = PRODUCTS.find((p) => Number(p.id) === id);
+      if (!product) return;
+      card.dataset.productId = String(id);
+
+      const actionRows = [...card.querySelectorAll('.p-5 .flex.items-center.justify-between')];
+      const actions = actionRows.pop();
+      const buttonWrap = actions?.lastElementChild;
+      if (buttonWrap) {
+        let link = buttonWrap.querySelector('.nt-product-detail-link');
+        if (!link) {
+          link = document.createElement('a');
+          link.className = 'nt-product-detail-link';
+          buttonWrap.prepend(link);
+        }
+        link.dataset.productId = String(id);
+        link.href = productUrl(product);
+        link.textContent = 'Ver ficha';
+        link.setAttribute('aria-label', `Ver ficha de ${cleanText(product.name)}`);
+      }
     });
   }
 
@@ -199,12 +216,13 @@
     if (typeof renderProducts !== 'function' || renderProducts.__ntWrapped) return;
     const original = renderProducts;
     const wrapped = function (list = PRODUCTS) {
-      original(list);
-      decorateProductCards(list);
+      const result = original(list);
+      decorateProductCards();
+      return result;
     };
     wrapped.__ntWrapped = true;
     renderProducts = wrapped;
-    decorateProductCards(PRODUCTS);
+    decorateProductCards();
   }
 
   function enhanceCategoryUrls() {

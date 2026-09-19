@@ -6,7 +6,8 @@ const { verifyJWT, tokenFromHeader, secretConfigured } = require('../lib/jwt');
 const promotions = require('../lib/promotions');
 
 const CORS = cabecerasCORS('GET, POST, OPTIONS');
-const POINTS_PER_EURO = Math.max(0, Number(process.env.NUTRETIUM_POINTS_PER_EURO || 1));
+const POINTS_CONFIGURED = String(process.env.NUTRETIUM_POINTS_PER_EURO || '').trim() !== '';
+const POINTS_PER_EURO = POINTS_CONFIGURED ? Math.max(0, Number(process.env.NUTRETIUM_POINTS_PER_EURO)) : 0;
 
 function json(statusCode, payload) {
   return { statusCode, headers:CORS, body:JSON.stringify(payload) };
@@ -31,7 +32,7 @@ async function pedidosDe(email) {
 function resumenPedidos(rows) {
   const paid = rows.filter(r => r.status === 'PAID' && !r.amountMismatch);
   const spent = paid.reduce((s,r)=>s+Number(r.amount||0),0);
-  const points = Math.floor(spent * POINTS_PER_EURO);
+  const points = POINTS_CONFIGURED ? Math.floor(spent * POINTS_PER_EURO) : 0;
   const productCounts = new Map();
   paid.forEach(r => (r.items||[]).forEach(i => {
     const key = String(i.code || i.id || i.name || '');
@@ -45,7 +46,8 @@ function resumenPedidos(rows) {
     orders: paid.length,
     spent: Number(spent.toFixed(2)),
     points,
-    pointsPerEuro: POINTS_PER_EURO,
+    pointsEnabled: POINTS_CONFIGURED && POINTS_PER_EURO > 0,
+    pointsPerEuro: POINTS_CONFIGURED ? POINTS_PER_EURO : null,
     frequentProducts: [...productCounts.values()].sort((a,b)=>b.qty-a.qty).slice(0,8),
   };
 }

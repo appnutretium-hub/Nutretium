@@ -54,7 +54,6 @@
       'GUIA_ARQUITECTURA_NETLIFY.md' \
       'PROMPT_SISTEMA_CLAUDE.md.md' \
       '.env.example' \
-      'test_write.txt' \
       'Nuevo Documento de texto.txt' \
       '_backup_pre_actualizacion' \
       'scripts' \
@@ -82,6 +81,7 @@
   """
 
 [build.environment]
+  NODE_VERSION = "22"
   NPM_FLAGS = "--omit=optional"
   SECRETS_SCAN_OMIT_KEYS = "ADMIN_EMAILS"
 

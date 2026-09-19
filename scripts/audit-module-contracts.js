@@ -13,7 +13,13 @@ for (const name of REQUIRED_STAFF_EXPORTS) {
   assert.strictEqual(typeof staff[name], 'function', `netlify/lib/staff.js debe exportar ${name}()`);
 }
 
-const functionsDir = path.join(__dirname, '..', 'netlify', 'functions');
+const root = path.join(__dirname, '..');
+const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+const netlify = fs.readFileSync(path.join(root, 'netlify.toml'), 'utf8');
+assert.strictEqual(pkg.engines?.node, '>=22', 'package.json debe exigir Node >=22');
+assert(/\bNODE_VERSION\s*=\s*["']22["']/.test(netlify), 'netlify.toml debe fijar NODE_VERSION = "22"');
+
+const functionsDir = path.join(root, 'netlify', 'functions');
 const files = fs.readdirSync(functionsDir).filter(name => name.endsWith('.js')).sort();
 const errors = [];
 
@@ -53,4 +59,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(`[audit-module-contracts] OK · ${files.length} funciones revisadas · contratos de autorización coherentes`);
+console.log(`[audit-module-contracts] OK · Node 22 coherente · ${files.length} funciones revisadas · contratos de autorización coherentes`);

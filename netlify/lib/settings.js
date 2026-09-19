@@ -1,0 +1,8 @@
+'use strict';
+const {getBlobStore}=require('./blob-store');
+const STORE='commerce-settings';
+const defaults={content:{bannerEnabled:false,bannerText:''},coupons:[],points:{enabled:false,perEuro:0}};
+async function read(){const s=getBlobStore(STORE);if(!s)return structuredClone(defaults);const v=await s.get('settings',{type:'json'}).catch(()=>null);return normalize(v)}
+async function write(v){const s=getBlobStore(STORE);if(!s)throw new Error('settings store unavailable');const n=normalize(v);await s.setJSON('settings',n);return n}
+function normalize(v){const src=v&&typeof v==='object'?v:{};const content=src.content&&typeof src.content==='object'?src.content:{};const points=src.points&&typeof src.points==='object'?src.points:{};const coupons=Array.isArray(src.coupons)?src.coupons:[];return{content:{bannerEnabled:Boolean(content.bannerEnabled),bannerText:String(content.bannerText||'').trim().replace(/[<>]/g,'').slice(0,180)},points:{enabled:Boolean(points.enabled),perEuro:Math.max(0,Math.min(100,Number(points.perEuro)||0))},coupons:coupons.slice(0,100).map(c=>({code:String(c.code||'').trim().toUpperCase().replace(/[^A-Z0-9_-]/g,'').slice(0,32),type:c.type==='fixed'?'fixed':'percent',value:Math.max(0,Number(c.value)||0),valueCents:Math.max(0,Math.round(Number(c.valueCents)||0)),minCents:Math.max(0,Math.round(Number(c.minCents)||0)),maxDiscountCents:Math.max(0,Math.round(Number(c.maxDiscountCents)||0)),label:String(c.label||'').trim().replace(/[<>]/g,'').slice(0,80),active:c.active!==false})).filter(c=>c.code)}}
+module.exports={read,write,normalize,defaults};

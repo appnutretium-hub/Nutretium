@@ -1,2 +1,100 @@
 /* Nutretium staff MFA login interceptor */
-(function(){'use strict';const KEY='nutretium_user';function setup(){const forms=[document.getElementById('formAcceso'),document.getElementById('loginForm')].filter(Boolean);for(const form of forms){if(form.dataset.staffMfa)return;form.dataset.staffMfa='1';const email=form.querySelector('input[type="email"]'),password=form.querySelector('input[type="password"]');if(!email||!password)continue;let mfa=form.querySelector('#mfaCode,[data-staff-mfa]');if(!mfa){const label=document.createElement('label');label.textContent='Código MFA';mfa=document.createElement('input');mfa.type='text';mfa.inputMode='numeric';mfa.autocomplete='one-time-code';mfa.maxLength=6;mfa.placeholder='000000';mfa.dataset.staffMfa='1';label.appendChild(mfa);password.closest('label, .field')?.insertAdjacentElement('afterend',label)}form.addEventListener('submit',async event=>{event.preventDefault();event.stopImmediatePropagation();const error=form.querySelector('.error')||document.getElementById('errorAcceso')||document.getElementById('loginError');const button=form.querySelector('button[type="submit"],button:not([type])');if(error)error.textContent='';if(button)button.disabled=true;try{const r=await fetch('/.netlify/functions/staff-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email.value.trim(),password:password.value,mfaCode:mfa.value.trim()})}),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'No se pudo entrar.');localStorage.setItem(KEY,JSON.stringify(d.user));location.reload()}catch(err){if(error)error.textContent=err.message;else alert(err.message);if(button)button.disabled=false}},true)}}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup);else setup()})();
+(function () {
+  'use strict';
+
+  const KEY = 'nutretium_user';
+
+  function setup() {
+    const forms = [document.getElementById('formAcceso'), document.getElementById('loginForm')].filter(Boolean);
+
+    for (const form of forms) {
+      if (form.dataset.staffMfa) continue;
+      form.dataset.staffMfa = '1';
+
+      const email = form.querySelector('input[type="email"]');
+      const password = form.querySelector('input[type="password"]');
+      if (!email || !password) continue;
+
+      let mfa = form.querySelector('#mfaCode,[data-staff-mfa]');
+      let mfaLabel = mfa ? mfa.closest('label') : null;
+
+      if (!mfa) {
+        mfaLabel = document.createElement('label');
+        mfaLabel.textContent = 'Código MFA';
+        mfa = document.createElement('input');
+        mfa.id = 'mfaCode';
+        mfa.type = 'text';
+        mfa.inputMode = 'numeric';
+        mfa.autocomplete = 'one-time-code';
+        mfa.maxLength = 6;
+        mfa.pattern = '[0-9]{6}';
+        mfa.placeholder = '000000';
+        mfa.dataset.staffMfa = '1';
+        mfaLabel.appendChild(mfa);
+        password.closest('label, .field')?.insertAdjacentElement('afterend', mfaLabel);
+      }
+
+      // MFA se oculta inicialmente. Solo aparece cuando el backend confirma
+      // que la cuenta realmente tiene la política MFA activa.
+      if (mfaLabel) mfaLabel.hidden = true;
+      mfa.required = false;
+
+      form.addEventListener(
+        'submit',
+        async event => {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+
+          const error =
+            form.querySelector('.error') ||
+            document.getElementById('errorAcceso') ||
+            document.getElementById('loginError');
+          const button = form.querySelector('button[type="submit"],button:not([type])');
+
+          if (error) error.textContent = '';
+          if (button) button.disabled = true;
+
+          try {
+            const response = await fetch('/.netlify/functions/staff-login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: email.value.trim(),
+                password: password.value,
+                mfaCode: mfa.value.trim(),
+              }),
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+              if (data.mfaRequired) {
+                if (mfaLabel) mfaLabel.hidden = false;
+                mfa.required = true;
+                mfa.focus();
+              }
+
+              if (data.mfaSetupRequired) {
+                if (mfaLabel) mfaLabel.hidden = true;
+                mfa.required = false;
+              }
+
+              throw new Error(data.error || 'No se pudo entrar.');
+            }
+
+            localStorage.setItem(KEY, JSON.stringify(data.user));
+            location.reload();
+          } catch (err) {
+            if (error) error.textContent = err.message;
+            else alert(err.message);
+            if (button) button.disabled = false;
+          }
+        },
+        true
+      );
+    }
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup);
+  else setup();
+})();

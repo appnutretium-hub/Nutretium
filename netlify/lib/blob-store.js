@@ -1,44 +1,22 @@
-/**
- * netlify/lib/blob-store.js — NUTRETIUM
- *
- * Acceso centralizado a Netlify Blobs.
- *
- * El runtime de funciones de este sitio NO inyecta NETLIFY_BLOBS_CONTEXT, así
- * que getStore('nombre') no puede autoconfigurarse y falla con:
- *   "The environment has not been configured to use Netlify Blobs"
- *
- * Por eso pasamos las credenciales explícitamente:
- *   SITE_ID           — la inyecta Netlify automáticamente
- *   NETLIFY_API_TOKEN — Personal Access Token, en variables de entorno del sitio
- *
- * Si algún día Netlify empieza a inyectar el contexto, el modo automático
- * sigue funcionando como respaldo sin tocar nada.
- *
- * Vive fuera de netlify/functions/ a propósito: cualquier .js dentro de esa
- * carpeta se publicaría como un endpoint.
- */
-
+/** Acceso centralizado a Netlify Blobs. */
 'use strict';
-
-/**
- * Devuelve un store de Blobs listo para usar, o null si no está disponible
- * (por ejemplo en desarrollo local sin `netlify dev`). Quien llame debe
- * comprobar el null y degradar con elegancia.
- *
- * @param {string} name Nombre del store (p. ej. "users", "redsys-orders")
- * @returns {object|null}
- */
-function getBlobStore(name) {
-  try {
-    const { getStore } = require('@netlify/blobs');
-    const siteID = process.env.SITE_ID;
-    const token  = process.env.NETLIFY_API_TOKEN;
-
-    if (siteID && token) return getStore({ name, siteID, token });
-    return getStore(name);
-  } catch {
-    return null;
-  }
+function memoryStore(name){
+  const root=globalThis.__NUTRETIUM_TEST_BLOBS__||(globalThis.__NUTRETIUM_TEST_BLOBS__=new Map());
+  if(!root.has(name))root.set(name,new Map());const map=root.get(name);
+  return{
+    async get(key,opts={}){const v=map.get(String(key));if(v===undefined)return null;if(opts.type==='json')return JSON.parse(JSON.stringify(v));return typeof v==='string'?v:JSON.stringify(v)},
+    async setJSON(key,value){map.set(String(key),JSON.parse(JSON.stringify(value)))},
+    async set(key,value){map.set(String(key),value)},
+    async delete(key){map.delete(String(key))},
+    async list(){return{blobs:[...map.keys()].map(key=>({key}))}}
+  };
 }
-
-module.exports = { getBlobStore };
+function getBlobStore(name){
+  if(process.env.NUTRETIUM_TEST_MEMORY_BLOBS==='true')return memoryStore(name);
+  try{
+    const{getStore}=require('@netlify/blobs');const siteID=process.env.SITE_ID,token=process.env.NETLIFY_API_TOKEN;
+    if(siteID&&token)return getStore({name,siteID,token});
+    return getStore(name);
+  }catch{return null}
+}
+module.exports={getBlobStore};

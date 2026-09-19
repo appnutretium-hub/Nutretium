@@ -29,7 +29,19 @@ html = html
   .replaceAll('Primera evaluación gratuita · Respuesta en menos de 24 h', 'El equipo confirmará disponibilidad y condiciones del servicio.')
   .replaceAll('Pide online y recoge en tienda en minutos. Batidos recién preparados, snacks proteicos y productos listos para llevar, sin esperas ni colas.', 'Consulta directamente con Nutretium la carta y disponibilidad actual de productos preparados.')
   .replaceAll('Pedido listo en 15 minutos', 'Disponibilidad sujeta a confirmación')
-  .replaceAll('Paga online o al recoger', 'Condiciones de pago según el pedido confirmado');
+  .replaceAll('Paga online o al recoger', 'Condiciones de pago según el pedido confirmado')
+  .replaceAll('Ingredientes de grado farmacéutico', 'Catálogo de nutrición deportiva y alimentación saludable')
+  .replaceAll('Sin aditivos artificiales innecesarios', 'Consulta ingredientes y alérgenos en la ficha y etiquetado de cada producto')
+  .replaceAll('Testado por terceros (Informed Sport)', 'Información de producto basada en la documentación disponible')
+  .replaceAll('Pago 100% seguro con Redsys', 'Pago con tarjeta mediante Redsys')
+  .replaceAll('>ISO</p>', '>CATÁLOGO</p>')
+  .replaceAll('Certificación 22000', 'Información de producto')
+  .replaceAll('>GMP</p>', '>FICHAS</p>')
+  .replaceAll('Buenas prácticas', 'Datos y etiquetado')
+  .replaceAll('>SSL</p>', '>REDSYS</p>')
+  .replaceAll('Pago cifrado', 'Pasarela bancaria')
+  .replaceAll('>30d</p>', '>AYUDA</p>')
+  .replaceAll('Garantía total', 'Atención y soporte');
 
 const localBusiness = {
   '@context':'https://schema.org','@type':'SportingGoodsStore',name:'Nutretium',url:'https://nutretium.com/',telephone:'+34633753517',

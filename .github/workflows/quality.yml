@@ -1,9 +1,12 @@
 name: Nutretium Build & Enterprise Gate
 on:
   push:
-    branches: [main, 'feature/**', 'hotfix/**']
+    branches: [main, 'feature/**', 'hotfix/**', 'hardening/**', 'final-**']
   pull_request:
     branches: [main]
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:

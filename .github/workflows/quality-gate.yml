@@ -22,7 +22,7 @@ jobs:
       - name: Core tests
         run: |
           npm test
-          npm run test:redsys
+          NUTRETIUM_TEST_MEMORY_BLOBS=true npm run test:redsys
           npm run test:catalogo
           npm run test:admin
           npm run test:cuentas

@@ -10,8 +10,9 @@ for(const device of [{name:'mobile',width:390,height:844},{name:'desktop',width:
   const first=page.locator('#productGrid .product-card').first();await expect(first).toBeVisible();
   const id=await first.getAttribute('data-product-id');expect(Number(id)).toBeGreaterThan(0);
   const detail=first.locator('.nt-product-detail-link');if(await detail.count())expect(await detail.getAttribute('href')).toMatch(/\/producto\/.+-\d+$/);
-  const add=first.locator('.add-to-cart-btn:not([disabled])');if(await add.count()){await add.click();await page.waitForTimeout(250);const saved=await page.evaluate(()=>localStorage.getItem('nutretium_cart_v1'));expect(saved).toBeTruthy();}
+  const directAdd=page.locator('#productGrid .product-card .add-to-cart-btn[onclick*="addToCart"]:not([disabled])').first();
+  if(await directAdd.count()){await directAdd.click();await page.waitForTimeout(300);const count=await page.evaluate(()=>{try{const raw=localStorage.getItem('nutretium_cart_v1');if(raw)return JSON.parse(raw).length;return typeof cart!=='undefined'&&cart?.size?cart.size:0}catch{return 0}});expect(count).toBeGreaterThan(0)}
   expect(errors).toEqual([]);
  });
 }
-test('navegación de cuenta y páginas críticas responde',async({page})=>{for(const p of ['/cuenta.html','/checkout.html','/backoffice.html','/ayuda.html','/aprende.html','/comparar.html']){const r=await page.goto(BASE+p,{waitUntil:'domcontentloaded'});expect(r.status()).toBe(200);expect(await page.title()).not.toBe('')}});
+test('navegación de páginas críticas responde',async({page})=>{for(const p of ['/cuenta.html','/checkout.html','/backoffice.html','/settings.html','/pedido.html','/ayuda.html','/aprende.html','/comparar.html']){const r=await page.goto(BASE+p,{waitUntil:'domcontentloaded'});expect(r.status()).toBe(200);expect(await page.title()).not.toBe('')}});

@@ -14,6 +14,8 @@
     node --check commercial-finish.js &&
     node --check compare-suite.js &&
     node --check pro-qa-fixes.js &&
+    node --check production-finish.js &&
+    node --check mobile-commerce-pro.js &&
     node --check product-variants.js &&
     node --check producto.js &&
     node --check product-education.js &&
@@ -34,6 +36,7 @@
     node --check netlify/functions/admin-analytics.js &&
     node --check netlify/functions/system-health.js &&
     node --check netlify/functions/admin-orders.js &&
+    node --check netlify/functions/contact.js &&
     node scripts/smoke-web.js &&
     node scripts/audit-architecture.js &&
     rm -rf \

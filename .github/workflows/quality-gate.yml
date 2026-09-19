@@ -26,6 +26,7 @@ jobs:
           npm run test:catalogo
           npm run test:pim
           npm run test:customer
+          npm run test:security
           npm run test:admin
           npm run test:cuentas
       - name: Syntax hardening
@@ -41,9 +42,11 @@ jobs:
           node --check cuenta.js
           node --check pedido.js
           node --check settings.js
+          node --check netlify/lib/usuarios.js
           node --check netlify/lib/rate-limit.js
           node --check netlify/lib/guest-access.js
           node --check netlify/lib/settings.js
+          node --check netlify/functions/auth.js
           node --check netlify/functions/account-security.js
           node --check netlify/functions/customer-data.js
           node --check netlify/functions/post-sale.js

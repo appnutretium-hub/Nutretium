@@ -17,7 +17,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --omit=optional
-      - name: Build
+      - name: Build CSS
         run: npm run build:css
       - name: Core tests
         run: |
@@ -28,17 +28,31 @@ jobs:
           npm run test:cuentas
       - name: Syntax hardening
         run: |
+          node --check runtime-content.js
+          node --check runtime-performance.js
           node --check runtime-guard.js
           node --check cuenta.js
           node --check pedido.js
+          node --check settings.js
           node --check netlify/lib/rate-limit.js
           node --check netlify/lib/guest-access.js
+          node --check netlify/lib/settings.js
           node --check netlify/functions/account-security.js
           node --check netlify/functions/guest-order.js
           node --check netlify/functions/client-error.js
           node --check netlify/functions/site-status.js
+          node --check netlify/functions/site-config.js
+          node --check netlify/functions/admin-settings.js
           node --check netlify/functions/checkout.js
           node --check netlify/functions/system-health.js
+      - name: Architecture and security audits
+        run: |
+          node scripts/audit-architecture.js
+          node scripts/security-audit.js
+      - name: Build final HTML trust audit
+        run: |
+          node scripts/trust-inject.js
+          node scripts/build-trust-audit.js
       - name: Install Playwright test runner
         run: npm install --no-save --no-package-lock @playwright/test@1.55.0
       - name: Install Chromium

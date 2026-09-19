@@ -55,7 +55,6 @@ async function postProcess(record, wasPaidBefore) {
         authCode: record.authCode || null,
       }, SYSTEM, { id: reconciliationId, create: true, reason: 'redsys-authorised' });
     } catch (err) { console.error('[Redsys-notify] Conciliación enterprise pendiente:', err.message); }
-
     try {
       const shipmentId = `order:${record.order}`;
       const existing = await enterprise.get('shipments', shipmentId).catch(() => null);
@@ -77,18 +76,15 @@ exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers: HEADERS, body: 'Method Not Allowed' };
   const secretKey = process.env.REDSYS_SECRET_KEY;
   if (!secretKey) return { statusCode: 500, headers: HEADERS, body: 'Server misconfigured' };
-
   let data;
   try { data = parseBody(event); } catch { return { statusCode: 400, headers: HEADERS, body: 'Bad body' }; }
   const { Ds_MerchantParameters, Ds_Signature } = data;
   if (!Ds_MerchantParameters || !Ds_Signature) return { statusCode: 400, headers: HEADERS, body: 'Missing parameters' };
-
   let params;
   try { params = JSON.parse(Buffer.from(Ds_MerchantParameters, 'base64').toString('utf8')); }
   catch { return { statusCode: 400, headers: HEADERS, body: 'Invalid parameters' }; }
   const order = params.Ds_Order || params.DS_ORDER;
   if (!order) return { statusCode: 400, headers: HEADERS, body: 'Missing order' };
-
   let computed;
   try { computed = toBase64Url(hmacBase64(Ds_MerchantParameters, deriveSigningKey(secretKey, order))); }
   catch { return { statusCode: 500, headers: HEADERS, body: 'Signature error' }; }
@@ -123,6 +119,8 @@ exports.handler = async function (event) {
       await store.setJSON(order, record);
     }
   } catch (err) { console.error('[Redsys-notify] No se pudo persistir el pedido', order, err); }
+
+  console.log('[Redsys-notify]', JSON.stringify({ order, status: record.status, responseCode: record.responseCode }));
 
   if (authorised && !wasPaidBefore) {
     try {

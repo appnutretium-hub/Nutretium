@@ -1,9 +1,12 @@
 name: Nutretium Full Quality Gate
 on:
   push:
-    branches: [main, 'feature/**', 'hotfix/**', 'final-**']
+    branches: [main, 'feature/**', 'hotfix/**', 'hardening/**', 'final-**']
   pull_request:
     branches: [main]
+concurrency:
+  group: full-quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -52,7 +55,9 @@ jobs:
           node --check netlify/lib/guest-access.js
           node --check netlify/lib/settings.js
           node --check netlify/lib/audit-log.js
+          node --check netlify/lib/enterprise-store.js
           node --check netlify/functions/auth.js
+          node --check netlify/functions/staff-login.js
           node --check netlify/functions/account-security.js
           node --check netlify/functions/customer-data.js
           node --check netlify/functions/post-sale.js
@@ -69,6 +74,8 @@ jobs:
           node --check netlify/functions/catalog-quality.js
           node --check netlify/functions/checkout.js
           node --check netlify/functions/system-health.js
+          node --check netlify/functions/platform-backup.js
+          node --check netlify/functions/platform-restore.js
       - name: Architecture and security audits
         run: |
           node scripts/audit-architecture.js

@@ -8,7 +8,7 @@ const usuarios=require('../lib/usuarios');
 const direccion=require('../lib/direccion');
 const {consume,reset}=require('../lib/rate-limit');
 const CORS=cabecerasCORS('POST, GET, OPTIONS');
-const readUser=usuarios.lee,writeUser=usuarios.escribe;
+const readUser=usuarios.lee;
 const MAX_NOMBRE=60,MAX_TELEFONO=20,TELEFONO_VALIDO=/^[0-9 +().-]*$/;
 const MAX_INTENTOS=5,VENTANA_MS=15*60*1000;
 function hashPassword(password){const salt=crypto.randomBytes(16).toString('hex');const hash=crypto.pbkdf2Sync(password,salt,100_000,64,'sha512').toString('hex');return`${salt}:${hash}`}
@@ -25,8 +25,9 @@ exports.handler=async function(event){
   const{name,surname='',email,password,phone=''}=body;if(!name||!email||!password)return response(400,{error:'Nombre, email y contraseña son obligatorios.'});if(password.length<8)return response(400,{error:'La contraseña debe tener al menos 8 caracteres.'});
   const ficha={name:name.trim(),surname:surname.trim(),phone:phone.trim()},problemaFicha=revisaFicha(ficha);if(problemaFicha)return response(400,{error:problemaFicha});
   const dir=direccion.normaliza(body.direccion),problemaDir=direccion.revisa(dir);if(problemaDir)return response(400,{error:problemaDir});
-  const emailLower=email.toLowerCase().trim();if(await readUser(emailLower))return response(409,{error:'Ya existe una cuenta con ese email.'});
-  const id=crypto.randomUUID(),user={id,name:ficha.name,surname:ficha.surname,email:emailLower,phone:ficha.phone,direccion:dir,passwordHash:hashPassword(password),createdAt:new Date().toISOString()};await writeUser(emailLower,user);
+  const emailLower=email.toLowerCase().trim(),id=crypto.randomUUID(),user={id,name:ficha.name,surname:ficha.surname,email:emailLower,phone:ficha.phone,direccion:dir,passwordHash:hashPassword(password),createdAt:new Date().toISOString()};
+  let created;try{created=await usuarios.crea(emailLower,user)}catch{return response(503,{error:'No se ha podido crear la cuenta en este momento.'})}
+  if(!created)return response(409,{error:'Ya existe una cuenta con ese email.'});
   const token=signJWT({sub:id,email:emailLower,exp:Math.floor(Date.now()/1000)+60*60*24*30});return response(201,{user:fichaPublica(user,{token})});
  }
  if(body.action==='login'){
@@ -41,10 +42,11 @@ exports.handler=async function(event){
   if(!body.token)return response(401,{error:'Token requerido.'});let verified;try{verified=await verifyUserToken(body.token,{requireUser:false})}catch{return response(401,{error:'Token inválido, revocado o expirado.'})}if(!verified.user)return response(404,{error:'Usuario no encontrado.'});return response(200,{user:fichaPublica(verified.user)});
  }
  if(body.action==='update'){
-  if(!body.token)return response(401,{error:'Token requerido.'});let verified;try{verified=await verifyUserToken(body.token,{requireUser:false})}catch{return response(401,{error:'Token inválido, revocado o expirado.'})}if(!verified.user)return response(404,{error:'Usuario no encontrado.'});const user=verified.user;
+  if(!body.token)return response(401,{error:'Token requerido.'});let verified;try{verified=await verifyUserToken(body.token,{requireUser:false})}catch{return response(401,{error:'Token inválido, revocado o expirado.'})}if(!verified.user)return response(404,{error:'Usuario no encontrado.'});
   const ficha={name:String(body.name||'').trim(),surname:String(body.surname||'').trim(),phone:String(body.phone||'').trim()},problema=revisaFicha(ficha);if(problema)return response(400,{error:problema});
-  let dir=direccion.normaliza(user.direccion);if(body.direccion!==undefined){dir=direccion.normaliza(body.direccion);const problemaDir=direccion.revisa(dir);if(problemaDir)return response(400,{error:problemaDir})}
-  const actualizado={...user,name:ficha.name,surname:ficha.surname,phone:ficha.phone,direccion:dir,updatedAt:new Date().toISOString()};await writeUser(verified.email,actualizado);return response(200,{user:fichaPublica(actualizado)});
+  let requestedDir=null;if(body.direccion!==undefined){requestedDir=direccion.normaliza(body.direccion);const problemaDir=direccion.revisa(requestedDir);if(problemaDir)return response(400,{error:problemaDir})}
+  let actualizado;try{actualizado=await usuarios.muta(verified.email,current=>({...current,name:ficha.name,surname:ficha.surname,phone:ficha.phone,direccion:requestedDir||direccion.normaliza(current.direccion),updatedAt:new Date().toISOString()}))}catch{return response(409,{error:'Tu perfil cambió al mismo tiempo desde otra sesión. Inténtalo de nuevo.'})}
+  if(!actualizado)return response(404,{error:'Usuario no encontrado.'});return response(200,{user:fichaPublica(actualizado)});
  }
  return response(400,{error:'Acción no reconocida.'});
 };

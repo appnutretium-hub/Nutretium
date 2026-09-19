@@ -39,9 +39,12 @@ if (!failures.length) {
   if (!(product.includes('CART_KEY') || (commerceCore.includes("params.get('add')") && commerceCore.includes("params.get('qty')")))) failures.push('Ficha producto sin contrato de carrito');
 
   const variants = read('product-variants.js');
-  ['NUTRETIUM_VARIANTS','family(product','factualDescription'].forEach(token => {
+  ['NUTRETIUM_VARIANTS','factualDescription'].forEach(token => {
     if (!variants.includes(token)) failures.push(`Variantes incompletas: ${token}`);
   });
+  if (!(variants.includes('family(product') || variants.includes('family: pim.family'))) {
+    failures.push('Variantes incompletas: resolución de familia');
+  }
 
   const netlify = read('netlify.toml');
   if (!netlify.includes('from = "/producto/*"')) failures.push('Falta ruta limpia /producto/*');

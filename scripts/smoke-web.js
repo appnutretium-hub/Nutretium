@@ -7,7 +7,7 @@ const root = process.cwd();
 const requiredFiles = [
   'index.html','app.js','products-data.js','styles.css','trust-fixes.js',
   'franchise-trust.js','commerce-pro.js','final-hardening.js','producto.html','producto.js',
-  'product-variants.js','ayuda.html','netlify.toml','netlify/functions/redsys-notify.js','netlify/lib/email.js'
+  'product-variants.js','enterprise-storefront.js','ayuda.html','netlify.toml','netlify/functions/redsys-notify.js','netlify/lib/email.js'
 ];
 
 const failures = [];
@@ -31,10 +31,12 @@ if (!failures.length) {
 
   const product = read('producto.js');
   if (!product.includes('window.NUTRETIUM_PRODUCTS')) failures.push('Ficha producto no usa catálogo real');
-  if (!product.includes('filter(p => p.active !== false)')) failures.push('Ficha producto no filtra retirados');
-  ['variantSelectorHtml','qtyInput','addSelectedToCart','CART_KEY'].forEach(token => {
-    if (!product.includes(token)) failures.push(`Ficha producto incompleta: ${token}`);
-  });
+  if (!/filter\s*\(\s*p\s*=>\s*p\.active\s*!==\s*false\s*\)/.test(product)) failures.push('Ficha producto no filtra retirados');
+  if (!(product.includes('variantSelectorHtml') || (product.includes('loadOptions') && product.includes('product-options')))) failures.push('Ficha producto sin selector de variantes');
+  if (!(product.includes('qtyInput') || (product.includes('qtyValue') && product.includes('qtyMinus') && product.includes('qtyPlus')))) failures.push('Ficha producto sin selector de cantidad');
+  if (!(product.includes('addSelectedToCart') || (product.includes('addButton') && product.includes('/?add=')))) failures.push('Ficha producto sin alta de carrito');
+  const storefront = read('enterprise-storefront.js');
+  if (!(product.includes('CART_KEY') || (storefront.includes("params.get('add')") && storefront.includes("params.get('qty')")))) failures.push('Ficha producto sin contrato de carrito');
 
   const variants = read('product-variants.js');
   ['NUTRETIUM_VARIANTS','family(product','factualDescription'].forEach(token => {

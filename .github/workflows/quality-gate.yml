@@ -1,4 +1,4 @@
-name: Nutretium Quality Gate
+name: Nutretium Full Quality Gate
 on:
   push:
     branches: [main, 'feature/**', 'hotfix/**', 'final-**']
@@ -12,6 +12,8 @@ jobs:
     timeout-minutes: 18
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -30,6 +32,7 @@ jobs:
           npm run test:admin-security
           npm run test:admin
           npm run test:cuentas
+          npm run test:contracts
       - name: Syntax hardening
         run: |
           node --check product-pim.js
@@ -62,6 +65,8 @@ jobs:
           node --check netlify/functions/admin-orders.js
           node --check netlify/functions/admin-catalogo.js
           node --check netlify/functions/admin-settings.js
+          node --check netlify/functions/admin-status.js
+          node --check netlify/functions/catalog-quality.js
           node --check netlify/functions/checkout.js
           node --check netlify/functions/system-health.js
       - name: Architecture and security audits

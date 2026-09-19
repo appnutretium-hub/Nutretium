@@ -21,7 +21,7 @@ async function shipment(id) {
 exports.handler = async function (event) {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
   if (event.httpMethod !== 'POST') return response(405, { error: 'Method Not Allowed' });
-  const auth = requireStaff(event, 'shipping.manage');
+  const auth = await requireStaff(event, 'shipping.manage');
   if (!auth.ok) return response(auth.statusCode, { error: auth.error });
   let body;
   try { body = JSON.parse(event.body || '{}'); } catch { return response(400, { error: 'JSON no válido.' }); }

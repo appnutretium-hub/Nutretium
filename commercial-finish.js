@@ -7,6 +7,11 @@ const SESSION='nutretium_user';
 const esc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const session=()=>{try{return JSON.parse(localStorage.getItem(SESSION)||'null')}catch{return null}};
 
+function ensureStyle(){
+  if(document.querySelector('link[href="/commercial-finish.css"]'))return;
+  const link=document.createElement('link');link.rel='stylesheet';link.href='/commercial-finish.css';document.head.appendChild(link);
+}
+
 function replaceVisible(from,to){
   const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
   const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
@@ -14,7 +19,6 @@ function replaceVisible(from,to){
 }
 
 function removeTemplateNoise(){
-  // Un ecommerce de suplementación no necesita una radio embebida ni claims sin soporte.
   document.querySelectorAll('section').forEach(section=>{
     const t=(section.textContent||'').replace(/\s+/g,' ').trim();
     if(t.includes('Hilo musical')||t.includes('Los 40 Principales')) section.remove();
@@ -108,7 +112,7 @@ function addHumanProof(){
 }
 
 function init(){
-  removeTemplateNoise();updateLoyaltyCopy();installVerifiedReviews();addEditorialLearning();addDesktopLinks();addMobileDock();addCommercialHeroCTA();addHumanProof();
+  ensureStyle();removeTemplateNoise();updateLoyaltyCopy();installVerifiedReviews();addEditorialLearning();addDesktopLinks();addMobileDock();addCommercialHeroCTA();addHumanProof();
   try{if(typeof renderReviews==='function')renderReviews()}catch(_){ }
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,140),{once:true});else setTimeout(init,140);

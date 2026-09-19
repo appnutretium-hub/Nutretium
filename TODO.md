@@ -1,182 +1,100 @@
-# TODO
+# TODO — estado real de cierre
 
-Pendientes de la web. Lo del TPV y el pase a real va aparte, en
-`PRUEBAS_REDSYS.md`.
+Documento actualizado tras el hardening final. Los puntos de código que ya están implementados no se vuelven a listar como pendientes.
 
-Para cambiar precios, fotos, altas y bajas del catálogo no hace falta tocar
-código: la tienda lo hace en `/admin.html` con su cuenta de administrador, y
-aquí están `npm run panel` y el Excel. Instrucciones para el cliente en
-`sources/_catalogo/LEEME.md`; el porqué, en `AUDITORIA_CATALOGO.md` §§ 11 y 12.
+## Código y CI — HECHO
 
-**El panel online no funciona hasta configurar `ADMIN_EMAILS` y `GITHUB_TOKEN`
-en Netlify y redesplegar** (`DESPLIEGUE.md` § 1). Hasta entonces responde 503.
+- Checkout con revaloración en servidor, persistencia obligatoria e idempotencia.
+- Redsys con callback firmado como fuente de verdad de pago.
+- Separación entre estado de pago y fulfilment.
+- Back Office, tracking, cuenta cliente, recompra, carrito guardado y favoritos.
+- Cambio y recuperación de contraseña, verificación de email y revocación de sesiones.
+- Seguimiento seguro para pedidos de invitado.
+- Rate limiting en endpoints sensibles.
+- Auditoría de arquitectura, seguridad, trust/claims y pruebas E2E de navegador.
+- Quality Gates de GitHub para build y navegador.
+- Node 22 alineado entre CI y Netlify.
+- Points fail-closed y activación explícita.
+- Cupones y promociones sin valores inventados.
+- Envíos fail-closed hasta tener configuración comercial real.
+- Modo mantenimiento, health check y logging de errores de cliente.
 
----
+## Pendientes EXTERNOS / NO VALIDABLES DESDE EL REPOSITORIO
 
-## 1. ~~Los botones de sesión no desaparecen al iniciar sesión~~ — ARREGLADO 22/08/2026
+Estos puntos no deben marcarse como resueltos sin evidencia real del servicio o del negocio.
 
-**Síntoma.** Con la sesión iniciada se ven a la vez «Iniciar sesión»,
-«Registrarse» **y** el menú del usuario («Miguel»). Debería quedar solo el menú
-del usuario, con «Cerrar sesión» dentro.
+### 1. Netlify producción
 
-**Causa — localizada.** En `app.js`, `updateAuthUI()` oculta el bloque así:
+Confirmar que `nutretium.com` sirve exactamente el SHA de `main` que haya superado los dos Quality Gates.
 
-```js
-authButtons.classList.add('hidden');
-```
+### 2. Variables privadas de producción
 
-Pero en `index.html` ese bloque es:
+Configurar y validar en Netlify, sin exponer valores:
 
-```html
-<div id="authButtons" class="hidden lg:flex items-center gap-2">
-```
+- `JWT_SECRET`
+- `ADMIN_EMAILS`
+- `GITHUB_TOKEN`
+- `NETLIFY_API_TOKEN`
+- `REDSYS_SECRET_KEY`
+- `REDSYS_MERCHANT_CODE`
+- `REDSYS_ENV=production`
+- `COMMERCE_LIVE=true` SOLO después de la prueba bancaria real
+- `RESEND_API_KEY`
+- `ORDER_NOTIFICATION_EMAIL`
+- `ORDER_EMAIL_FROM` con dominio verificado
+- variables de envío si se habilita delivery
 
-`hidden` y `lg:flex` tienen la misma especificidad, y en `styles.css` compilado
-el bloque `@media (min-width:1024px){...}` con `.lg\:flex{display:flex}` va **al
-final del archivo**, después de `.hidden{display:none}`. Gana el último: en
-escritorio (≥1024 px) añadir `hidden` no hace nada.
+`/.netlify/functions/system-health` debe quedar con `ready:true` antes de considerar la tienda preparada para cobro real.
 
-Encaja con el síntoma: **en móvil funciona, en escritorio no.**
+### 3. Administrador privado
 
-**Arreglo aplicado.** En `updateAuthUI()` de `app.js`: `hidden` se deja SIEMPRE puesto
-(por debajo de 1024 px estos botones no salen nunca, ahí manda el menú móvil) y
-lo que se conmuta es `lg:flex`.
+`ADMIN_EMAILS` no puede coincidir con el correo público de contacto. Crear/usar una cuenta privada de administración y comprobar que la cuenta pública no tiene privilegios.
 
-Verificado en el navegador a 1280 px y a 375 px, en los tres estados: sin sesión,
-con sesión y tras cerrar sesión. Repasado el resto del `index.html`: `authButtons`
-era el único elemento que se oculta por JS y lleva una clase de display con
-prefijo responsive, así que no hay más casos.
+Cuando eso esté verificado, retirar `SECRETS_SCAN_OMIT_KEYS = "ADMIN_EMAILS"` de `netlify.toml` y volver a desplegar para que el escáner de secretos actúe sin excepciones.
 
----
+### 4. Redsys real
 
-## 2. ~~La radio y el botón de dejar reseña no responden~~ — HIPÓTESIS DESCARTADA 30/08/2026
+Ejecutar una compra real de importe bajo y comprobar de extremo a extremo:
 
-**La causa que se sospechaba no era.** Comprobado en producción el 30/08/2026:
-los `onclick` en línea **sí se ejecutan** en `nutretium.com` (se disparó el botón
-de Filtros y abrió su panel), y la CSP que sirve Netlify es exactamente la de
-`netlify.toml`, con `'unsafe-inline'` y sin ningún `nonce` que lo anulara. El
-`app.js` desplegado es byte a byte el del repositorio.
+1. checkout;
+2. redirección a Redsys producción;
+3. autorización bancaria;
+4. callback firmado;
+5. pedido `PAID`;
+6. persistencia en Blobs;
+7. email de pedido;
+8. pedido visible en Back Office.
 
-Así que si la radio o el botón de reseñas siguen sin responder, **no es el CSP**:
-hay que abrir la consola en el momento del fallo y mirar el error concreto. La
-radio tira de `streamtheworld.com` (podría ser el propio flujo, no la página) y
-las reseñas de `.netlify/functions/reviews`.
+No sustituir esta prueba por un test de CI.
 
-Lo de debajo se conserva porque el descarte de causas sigue siendo válido.
+### 5. Email real
 
-### Diagnóstico original
+Verificar dominio/remitente en Resend y probar entrega real a cliente y a Nutretium.
 
-**Síntoma.** En `nutretium.com`, el botón «Escuchar» del hilo musical y el de
-«+ Dejar reseña» no hacen nada.
+### 6. Envíos
 
-**Lo que ya está descartado.** Reproducido en local con `npm run dev` y **los
-dos funcionan**:
+Definir proveedor, zonas, tarifa, IVA aplicable, umbral de envío gratis, SLA y credenciales de integración. Hasta entonces `SHIPPING_ENABLED=false`.
 
-- `toggleRadio`, `openModal`, `setReviewStar` están definidas en `window`;
-- `openModal('reviewModal')` abre el modal (le pone la clase `open`);
-- `toggleRadio()` se ejecuta sin error;
-- no hay errores de JavaScript en consola (los únicos 404 son
-  `.netlify/functions/*`, que no existen en el servidor estático de local).
+### 7. Stock físico pendiente
 
-**Tampoco es la desincronización de carpetas.** Comprobado: `index.html`,
-`app.js`, `animations.js` y `styles.css` son **idénticos** en
-`Nutretium-main` y en `nutretium-git/Nutretium`. Lo desplegado es lo que se
-probó.
+Completar el stock real de las referencias cuyo inventario sigue sin estar documentado. No estimar cantidades.
 
-**Dónde seguir.** Solo falla en producción, así que apunta a algo que existe en
-Netlify y no en local. Por orden:
+### 8. Fotografías reales/licenciadas
 
-1. **La CSP de `netlify.toml`.** Es una cabecera, así que en local no se aplica.
-   Un bloqueo sale en consola como *"Refused to load…"*. La radio tira de
-   `https://playerservices.streamtheworld.com/...` (`media-src`) y las reseñas
-   de `.netlify/functions/reviews` (`connect-src`). Sobre el papel `media-src
-   'self' https:` y `connect-src 'self' https:` los permiten, pero hay que
-   verlo en el navegador, no sobre el papel.
-2. **Que el despliegue esté servido con `styles.css` viejo** o el build fallara:
-   revisar el log del último deploy en Netlify.
-3. **La función `reviews`**: si devuelve error, el listado sí se pinta (hay
-   reseñas de ejemplo) pero el modal podría estar cayéndose al enviar.
+Completar las imágenes faltantes con fotos propias o packshots autorizados. No hacer scraping automático ni publicar imágenes sin licencia.
 
-**Cómo comprobarlo.** Abrir `nutretium.com` con la consola del navegador (F12),
-pulsar los dos botones y copiar lo que salga en *Console* y en *Network*. Con
-ese mensaje se cierra en un minuto.
+### 9. AMIX
 
----
+El catálogo actual mantiene las referencias AMIX excluidas por decisión histórica de catálogo. Si se quieren vender online, hace falta una fuente vigente con SKU, PVP, stock, imágenes autorizadas y documentación de producto antes de activarlas.
 
-## 6. ⚠️ El correo de administrador está publicado en la web — ANTES DEL PASE A REAL
+### 10. TPVsol
 
-`ADMIN_EMAILS` vale `appnutretium@gmail.com`, y ese mismo correo es el de
-contacto público: sale en el pie, en el chat y en los tres textos legales, ocho
-veces entre `app.js` e `index.html`. La web está diciendo **qué cuenta hay que
-atacar** para cambiar los precios que cobra el TPV.
+La sincronización automática de stock web ↔ TPVsol no está validada. Implementarla solo cuando se disponga del mecanismo/API/exportación soportada y de una especificación real del flujo de stock.
 
-No pasaba hasta el 08/09/2026: el contacto era `info@nutretium.com` y no
-coincidían. Al cambiar el correo público a `appnutretium@gmail.com` se juntaron
-los dos, y el escáner de secretos de Netlify tumbó el despliegue avisando de
-ello. **Está silenciado** con `SECRETS_SCAN_OMIT_KEYS` en `netlify.toml`, para
-poder desplegar. Silenciado, no resuelto.
+### 11. Protección de `main`
 
-Lo único que hoy separa esa cuenta del catálogo es la contraseña y el freno de
-5 intentos por cada 15 minutos.
+Los workflows existen y pasan, pero la protección/ruleset de la rama depende de permisos administrativos de GitHub. Configurar un ruleset que obligue a pasar los Quality Gates antes de fusionar o actualizar `main`.
 
-**Qué hay que hacer:**
+## Regla de cierre
 
-1. registrar en la tienda otra dirección que **no aparezca en la web** — una
-   propia, no un alias `+algo` del correo público, que se adivina solo;
-2. ponerla en `ADMIN_EMAILS` (Netlify → Environment variables) y **redesplegar**,
-   que es cuando entran las variables;
-3. comprobar que se entra en `/admin.html` con la nueva y que la vieja ya no;
-4. **borrar `SECRETS_SCAN_OMIT_KEYS` de `netlify.toml`**: si el escáner vuelve a
-   pasar limpio, es que de verdad está arreglado. Ese es el examen.
-
----
-
-## 3. Stock de los 22 productos de almacén
-
-Siguen agotados porque no se sabe la cifra real: 12 helados Protzen, aguas
-Aquadeus y Solares, los packs, el pastillero y la Proteína Isolate Strawberry
-1 kg (`00290`).
-
-Cuando se sepan, van en `sources/_stock/STOCK.csv` y se aplican con
-`npm run stock -- --aplicar`. Detalle en `sources/_stock/LEEME.md`.
-
----
-
-## 4. Fotos de producto
-
-121 de 152 productos sin foto. La lista está en
-`sources/productos/FOTOS_PENDIENTES.md`, partida en dos: 68 que hay que pedir a
-los distribuidores y 53 que hay que fotografiar en la tienda. Para incorporarlas,
-`sources/_nuevas/LEEME.md`, o una a una desde el panel (`npm run panel`).
-
-Bajaron de 149 a 121 al retirar los 28 refrescos de marca ajena: esos packshots
-ya no hacen falta. Los 28 que se pedían a Coca-Cola, Pepsico y Monster salen
-del correo a proveedores.
-
-Es el bloqueante probable para el pase a real (ver `PRUEBAS_REDSYS.md`, § 6).
-
----
-
-## 5. ~~«Mi perfil» no hacía nada~~ — HECHO 30/08/2026
-
-**Lo que pasaba.** La entrada del menú existía desde siempre pero
-`showSection('profile')` solo mostraba un aviso: «Perfil — próximamente
-disponible». No era una regresión: la pantalla no se había hecho nunca.
-
-**Ahora.** `openProfile()` abre el modal genérico (`infoModal`, el mismo de «Mis
-pedidos») con nombre, apellidos y teléfono editables, y el correo a la vista pero
-fijo. Guardar llama a `action: 'update'` en `auth.js`.
-
-El correo no se puede cambiar a propósito: es la clave con la que se guarda el
-usuario en Blobs, así que cambiarlo sería mover la ficha entera y dejar los
-pedidos antiguos apuntando a la vieja. Si algún día hace falta, es una migración,
-no un campo editable.
-
-`update` escribe **solo** esos tres campos: id, correo, hash de la contraseña y
-fecha de alta se conservan aunque vengan en la petición. Hay pruebas de eso y de
-que nadie se asciende a administrador metiendo `role` en el cuerpo:
-`npm run test:cuentas`, 25 casos.
-
-**Pendiente si se quiere ir más lejos:** cambiar la contraseña desde el perfil.
-Se dejó fuera porque toca el camino de autenticación, que está en verde y
-pendiente del pase a real con el banco.
+La web puede considerarse técnicamente validada cuando ambos Quality Gates estén en verde sobre el mismo SHA. La tienda puede considerarse preparada para comercio real únicamente cuando, además, `system-health` esté en verde con configuración real y se haya completado la prueba bancaria de producción.

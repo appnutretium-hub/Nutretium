@@ -1,7 +1,6 @@
 [build]
   publish = "."
   functions = "netlify/functions"
-
   command = """
     npm run build:css &&
     cat human-touch.css >> styles.css &&
@@ -16,18 +15,22 @@
     node --check pro-qa-fixes.js &&
     node --check production-finish.js &&
     node --check mobile-commerce-pro.js &&
+    node --check runtime-guard.js &&
     node --check product-variants.js &&
     node --check producto.js &&
     node --check product-education.js &&
     node --check comparar.js &&
     node --check checkout.js &&
     node --check cuenta.js &&
+    node --check pedido.js &&
     node --check smart-shop.js &&
     node --check control.js &&
     node --check backoffice.js &&
     node --check netlify/lib/email.js &&
     node --check netlify/lib/promotions.js &&
     node --check netlify/lib/staff.js &&
+    node --check netlify/lib/rate-limit.js &&
+    node --check netlify/lib/guest-access.js &&
     node --check netlify/functions/redsys-notify.js &&
     node --check netlify/functions/checkout.js &&
     node --check netlify/functions/commerce.js &&
@@ -37,6 +40,10 @@
     node --check netlify/functions/system-health.js &&
     node --check netlify/functions/admin-orders.js &&
     node --check netlify/functions/contact.js &&
+    node --check netlify/functions/account-security.js &&
+    node --check netlify/functions/guest-order.js &&
+    node --check netlify/functions/site-status.js &&
+    node --check netlify/functions/client-error.js &&
     node scripts/smoke-web.js &&
     node scripts/audit-architecture.js &&
     rm -rf \
@@ -90,44 +97,43 @@
     Strict-Transport-Security = "max-age=31536000; includeSubDomains"
     Permissions-Policy = "geolocation=(), microphone=(), camera=(), payment=(), interest-cohort=()"
     Cross-Origin-Opener-Policy = "same-origin"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' https:; connect-src 'self' https:; frame-src https://www.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://sis.redsys.es https://sis-t.redsys.es https://sis-t.redsys.es:25443"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' https:; connect-src 'self' https:; frame-src https://www.google.com; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self' https://sis.redsys.es https://sis-t.redsys.es https://sis-t.redsys.es:25443; upgrade-insecure-requests"
 
 [[headers]]
   for = "/admin*"
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
     Cache-Control = "no-store"
-
 [[headers]]
   for = "/backoffice*"
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
     Cache-Control = "no-store"
-
 [[headers]]
   for = "/control*"
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
     Cache-Control = "no-store"
-
 [[headers]]
   for = "/checkout*"
   [headers.values]
     X-Robots-Tag = "noindex, follow"
     Cache-Control = "no-store"
-
 [[headers]]
   for = "/cuenta*"
   [headers.values]
     X-Robots-Tag = "noindex, follow"
     Cache-Control = "no-store"
-
+[[headers]]
+  for = "/pedido*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-store"
 [[headers]]
   for = "/comparar*"
   [headers.values]
     X-Robots-Tag = "noindex, follow"
     Cache-Control = "no-store"
-
 [[headers]]
   for = "/sources/productos/*"
   [headers.values]
@@ -137,111 +143,95 @@
   from = "/categoria/*"
   to = "/index.html"
   status = 200
-
 [[redirects]]
   from = "/producto/*"
   to = "/producto.html"
   status = 200
-
 [[redirects]]
   from = "/ayuda"
   to = "/ayuda.html"
   status = 200
-
 [[redirects]]
   from = "/aprende"
   to = "/aprende.html"
   status = 200
-
 [[redirects]]
   from = "/comparar"
   to = "/comparar.html"
   status = 200
-
 [[redirects]]
   from = "/checkout"
   to = "/checkout.html"
   status = 200
-
 [[redirects]]
   from = "/mi-nutretium"
   to = "/cuenta.html"
   status = 200
-
+[[redirects]]
+  from = "/pedido"
+  to = "/pedido.html"
+  status = 200
 [[redirects]]
   from = "/recomendador"
   to = "/smart-shop.html"
   status = 200
-
 [[redirects]]
   from = "/control"
   to = "/control.html"
   status = 200
-
 [[redirects]]
   from = "/pago-ok"
   to = "/index.html"
   status = 200
-
 [[redirects]]
   from = "/pago-ko"
   to = "/index.html"
   status = 200
-
 [[redirects]]
   from = "/*.pdf"
   to = "/index.html"
   status = 404
   force = true
-
 [[redirects]]
   from = "/*.xlsx"
   to = "/index.html"
   status = 404
   force = true
-
 [[redirects]]
   from = "/*.md"
   to = "/index.html"
   status = 404
   force = true
-
 [[redirects]]
   from = "/sources/_*"
   to = "/index.html"
   status = 404
   force = true
-
 [[redirects]]
   from = "/_backup_pre_actualizacion/*"
   to = "/index.html"
   status = 404
   force = true
-
 [[redirects]]
   from = "/node_modules/*"
   to = "/index.html"
   status = 404
   force = true
-
 [[redirects]]
   from = "/netlify/*"
   to = "/index.html"
   status = 404
   force = true
-
 [[redirects]]
   from = "/netlify.toml"
   to = "/index.html"
   status = 404
   force = true
-
 [[redirects]]
   from = "/package*.json"
   to = "/index.html"
   status = 404
   force = true
-
 [[redirects]]
   from = "/.env*"
   to = "/index.html"

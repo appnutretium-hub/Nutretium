@@ -1,0 +1,8 @@
+* @appnutretium-hub
+
+/.github/ @appnutretium-hub
+/netlify/ @appnutretium-hub
+/scripts/ @appnutretium-hub
+/package.json @appnutretium-hub
+/package-lock.json @appnutretium-hub
+/netlify.toml @appnutretium-hub

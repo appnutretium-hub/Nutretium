@@ -64,6 +64,8 @@
   schedule = "*/15 * * * *"
 [functions."price-snapshot"]
   schedule = "15 2 * * *"
+[functions."subscription-worker"]
+  schedule = "30 6 * * *"
 
 [[headers]]
   for = "/*"
@@ -229,3 +231,4 @@
   to = "/index.html"
   status = 404
   force = true
+

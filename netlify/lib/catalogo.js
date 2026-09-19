@@ -106,6 +106,7 @@ function valorarCarrito(items) {
       id:         producto.id,
       code:       producto.code,
       name:       producto.name,   // nombre del catálogo, no el que mandó el navegador
+      category:   producto.category || null,
       qty,
       price:      precioCents / 100,
       totalLinea: (precioCents * qty) / 100,
@@ -120,3 +121,4 @@ function valorarCarrito(items) {
 }
 
 module.exports = { valorarCarrito, aCentimos, PRODUCTOS };
+

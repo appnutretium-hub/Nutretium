@@ -11,10 +11,11 @@
   # Importante: el listado del ERP, el Excel y la auditoría llevan precios,
   # stock y datos de proveedor. Publicados serían descargables por cualquiera.
   #
-  # El comando hace dos cosas: 1) compila el CSS de Tailwind a styles.css,
-  # 2) borra de la copia desplegada lo que no debe publicarse.
+  # El comando hace tres cosas: 1) compila Tailwind a styles.css,
+  # 2) añade la capa visual Human Touch, 3) borra de la copia desplegada lo sensible.
   command = """
     npm run build:css &&
+    cat human-touch.css >> styles.css &&
     rm -rf \
       'Listado de stock disponible.pdf' \
       'CATALOGO_NUTRETIUM.xlsx' \
@@ -53,38 +54,12 @@
   # sensibles, y las reglas de más abajo impiden servirlos.
 
 [build.environment]
-  # sharp está en optionalDependencies y aquí se omite: son 28 MB de binarios
-  # que Netlify descargaría en CADA despliegue sin usarlos nunca. Solo lo
-  # necesitan los scripts/ (npm run fotos), y el comando de arriba borra esa
-  # carpeta de la copia desplegada. En tu ordenador se instala igual: npm
-  # instala las opcionales por defecto, así que `npm run fotos` no se entera.
-  #
-  # Cada publicación desde /admin.html lanza un despliegue entero, y los
-  # minutos de build de Netlify se acabaron una vez subiendo las fotos DE UNA
-  # EN UNA (30 builds para 30 fotos). Para tandas usa `npm run fotos`, que
-  # las mete todas y se sube en un solo push.
   NPM_FLAGS = "--omit=optional"
-
-  # ⚠️ ESTO ES UN PARCHE, NO UN ARREGLO. Ver TODO.md § 6.
-  #
-  # El escáner de secretos de Netlify tumba el build porque encuentra el valor
-  # de ADMIN_EMAILS dentro de app.js y de index.html. Y tiene razón: el correo
-  # de administrador y el de contacto público son el MISMO
-  # (appnutretium@gmail.com), así que la web anuncia qué cuenta hay que atacar
-  # para cambiar los precios que cobra el TPV.
-  #
-  # Se silencia para desbloquear el despliegue, no porque sea inofensivo. El
-  # arreglo de verdad es poner en ADMIN_EMAILS una dirección que NO salga en la
-  # web; el día que se haga, esta línea se borra.
   SECRETS_SCAN_OMIT_KEYS = "ADMIN_EMAILS"
 
 [functions]
   node_bundler = "esbuild"
-  # products-data.js es el catálogo: las funciones lo necesitan para poner ellas
-  # los precios del pedido en vez de fiarse del importe que manda el navegador.
   included_files = ["netlify/functions/**", "products-data.js"]
-
-# ─── Cabeceras ────────────────────────────────────────────────────────────────
 
 [[headers]]
   for = "/*"
@@ -95,25 +70,8 @@
     Strict-Transport-Security = "max-age=31536000; includeSubDomains"
     Permissions-Policy = "geolocation=(), microphone=(), camera=(), payment=(), interest-cohort=()"
     Cross-Origin-Opener-Policy = "same-origin"
-    # CSP. Ya no hace falta 'unsafe-eval' ni permitir el CDN de Tailwind: el CSS
-    # va compilado. Queda 'unsafe-inline' porque index.html tiene <script> y
-    # atributos onclick en línea; quitarlo exigiría sacar todo ese JS a archivos.
-    #
-    # OJO con el ':25443' de form-action. En CSP, un origen SIN puerto significa
-    # SOLO el puerto por defecto del esquema (443 en https), no «cualquier
-    # puerto». El TPV de PRUEBAS escucha en sis-t.redsys.es:25443, así que sin
-    # el puerto escrito el navegador bloquea el envío del formulario de pago
-    # ("Sending form data to ... violates ... form-action") y el cliente se
-    # queda sin llegar al banco. El de real (sis.redsys.es) va por 443 y por eso
-    # ese sí funcionaba. No quites el puerto mientras se prueba contra Redsys.
     Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' https:; connect-src 'self' https:; frame-src https://www.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://sis.redsys.es https://sis-t.redsys.es https://sis-t.redsys.es:25443"
 
-# El panel de catálogo no es contenido de la tienda: fuera de los buscadores.
-# Quien decide quién entra es la función, no esto (ver netlify/lib/admin.js);
-# esto solo evita que salga en Google.
-# Netlify sirve la página también en /admin (quita el .html de los enlaces
-# internos al minificar), así que la regla tiene que cubrir las dos rutas o la
-# cabecera no se aplica en la que de verdad usa la gente.
 [[headers]]
   for = "/admin.html"
   [headers.values]
@@ -126,14 +84,10 @@
     X-Robots-Tag = "noindex, nofollow"
     Cache-Control = "no-store"
 
-# Las fotos de producto llevan el código en el nombre: si cambia la foto,
-# cambia el archivo. Se pueden cachear de forma agresiva.
 [[headers]]
   for = "/sources/productos/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
-
-# ─── Redirecciones ────────────────────────────────────────────────────────────
 
 [[redirects]]
   from = "/pago-ok"
@@ -145,9 +99,6 @@
   to = "/index.html"
   status = 200
 
-# Red de seguridad por si el comando de build no llega a ejecutarse (por ejemplo
-# en un despliegue manual arrastrando la carpeta): estos tipos de archivo nunca
-# se sirven desde la raíz del sitio.
 [[redirects]]
   from = "/*.pdf"
   to = "/index.html"
@@ -166,9 +117,6 @@
   status = 404
   force = true
 
-# Las carpetas de trabajo de sources (_stock, _nuevas, _catalogo) llevan hojas
-# de precios y stock. El build las borra de la copia desplegada; esto es la red
-# por si el build no llega a ejecutarse.
 [[redirects]]
   from = "/sources/_*"
   to = "/index.html"
@@ -187,8 +135,6 @@
   status = 404
   force = true
 
-# El código de las funciones vive dentro de la carpeta publicada. Se accede a
-# ellas por /.netlify/functions/<nombre>, nunca por su ruta de archivo.
 [[redirects]]
   from = "/netlify/*"
   to = "/index.html"

@@ -7,7 +7,7 @@ const root = process.cwd();
 const requiredFiles = [
   'index.html','app.js','products-data.js','styles.css','trust-fixes.js',
   'franchise-trust.js','commerce-pro.js','final-hardening.js','producto.html','producto.js',
-  'product-variants.js','enterprise-storefront.js','ayuda.html','netlify.toml','netlify/functions/redsys-notify.js','netlify/lib/email.js'
+  'product-variants.js','commerce-core.js','ayuda.html','netlify.toml','netlify/functions/redsys-notify.js','netlify/lib/email.js'
 ];
 
 const failures = [];
@@ -35,8 +35,8 @@ if (!failures.length) {
   if (!(product.includes('variantSelectorHtml') || (product.includes('loadOptions') && product.includes('product-options')))) failures.push('Ficha producto sin selector de variantes');
   if (!(product.includes('qtyInput') || (product.includes('qtyValue') && product.includes('qtyMinus') && product.includes('qtyPlus')))) failures.push('Ficha producto sin selector de cantidad');
   if (!(product.includes('addSelectedToCart') || (product.includes('addButton') && product.includes('/?add=')))) failures.push('Ficha producto sin alta de carrito');
-  const storefront = read('enterprise-storefront.js');
-  if (!(product.includes('CART_KEY') || (storefront.includes("params.get('add')") && storefront.includes("params.get('qty')")))) failures.push('Ficha producto sin contrato de carrito');
+  const commerceCore = read('commerce-core.js');
+  if (!(product.includes('CART_KEY') || (commerceCore.includes("params.get('add')") && commerceCore.includes("params.get('qty')")))) failures.push('Ficha producto sin contrato de carrito');
 
   const variants = read('product-variants.js');
   ['NUTRETIUM_VARIANTS','family(product','factualDescription'].forEach(token => {

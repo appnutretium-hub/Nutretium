@@ -12,7 +12,7 @@ function catalogAudit(){const active=NUTRETIUM_PRODUCTS.filter(p=>p&&p.active!==
 exports.handler=async function(event){
  if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
  if(event.httpMethod!=='GET')return{statusCode:405,headers:CORS,body:JSON.stringify({error:'Method Not Allowed'})};
- const staff=exigePermiso(event,'analytics');if(!staff.ok)return{statusCode:staff.statusCode,headers:CORS,body:JSON.stringify({error:staff.error})};
+ const staff=await exigePermiso(event,'analytics');if(!staff.ok)return{statusCode:staff.statusCode,headers:CORS,body:JSON.stringify({error:staff.error})};
  const admins=emails('ADMIN_EMAILS'),publicEmails=new Set([...emails('CONTACT_EMAIL'),...emails('ORDER_NOTIFICATION_EMAIL')]);
  const adminIsolation=admins.length>0&&admins.every(e=>!publicEmails.has(e));
  const sender=value('ORDER_EMAIL_FROM').toLowerCase(),emailDomain=sender.includes('@nutretium.com');

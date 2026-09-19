@@ -1,84 +1,20 @@
-/**
- * netlify/functions/orders.js — NUTRETIUM
- *
- * GET /.netlify/functions/orders
- * Cabecera:  Authorization: Bearer <token>
- *
- * Devuelve los pedidos del usuario autenticado, del más reciente al más
- * antiguo. El usuario se determina SIEMPRE a partir del token firmado, nunca
- * de un parámetro de la petición: así nadie puede pedir los pedidos de otro.
- */
-
+/** Historial de pedidos del usuario autenticado. */
 'use strict';
-
 const { getBlobStore } = require('../lib/blob-store');
 const { cabecerasCORS } = require('../lib/cors');
-const { verifyJWT, tokenFromHeader, secretConfigured } = require('../lib/jwt');
-
+const { verifyEventSession } = require('../lib/session');
 const CORS = cabecerasCORS('GET, OPTIONS');
 const MAX_PEDIDOS = 50;
-
-function toPublic(rec) {
-  return {
-    order: rec.order,
-    status: rec.status || 'PENDING',
-    fulfilmentStatus: rec.fulfilmentStatus || null,
-    amount: rec.amount,
-    items: Array.isArray(rec.items) ? rec.items : [],
-    authCode: rec.authCode || null,
-    createdAt: rec.createdAt || null,
-    receivedAt: rec.receivedAt || null,
-    tracking: rec.tracking ? {
-      carrier: String(rec.tracking.carrier || ''),
-      code: String(rec.tracking.code || ''),
-      url: String(rec.tracking.url || ''),
-    } : null,
-    updatedAt: rec.updatedAt || null,
-  };
-}
-
-exports.handler = async function (event) {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
-  if (event.httpMethod !== 'GET') {
-    return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: 'Method Not Allowed' }) };
-  }
-
-  const token = tokenFromHeader(event.headers);
-  if (!token) {
-    return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'Debes iniciar sesión.' }) };
-  }
-
-  if (!secretConfigured()) {
-    console.error('[orders] Falta JWT_SECRET. Configúralo en Netlify.');
-    return { statusCode: 503, headers: CORS, body: JSON.stringify({ error: 'Servicio no disponible ahora mismo.' }) };
-  }
-
-  let email;
-  try {
-    email = verifyJWT(token).email;
-    if (!email) throw new Error('Token sin email');
-  } catch {
-    return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'Sesión caducada. Vuelve a iniciar sesión.' }) };
-  }
-
-  const index = getBlobStore('user-orders');
-  const store = getBlobStore('redsys-orders');
-  if (!index || !store) {
-    return { statusCode: 503, headers: CORS, body: JSON.stringify({ error: 'Almacenamiento no disponible.' }) };
-  }
-
-  const numeros = (await index.get(email, { type: 'json' }).catch(() => null)) || [];
-  if (!numeros.length) {
-    return { statusCode: 200, headers: CORS, body: JSON.stringify({ orders: [] }) };
-  }
-
-  const registros = await Promise.all(
-    numeros.slice(0, MAX_PEDIDOS).map(n => store.get(n, { type: 'json' }).catch(() => null))
-  );
-
-  const orders = registros
-    .filter(r => r && (!r.email || r.email === email))
-    .map(toPublic);
-
-  return { statusCode: 200, headers: CORS, body: JSON.stringify({ orders }) };
+function toPublic(rec){return{order:rec.order,status:rec.status||'PENDING',fulfilmentStatus:rec.fulfilmentStatus||null,amount:rec.amount,items:Array.isArray(rec.items)?rec.items:[],authCode:rec.authCode||null,createdAt:rec.createdAt||null,receivedAt:rec.receivedAt||null,tracking:rec.tracking?{carrier:String(rec.tracking.carrier||''),code:String(rec.tracking.code||''),url:String(rec.tracking.url||'')}:null,updatedAt:rec.updatedAt||null}}
+exports.handler=async function(event){
+ if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
+ if(event.httpMethod!=='GET')return{statusCode:405,headers:CORS,body:JSON.stringify({error:'Method Not Allowed'})};
+ let session;try{session=await verifyEventSession(event)}catch{return{statusCode:401,headers:CORS,body:JSON.stringify({error:'Sesión caducada. Vuelve a iniciar sesión.'})}}
+ const email=session.email,index=getBlobStore('user-orders'),store=getBlobStore('redsys-orders');
+ if(!index||!store)return{statusCode:503,headers:CORS,body:JSON.stringify({error:'Almacenamiento no disponible.'})};
+ const numeros=(await index.get(email,{type:'json'}).catch(()=>null))||[];
+ if(!numeros.length)return{statusCode:200,headers:CORS,body:JSON.stringify({orders:[]})};
+ const registros=await Promise.all(numeros.slice(0,MAX_PEDIDOS).map(n=>store.get(n,{type:'json'}).catch(()=>null)));
+ const orders=registros.filter(r=>r&&(!r.email||r.email===email)).map(toPublic);
+ return{statusCode:200,headers:CORS,body:JSON.stringify({orders})};
 };

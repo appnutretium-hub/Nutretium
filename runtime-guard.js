@@ -1,0 +1,13 @@
+/* NUTRETIUM — runtime guard: mantenimiento, errores y accesibilidad */
+(function(){'use strict';
+const sent=new Set();
+function report(kind,message,extra={}){try{const key=`${kind}|${message}`.slice(0,300);if(sent.has(key))return;sent.add(key);fetch('/.netlify/functions/client-error',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind,message:String(message||'').slice(0,500),path:location.pathname,ua:navigator.userAgent.slice(0,240),extra}),keepalive:true}).catch(()=>{})}catch{}}
+window.addEventListener('error',e=>report('error',e.message,{source:String(e.filename||'').split('/').pop(),line:e.lineno||0,col:e.colno||0}));
+window.addEventListener('unhandledrejection',e=>report('promise',e.reason?.message||String(e.reason||'Unhandled promise rejection')));
+function maintenanceOverlay(){if(document.getElementById('ntMaintenance'))return;const el=document.createElement('div');el.id='ntMaintenance';el.setAttribute('role','alertdialog');el.setAttribute('aria-modal','true');el.innerHTML='<div class="nt-maintenance-card"><strong>NUTRETIUM</strong><h1>Mantenimiento temporal</h1><p>La tienda online está temporalmente en mantenimiento. No se iniciará ningún cobro mientras dure esta intervención.</p><p><a href="tel:+34633753517">633 753 517</a> · <a href="mailto:appnutretium@gmail.com">appnutretium@gmail.com</a></p></div>';document.body.appendChild(el)}
+async function status(){try{const r=await fetch('/.netlify/functions/site-status',{cache:'no-store'});if(!r.ok)return;const d=await r.json();document.documentElement.dataset.paymentsReady=d.paymentsReady?'true':'false';if(d.maintenance)maintenanceOverlay()}catch{}}
+function externalLinks(){document.querySelectorAll('a[target="_blank"]').forEach(a=>{const rel=new Set(String(a.rel||'').split(/\s+/).filter(Boolean));rel.add('noopener');rel.add('noreferrer');a.rel=[...rel].join(' ')})}
+function touchTargets(){document.querySelectorAll('button,a,input,select').forEach(el=>{if(el.closest('#ntMaintenance'))return;const r=el.getBoundingClientRect();if(r.width>0&&r.height>0&&r.width<36&&r.height<36)el.classList.add('nt-small-target')})}
+function init(){status();externalLinks();requestAnimationFrame(touchTargets)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();

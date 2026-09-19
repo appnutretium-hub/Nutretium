@@ -6,8 +6,8 @@
 
 const crypto = require('crypto');
 const { getBlobStore } = require('../lib/blob-store');
+const inventory = require('../lib/inventory');
 const { sendEmail, buildStoreOrderEmail, buildCustomerOrderEmail } = require('../lib/email');
-const finalize = require('../lib/order-finalize');
 
 const HEADERS = { 'Content-Type':'text/plain; charset=utf-8' };
 
@@ -57,7 +57,6 @@ async function sendOrderEmails(record){
     results.store=Boolean(r?.ok);
   } catch(err){ console.error('[Redsys-notify] Email tienda:',err); }
 
-  // Solo se confirma al cliente cuando existe el pedido esperado y el importe cuadra.
   if(record.email && !record.amountMismatch && !record.missingOrderRecord){
     try {
       const customerMail=buildCustomerOrderEmail(record);
@@ -114,25 +113,16 @@ exports.handler=async function(event){
     receivedAt:new Date().toISOString(),
   };
 
-  let store=await getStore();
+  const store=await getStore();
   if(!store){
-    if(String(process.env.NETLIFY||'').toLowerCase()==='true'){
-      console.error('[Redsys-notify] Store redsys-orders no disponible',order);
-      return {statusCode:503,headers:HEADERS,body:'Storage unavailable'};
-    }
-    // Entorno local/CI: conserva el comportamiento comprobable sin fingir
-    // persistencia. En Netlify se falla cerrado para que Redsys reintente.
-    store={get:async()=>null,setJSON:async()=>{}};
+    console.error('[Redsys-notify] Store redsys-orders no disponible',order);
+    return {statusCode:503,headers:HEADERS,body:'Storage unavailable'};
   }
 
   let record;
-  let wasPaidBefore=false;
   try{
     const previo=await store.get(order,{type:'json'}).catch(()=>null);
-    wasPaidBefore=Boolean(previo&&previo.status==='PAID');
     if(!previo){
-      // Una firma válida puede corresponder a un cobro real aunque falte el registro local.
-      // Nunca se pierde la evidencia del banco ni se avanza logística automáticamente.
       record={...resultado,missingOrderRecord:true,fulfilmentStatus:authorised?'REVIEW_REQUIRED':null};
       await store.setJSON(order,record);
       console.error('[Redsys-notify] PEDIDO PREVIO AUSENTE',order);
@@ -155,6 +145,27 @@ exports.handler=async function(event){
     return {statusCode:503,headers:HEADERS,body:'Persistence failed'};
   }
 
+  // Inventario: un pago autorizado consume definitivamente la reserva. Un pago
+  // rechazado/cancelado la libera. Si la confirmación falla, se fuerza revisión
+  // y se devuelve 503 para que Redsys pueda reintentar la notificación.
+  if(!record.missingOrderRecord && Array.isArray(record.items)){
+    if(authorised){
+      const inv=await inventory.commit(order,record.items);
+      if(!inv.ok){
+        record.fulfilmentStatus='REVIEW_REQUIRED';
+        record.inventoryReservation={...(record.inventoryReservation||{}),status:'COMMIT_FAILED',error:inv.error,updatedAt:new Date().toISOString()};
+        try{await store.setJSON(order,record)}catch{}
+        console.error('[Redsys-notify] No se pudo confirmar inventario',order,inv.error);
+        return {statusCode:503,headers:HEADERS,body:'Inventory commit failed'};
+      }
+      record.inventoryReservation={...(record.inventoryReservation||{}),status:'COMMITTED',committedAt:new Date().toISOString()};
+    }else{
+      const inv=await inventory.release(order,record.items);
+      record.inventoryReservation={...(record.inventoryReservation||{}),status:inv.ok?'RELEASED':'RELEASE_PENDING',releasedAt:inv.ok?new Date().toISOString():null,error:inv.ok?null:inv.error};
+    }
+    try{await store.setJSON(order,record)}catch(err){console.error('[Redsys-notify] No se pudo guardar estado inventario',order,err);return{statusCode:503,headers:HEADERS,body:'Persistence failed'}}
+  }
+
   if(authorised && !record.missingOrderRecord){
     const emailResults=await sendOrderEmails(record);
     record.emailNotifications={
@@ -167,16 +178,6 @@ exports.handler=async function(event){
     catch(err){ console.error('[Redsys-notify] No se pudo guardar estado de emails',order,err); return {statusCode:503,headers:HEADERS,body:'Persistence failed'}; }
   }
 
-  if(authorised && !wasPaidBefore && !record.missingOrderRecord && !record.amountMismatch){
-    try { await finalize.finalizePaid(record,{source:'redsys',sendCustomerEmail:false}); }
-    catch(err){ console.error('[Redsys-notify] Finalización operativa pendiente',order,err); }
-  }else if(!authorised && !wasPaidBefore){
-    try { await finalize.finalizeFailed(record); }
-    catch(err){ console.error('[Redsys-notify] No se pudo liberar la reserva',order,err); }
-  }
-
-  console.log('[Redsys-notify]',JSON.stringify({order,status:record.status,fulfilmentStatus:record.fulfilmentStatus,missingOrderRecord:Boolean(record.missingOrderRecord),emailNotifications:record.emailNotifications||null}));
+  console.log('[Redsys-notify]',JSON.stringify({order,status:record.status,fulfilmentStatus:record.fulfilmentStatus,inventoryStatus:record.inventoryReservation?.status||null,missingOrderRecord:Boolean(record.missingOrderRecord),emailNotifications:record.emailNotifications||null}));
   return {statusCode:200,headers:HEADERS,body:'OK'};
 };
-
-exports._test={deriveSigningKey,hmacBase64,toBase64Url,safeEqual,parseBody,sendOrderEmails};

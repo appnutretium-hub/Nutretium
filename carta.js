@@ -26,7 +26,7 @@ function renderMenu(){
   $('resultCount').textContent=`${list.length} opciones`;
   $('menu').innerHTML=list.length?list.map(p=>{
     const image=p.image?`<img class="product-image" src="/${String(p.image).replace(/^\//,'')}" alt="${escapeHtml(p.name)}" loading="lazy">`:'';
-    return `<article class="product ${p.image?'':'no-image'}">${image}<a class="product-link" href="/producto/${productSlug(p)}" aria-label="Ver ${escapeHtml(p.name)}"></a><div class="product-content"><span class="tag">${escapeHtml(p.category||'Nutretium')}</span><h3><a href="/producto/${productSlug(p)}">${escapeHtml(p.name)}</a></h3><div class="product-meta"><span class="price">${money(p.price)}</span><button class="add" data-add="${p.id}" aria-label="Añadir ${escapeHtml(p.name)}">+</button></div></div></article>`;
+    return `<article class="product ${p.image?'':'no-image'}">${image}<a class="product-link" href="/producto.html?slug=${encodeURIComponent(productSlug(p))}" aria-label="Ver ${escapeHtml(p.name)}"></a><div class="product-content"><span class="tag">${escapeHtml(p.category||'Nutretium')}</span><h3><a href="/producto.html?slug=${encodeURIComponent(productSlug(p))}">${escapeHtml(p.name)}</a></h3><div class="product-meta"><span class="price">${money(p.price)}</span><button class="add" data-add="${p.id}" aria-label="Añadir ${escapeHtml(p.name)}">+</button></div></div></article>`;
   }).join(''):'<p class="loading">No hay productos disponibles en esta categoría.</p>';
   $('menu').querySelectorAll('[data-add]').forEach(btn=>btn.addEventListener('click',()=>changeQty(btn.dataset.add,1)));
 }

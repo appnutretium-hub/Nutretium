@@ -7,12 +7,13 @@ for(const device of [{name:'mobile',width:390,height:844},{name:'desktop',width:
   await page.goto(BASE,{waitUntil:'domcontentloaded'});await page.waitForSelector('#productGrid .product-card',{timeout:15000});await page.waitForTimeout(900);
   const metrics=await page.evaluate(()=>{
     const viewport=window.innerWidth;
-    const overflow=Math.max(0,document.documentElement.scrollWidth-viewport);
-    const offenders=[...document.querySelectorAll('body *')].map(el=>{const r=el.getBoundingClientRect();return{tag:el.tagName,id:el.id||'',cls:String(el.className||'').slice(0,120),left:Math.round(r.left),right:Math.round(r.right),width:Math.round(r.width)}}).filter(x=>x.right>viewport+4||x.left<-4).slice(0,12);
-    return{scroll:document.documentElement.scrollWidth,viewport,overflow,cards:document.querySelectorAll('#productGrid .product-card').length,offenders};
+    const isIntentionalScroller=el=>{let n=el;while(n&&n!==document.body){const s=getComputedStyle(n);if((s.overflowX==='auto'||s.overflowX==='scroll')&&n.scrollWidth>n.clientWidth+4)return true;n=n.parentElement}return false};
+    const offenders=[...document.querySelectorAll('body *')].filter(el=>!isIntentionalScroller(el)).map(el=>{const r=el.getBoundingClientRect();return{tag:el.tagName,id:el.id||'',cls:String(el.className||'').slice(0,120),left:Math.round(r.left),right:Math.round(r.right),width:Math.round(r.width)}}).filter(x=>x.right>viewport+4||x.left<-4).slice(0,12);
+    const before=window.scrollX;window.scrollTo({left:10000,top:window.scrollY,behavior:'instant'});const pageScrollX=window.scrollX;window.scrollTo({left:before,top:window.scrollY,behavior:'instant'});
+    return{scrollWidth:document.documentElement.scrollWidth,viewport,pageScrollX,cards:document.querySelectorAll('#productGrid .product-card').length,offenders};
   });
   expect(metrics.cards).toBeGreaterThan(0);
-  expect(metrics.overflow,`Desbordamiento horizontal: ${JSON.stringify(metrics)}`).toBeLessThanOrEqual(4);
+  expect(metrics.pageScrollX,`La página permite scroll horizontal: ${JSON.stringify(metrics)}`).toBeLessThanOrEqual(4);
   const first=page.locator('#productGrid .product-card').first();await expect(first).toBeVisible();
   const id=await first.getAttribute('data-product-id');expect(Number(id)).toBeGreaterThan(0);
   const detail=first.locator('.nt-product-detail-link');if(await detail.count())expect(await detail.getAttribute('href')).toMatch(/\/producto\/.+-\d+$/);

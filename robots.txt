@@ -3,6 +3,8 @@ Allow: /
 
 Disallow: /admin
 Disallow: /admin.html
+Disallow: /ops
+Disallow: /ops.html
 Disallow: /pago-ok
 Disallow: /pago-ko
 Disallow: /.netlify/

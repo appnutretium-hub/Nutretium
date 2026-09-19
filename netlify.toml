@@ -51,6 +51,9 @@
   node_bundler = "esbuild"
   included_files = ["netlify/functions/**", "products-data.js"]
 
+[functions."platform-backup"]
+  schedule = "@daily"
+
 [[headers]]
   for = "/*"
   [headers.values]
@@ -83,6 +86,26 @@
     X-Robots-Tag = "noindex, nofollow"
     Cache-Control = "no-store"
 [[headers]]
+  for = "/enterprise.html"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-store"
+[[headers]]
+  for = "/enterprise"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-store"
+[[headers]]
+  for = "/cuenta.html"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-store"
+[[headers]]
+  for = "/mi-cuenta"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-store"
+[[headers]]
   for = "/sources/productos/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
@@ -93,8 +116,21 @@
   status = 200
   force = true
 [[redirects]]
+  from = "/merchant-feed.xml"
+  to = "/.netlify/functions/merchant-feed"
+  status = 200
+  force = true
+[[redirects]]
   from = "/ops"
   to = "/ops.html"
+  status = 200
+[[redirects]]
+  from = "/enterprise"
+  to = "/enterprise.html"
+  status = 200
+[[redirects]]
+  from = "/mi-cuenta"
+  to = "/cuenta.html"
   status = 200
 [[redirects]]
   from = "/categoria/*"

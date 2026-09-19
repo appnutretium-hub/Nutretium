@@ -1,0 +1,126 @@
+/* NUTRETIUM — PRO QA fixes
+   Correcciones funcionales detectadas en auditoría pre-producción.
+   Se carga al final: nunca simula éxito si el backend falla. */
+(function(){
+'use strict';
+const esc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// ── 1. Filtros móviles: el panel original vive dentro de un contenedor lg:flex.
+let desktopToggle=typeof window.toggleAdvFilters==='function'?window.toggleAdvFilters:null;
+function ensureMobileFilters(){
+  if(document.getElementById('ntMobileFilters'))return;
+  const overlay=document.createElement('div');overlay.id='ntMobileFilters';overlay.className='nt-mf-overlay';overlay.setAttribute('aria-hidden','true');
+  const brands=[...new Set((window.NUTRETIUM_PRODUCTS||[]).filter(p=>p.active!==false&&p.brand).map(p=>String(p.brand)))].sort((a,b)=>a.localeCompare(b,'es'));
+  overlay.innerHTML=`<div class="nt-mf-sheet" role="dialog" aria-modal="true" aria-labelledby="ntMfTitle"><div class="nt-mf-head"><div><small>CATÁLOGO</small><h2 id="ntMfTitle">Filtrar productos</h2></div><button type="button" data-mf-close aria-label="Cerrar filtros">×</button></div><div class="nt-mf-group"><strong>Precio</strong><div class="nt-mf-chips"><button type="button" data-price="all">Cualquier precio</button><button type="button" data-price="0-20">Menos de 20 €</button><button type="button" data-price="20-40">20–40 €</button><button type="button" data-price="40-9999">Más de 40 €</button></div></div><label class="nt-mf-group"><strong>Marca</strong><select id="ntMfBrand"><option value="">Todas las marcas</option>${brands.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('')}</select></label><div class="nt-mf-checks"><label><input id="ntMfOffers" type="checkbox"> Solo ofertas publicadas</label><label><input id="ntMfPacks" type="checkbox"> Solo packs</label></div><div class="nt-mf-actions"><button type="button" data-mf-clear>Limpiar</button><button type="button" data-mf-apply>Ver resultados</button></div></div>`;
+  document.body.appendChild(overlay);
+  const close=()=>{overlay.classList.remove('open');overlay.setAttribute('aria-hidden','true');document.body.style.overflow='';};
+  overlay.addEventListener('click',e=>{if(e.target===overlay||e.target.closest('[data-mf-close]'))close();});
+  overlay.querySelector('[data-mf-clear]').onclick=()=>{
+    try{advState.priceMin=null;advState.priceMax=null;advState.brand=null;advState.offersOnly=false;advState.packsOnly=false;}catch(_){ }
+    overlay.querySelector('#ntMfBrand').value='';overlay.querySelector('#ntMfOffers').checked=false;overlay.querySelector('#ntMfPacks').checked=false;
+    overlay.querySelectorAll('[data-price]').forEach(b=>b.classList.toggle('active',b.dataset.price==='all'));
+    if(typeof applyFilters==='function')applyFilters();
+  };
+  overlay.querySelectorAll('[data-price]').forEach(btn=>btn.onclick=()=>{overlay.querySelectorAll('[data-price]').forEach(b=>b.classList.remove('active'));btn.classList.add('active');});
+  overlay.querySelector('[data-mf-apply]').onclick=()=>{
+    try{
+      const p=overlay.querySelector('[data-price].active')?.dataset.price||'all';
+      if(p==='all'){advState.priceMin=null;advState.priceMax=null;}else{const [a,b]=p.split('-').map(Number);advState.priceMin=a;advState.priceMax=b;}
+      advState.brand=overlay.querySelector('#ntMfBrand').value||null;
+      advState.offersOnly=overlay.querySelector('#ntMfOffers').checked;
+      advState.packsOnly=overlay.querySelector('#ntMfPacks').checked;
+      if(typeof applyFilters==='function')applyFilters();
+    }catch(_){ }
+    close();document.getElementById('products')?.scrollIntoView({behavior:'smooth',block:'start'});
+  };
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&overlay.classList.contains('open'))close();});
+}
+function openMobileFilters(){
+  ensureMobileFilters();const o=document.getElementById('ntMobileFilters');if(!o)return;
+  try{
+    o.querySelector('#ntMfBrand').value=advState.brand||'';
+    o.querySelector('#ntMfOffers').checked=!!advState.offersOnly;o.querySelector('#ntMfPacks').checked=!!advState.packsOnly;
+    let p='all';if(advState.priceMin===0&&advState.priceMax===20)p='0-20';else if(advState.priceMin===20&&advState.priceMax===40)p='20-40';else if(advState.priceMin===40)p='40-9999';
+    o.querySelectorAll('[data-price]').forEach(b=>b.classList.toggle('active',b.dataset.price===p));
+  }catch(_){ }
+  o.classList.add('open');o.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
+}
+window.toggleAdvFilters=function(){if(window.matchMedia('(max-width:1023px)').matches){openMobileFilters();return;}if(desktopToggle)desktopToggle();};
+
+// Enter en el buscador móvil no debe abrir el menú si estaba cerrado.
+window.handleNavSearchKey=function(e){
+  if(e.key==='Escape'){
+    ['navSearchInput','mobileSearchInput','searchInput'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    if(typeof applyFilters==='function')applyFilters();return;
+  }
+  if(e.key==='Enter'){
+    e.preventDefault();document.getElementById('products')?.scrollIntoView({behavior:'smooth',block:'start'});
+    const menu=document.getElementById('mobileMenu');if(menu?.classList.contains('open')&&typeof toggleMobileMenu==='function')toggleMobileMenu();
+  }
+};
+
+// ── 2. Formularios: nunca mostrar éxito cuando la petición falla.
+function setErr(el,msg){if(typeof showFieldError==='function')showFieldError(el,msg);else if(el){el.textContent=msg;el.classList.remove('hidden');}}
+window.submitTrainerRequest=async function(){
+  const name=document.getElementById('trainerName')?.value.trim()||'',email=document.getElementById('trainerEmail')?.value.trim()||'',phone=document.getElementById('trainerPhone')?.value.trim()||'',age=document.getElementById('trainerAge')?.value.trim()||'',goal=document.getElementById('trainerGoal')?.value||'',mode=document.getElementById('trainerMode')?.value||'',notes=document.getElementById('trainerNotes')?.value.trim()||'',err=document.getElementById('trainerError');err?.classList.add('hidden');
+  if(!name)return setErr(err,'El nombre es obligatorio.');if(!email)return setErr(err,'El email es obligatorio.');if(!goal)return setErr(err,'Selecciona tu objetivo principal.');if(!mode)return setErr(err,'Selecciona la modalidad.');
+  const level=typeof trainerLevel!=='undefined'?trainerLevel:null,schedule=typeof trainerSchedule!=='undefined'?[...trainerSchedule]:[];
+  const message=[`Objetivo: ${goal}`,`Modalidad: ${mode}`,`Nivel: ${level||'No indicado'}`,`Disponibilidad: ${schedule.length?schedule.join(', '):'No indicada'}`,`Edad: ${age||'No indicada'}`,`Teléfono: ${phone||'No indicado'}`,notes?`Información adicional: ${notes}`:''].filter(Boolean).join('\n');
+  try{const r=await fetch('/.netlify/functions/contact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,subject:`[PERSONAL TRAINER] ${goal} — ${mode}`,message})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'No se pudo enviar la solicitud.');if(typeof closeModal==='function')closeModal('trainerModal');if(typeof showToast==='function')showToast('Solicitud recibida. Nutretium revisará tu petición.');}
+  catch(e){setErr(err,e.message||'No se pudo enviar la solicitud. Inténtalo de nuevo.');}
+};
+
+function sanitizeTrainer(){
+  const notes=document.getElementById('trainerNotes');if(!notes)return;
+  const label=document.querySelector('label[for="trainerNotes"]');if(label)label.textContent='Información adicional (opcional)';
+  notes.placeholder='Cuéntanos qué buscas. No incluyas información médica o clínica.';
+  const note=document.createElement('p');note.className='text-xs text-brand-muted mt-1';note.textContent='Para datos de salud o lesiones, consulta directamente con el profesional adecuado; no los envíes por este formulario.';if(!notes.parentElement.querySelector('[data-health-note]')){note.dataset.healthNote='1';notes.insertAdjacentElement('afterend',note);}
+}
+
+function sanitizeCareer(){
+  const upload=document.getElementById('cvUpload');if(upload){const wrap=upload.closest('div');if(wrap)wrap.style.display='none';}
+  if(document.getElementById('careerLink'))return;
+  const message=document.getElementById('careerMessage');if(!message)return;
+  const host=message.closest('div');if(!host)return;
+  const box=document.createElement('div');box.className='mt-4';box.innerHTML='<label for="careerLink" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">LinkedIn o enlace a CV <span class="normal-case font-normal">(opcional)</span></label><input id="careerLink" type="url" inputmode="url" autocomplete="url" placeholder="https://…" class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors">';host.insertAdjacentElement('afterend',box);
+}
+window.submitCareerApplication=async function(){
+  const name=document.getElementById('careerName')?.value.trim()||'',email=document.getElementById('careerEmail')?.value.trim()||'',phone=document.getElementById('careerPhone')?.value.trim()||'',position=document.getElementById('careerPosition')?.value||'Candidatura espontánea',message=document.getElementById('careerMessage')?.value.trim()||'',link=document.getElementById('careerLink')?.value.trim()||'',err=document.getElementById('careerError');err?.classList.add('hidden');
+  if(!name)return setErr(err,'El nombre es obligatorio.');if(!email)return setErr(err,'El email es obligatorio.');if(!message)return setErr(err,'Cuéntanos algo sobre ti.');
+  try{const r=await fetch('/.netlify/functions/contact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,subject:`[CANDIDATURA] ${position}`,message:`Puesto: ${position}\nTeléfono: ${phone||'No indicado'}\nEnlace CV/LinkedIn: ${link||'No indicado'}\n\n${message}`})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'No se pudo enviar la candidatura.');if(typeof closeModal==='function')closeModal('careersModal');if(typeof showToast==='function')showToast('Candidatura recibida correctamente.');}
+  catch(e){setErr(err,e.message||'No se pudo enviar la candidatura. Inténtalo de nuevo.');}
+};
+
+// ── 3. Chat: nunca inventar tracking, métodos de pago, portes o plazos.
+const fulfilmentLabels={PENDING_FULFILMENT:'Pendiente de preparación',PREPARING:'En preparación',READY_TO_SHIP:'Listo para enviar',SHIPPED:'Enviado',DELIVERED:'Entregado',CANCELLED:'Cancelado',REVIEW_REQUIRED:'Revisión necesaria'};
+async function chatRealOrders(){
+  if(!window.currentUser?.token){if(typeof chatAddBot==='function')chatAddBot('Para consultar un pedido de forma segura, inicia sesión y abre <a class="text-brand-gold underline" href="/cuenta.html">Mi Nutretium</a>.');return;}
+  const typing=typeof chatTyping==='function'?chatTyping():null;
+  try{const r=await fetch('/.netlify/functions/orders',{headers:{Authorization:`Bearer ${window.currentUser.token}`}});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error();const orders=Array.isArray(d.orders)?d.orders.slice(0,3):[];if(!orders.length){chatAddBot('No aparecen pedidos asociados a tu cuenta.');return;}const html=orders.map(o=>{const state=fulfilmentLabels[o.fulfilmentStatus]||(o.status==='PAID'?'Pago confirmado':o.status||'En proceso');const track=o.tracking?.code?` · ${esc(o.tracking.carrier||'Transportista')} ${esc(o.tracking.code)}`:'';return `<div class="border-b border-brand-border/50 py-2"><strong>${esc(o.order)}</strong><br><span class="text-brand-muted">${esc(state)}${track}</span></div>`;}).join('');chatAddBot('Tus últimos pedidos:'+html+'<a class="text-brand-gold underline" href="/cuenta.html">Ver Mi Nutretium</a>');}
+  catch{chatAddBot('No he podido consultar tus pedidos ahora. Puedes revisarlos en Mi Nutretium o contactar con el equipo.');}
+  finally{typing?.remove();}
+}
+window.chatQuick=function(type){
+  if(typeof chatAddMsg==='function')chatAddMsg(type==='seguimiento'?'Seguimiento de pedido':'Otras consultas',true);
+  if(type==='seguimiento'){chatRealOrders();return;}
+  if(typeof chatAddBot==='function')chatAddBot('Puedo ayudarte con pedidos reales, pago mediante Redsys o a encontrar un producto del catálogo. Para condiciones de envío/devolución que no estén publicadas, te dirigiré al equipo de Nutretium.');
+};
+window.chatReply=function(text){
+  const t=String(text||'').toLowerCase();
+  if(/pedido|seguimiento|tracking|env[ií]o/.test(t)){chatRealOrders();return;}
+  if(/pago|tarjeta|bizum|paypal|klarna|sequra|apple pay|google pay/.test(t)){chatAddBot('El pago online implementado en Nutretium se procesa con <strong>tarjeta mediante Redsys</strong>. No mostraré otros métodos mientras no estén contratados e integrados.');return;}
+  if(/devol|cambio|reembolso|porte|plazo|entrega/.test(t)){chatAddBot('Las condiciones aplicables deben coincidir con la política comercial publicada. Consulta el <a class="text-brand-gold underline" href="/ayuda">Centro de ayuda</a> o contacta con Nutretium para confirmar el caso concreto.');return;}
+  try{const found=typeof chatSearchCatalog==='function'?chatSearchCatalog(text):{list:[]};if(found.list?.length){const items=found.list.slice(0,3).map(p=>`<div class="flex justify-between gap-2 border-b border-brand-border/50 py-1"><span>${esc(p.name)}</span><strong class="text-brand-gold">${Number(p.price).toFixed(2)} €</strong></div>`).join('');chatAddBot('He encontrado esto en el catálogo:'+items);return;}}catch(_){ }
+  chatAddBot('No quiero darte una respuesta logística o comercial inventada. Puedes buscar un producto por nombre o hablar con Nutretium desde el formulario de contacto.');
+};
+
+// ── 4. Retirar UI decorativa/externa no configurada.
+function cleanUnsupportedUi(){
+  document.getElementById('radioAudio')?.closest('section')?.remove();
+  document.querySelectorAll('a[target="_blank"]').forEach(a=>{try{const u=new URL(a.href,location.origin);if((u.hostname==='facebook.com'||u.hostname==='www.facebook.com'||u.hostname==='tiktok.com'||u.hostname==='www.tiktok.com')&&(u.pathname==='/'||u.pathname===''))a.remove();}catch(_){}});
+  const hasCustom=(window.NUTRETIUM_PRODUCTS||[]).some(p=>p.active!==false&&p.customizable===true);if(!hasCustom)document.getElementById('customModal')?.remove();
+}
+
+function init(){ensureMobileFilters();sanitizeTrainer();sanitizeCareer();cleanUnsupportedUi();}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,220),{once:true});else setTimeout(init,220);
+})();

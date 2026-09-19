@@ -12,7 +12,7 @@ for(const file of files){
   const shell='<script src="/admin-shell.js"></script>';
   html=html.includes('</body>')?html.replace('</body>',shell+'</body>'):html+shell;
  }
- if(['admin.html','ops.html','enterprise.html'].includes(file)&&!html.includes('/staff-login-ui.js')){
+ if(!html.includes('/staff-login-ui.js')){
   const login='<script src="/staff-login-ui.js"></script>';
   html=html.includes('</body>')?html.replace('</body>',login+'</body>'):html+login;
  }

@@ -13,6 +13,7 @@ const scripts = [
   'commerce-pro.js',
   'final-hardening.js',
   'commerce-suite.js',
+  'commercial-finish.js',
 ];
 
 for (const src of scripts) {
@@ -25,6 +26,7 @@ for (const src of scripts) {
 html = html
   .replaceAll('Lun – Sáb 09:00 – 21:00', 'Lun – Sáb 09:30 – 22:00')
   .replaceAll('Lunes – Sábado: 09:00 – 21:00', 'Lunes – Sábado: 09:30 – 22:00')
+  .replaceAll('633 653 517', '633 753 517')
   .replaceAll('Envío express 48h · Devolución gratuita 30 días', 'Tienda física en Santander · Atención personalizada');
 
 fs.writeFileSync(file, html, 'utf8');

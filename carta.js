@@ -26,11 +26,13 @@ function renderMenu(){
   $('resultCount').textContent=`${list.length} opciones`;
   $('menu').innerHTML=list.length?list.map(p=>{
     const image=p.image?`<img class="product-image" src="/${String(p.image).replace(/^\//,'')}" alt="${escapeHtml(p.name)}" loading="lazy">`:'';
-    return `<article class="product ${p.image?'':'no-image'}">${image}<div class="product-content"><span class="tag">${escapeHtml(p.category||'Nutretium')}</span><h3>${escapeHtml(p.name)}</h3><div class="product-meta"><span class="price">${money(p.price)}</span><button class="add" data-add="${p.id}" aria-label="Añadir ${escapeHtml(p.name)}">+</button></div></div></article>`;
+    return `<article class="product ${p.image?'':'no-image'}">${image}<a class="product-link" href="/producto/${productSlug(p)}" aria-label="Ver ${escapeHtml(p.name)}"></a><div class="product-content"><span class="tag">${escapeHtml(p.category||'Nutretium')}</span><h3><a href="/producto/${productSlug(p)}">${escapeHtml(p.name)}</a></h3><div class="product-meta"><span class="price">${money(p.price)}</span><button class="add" data-add="${p.id}" aria-label="Añadir ${escapeHtml(p.name)}">+</button></div></div></article>`;
   }).join(''):'<p class="loading">No hay productos disponibles en esta categoría.</p>';
   $('menu').querySelectorAll('[data-add]').forEach(btn=>btn.addEventListener('click',()=>changeQty(btn.dataset.add,1)));
 }
 function escapeHtml(value){return String(value||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function productSlug(p){return `${slug(p.name)}-${String(p.code).toLowerCase()}`;}
+function slug(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');}
 function changeQty(id,delta){
   id=String(id); const next=(state.cart.get(id)||0)+delta;
   if(next>0)state.cart.set(id,next);else state.cart.delete(id);

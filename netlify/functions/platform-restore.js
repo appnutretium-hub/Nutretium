@@ -1,3 +1,45 @@
 'use strict';
-const {requireStaff}=require('../lib/staff');const {getBlobStore}=require('../lib/blob-store');const enterprise=require('../lib/enterprise-store');const schema=require('../lib/enterprise-schema');const {cabecerasCORS}=require('../lib/cors');const CORS=cabecerasCORS('POST, OPTIONS'),response=(s,b)=>({statusCode:s,headers:{...CORS,'Cache-Control':'no-store'},body:JSON.stringify(b)});
-exports.handler=async event=>{if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};if(event.httpMethod!=='POST')return response(405,{error:'Method Not Allowed'});const auth=await requireStaff(event,'platform.write');if(!auth.ok)return response(auth.statusCode,{error:auth.error});if(auth.role!=='owner')return response(403,{error:'Solo el propietario puede restaurar backups.'});let body;try{body=JSON.parse(event.body||'{}')}catch{return response(400,{error:'JSON no válido.'})}const key=String(body.key||'');if(!/^daily\/\d{4}-\d{2}-\d{2}$/.test(key))return response(400,{error:'Clave de backup no válida.'});const backupStore=getBlobStore('enterprise-backups-v1');if(!backupStore)return response(503,{error:'Backup store no disponible.'});const snapshot=await backupStore.get(key,{type:'json',consistency:'strong'}).catch(()=>null);if(!snapshot?.domains)return response(404,{error:'Backup no encontrado o inválido.'});const plan={key,generatedAt:snapshot.generatedAt||null,domains:{}};for(const domain of schema.domains()){const records=Array.isArray(snapshot.domains[domain])?snapshot.domains[domain]:[];plan.domains[domain]=records.length;}if(body.confirm!==`RESTORE:${key}`)return response(200,{dryRun:true,plan,requiredConfirmation:`RESTORE:${key}`});let restored=0;for(const domain of schema.domains()){for(const record of Array.isArray(snapshot.domains[domain])?snapshot.domains[domain]:[]){const checked=schema.validate(domain,record);if(!checked.ok)return response(409,{error:`Backup inválido en ${domain}: ${checked.errors[0]}`});await enterprise.save(domain,checked.data,auth,{id:record.id,reason:`restore:${key}`});restored++;}}await enterprise.audit(auth,'restore','platform',key,{restored});return response(200,{ok:true,restored,key})};
+const crypto=require('crypto');
+const {requireStaff}=require('../lib/staff');
+const {getBlobStore}=require('../lib/blob-store');
+const enterprise=require('../lib/enterprise-store');
+const schema=require('../lib/enterprise-schema');
+const {cabecerasCORS}=require('../lib/cors');
+const CORS=cabecerasCORS('POST, OPTIONS'),response=(s,b)=>({statusCode:s,headers:{...CORS,'Cache-Control':'no-store'},body:JSON.stringify(b)});
+function checksum(snapshot){const copy={...snapshot};delete copy.checksum;return crypto.createHash('sha256').update(JSON.stringify(copy)).digest('hex')}
+function validateSnapshot(snapshot){
+ const prepared={};
+ for(const domain of schema.domains()){
+  const records=Array.isArray(snapshot.domains?.[domain])?snapshot.domains[domain]:[];
+  prepared[domain]=[];
+  for(const record of records){
+   const checked=schema.validate(domain,record);
+   if(!checked.ok)return{ok:false,error:`Backup inválido en ${domain}: ${checked.errors[0]}`};
+   prepared[domain].push({id:record.id,data:checked.data});
+  }
+ }
+ return{ok:true,prepared};
+}
+exports.handler=async event=>{
+ if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
+ if(event.httpMethod!=='POST')return response(405,{error:'Method Not Allowed'});
+ const auth=await requireStaff(event,'platform.write');if(!auth.ok)return response(auth.statusCode,{error:auth.error});
+ if(auth.role!=='owner')return response(403,{error:'Solo el propietario puede restaurar backups.'});
+ let body;try{body=JSON.parse(event.body||'{}')}catch{return response(400,{error:'JSON no válido.'})}
+ const key=String(body.key||'');if(!/^daily\/\d{4}-\d{2}-\d{2}$/.test(key))return response(400,{error:'Clave de backup no válida.'});
+ const backupStore=getBlobStore('enterprise-backups-v1');if(!backupStore)return response(503,{error:'Backup store no disponible.'});
+ const snapshot=await backupStore.get(key,{type:'json',consistency:'strong'}).catch(()=>null);if(!snapshot?.domains)return response(404,{error:'Backup no encontrado o inválido.'});
+ if(snapshot.checksum&&snapshot.checksum!==checksum(snapshot))return response(409,{error:'El backup no supera la verificación de integridad.'});
+ if(snapshot.counts){for(const domain of schema.domains()){const expected=Number(snapshot.counts[domain]||0),actual=Array.isArray(snapshot.domains[domain])?snapshot.domains[domain].length:0;if(expected!==actual)return response(409,{error:`El backup tiene un conteo inconsistente en ${domain}.`})}}
+ const validation=validateSnapshot(snapshot);if(!validation.ok)return response(409,{error:validation.error});
+ const plan={key,generatedAt:snapshot.generatedAt||null,checksum:snapshot.checksum||null,domains:{},records:0};
+ for(const domain of schema.domains()){const n=validation.prepared[domain].length;plan.domains[domain]=n;plan.records+=n}
+ if(body.confirm!==`RESTORE:${key}`)return response(200,{dryRun:true,plan,requiredConfirmation:`RESTORE:${key}`});
+ const before=await enterprise.snapshot();before.checksum=checksum(before);const restoreId=new Date().toISOString().replace(/[:.]/g,'-');const safetyKey=`pre-restore/${restoreId}`;await backupStore.setJSON(safetyKey,before);
+ let restored=0;
+ for(const domain of schema.domains())for(const record of validation.prepared[domain]){await enterprise.save(domain,record.data,auth,{id:record.id,reason:`restore:${key}`});restored++}
+ await enterprise.audit(auth,'restore','platform',key,{restored,safetyBackup:safetyKey,sourceChecksum:snapshot.checksum||null});
+ return response(200,{ok:true,restored,key,safetyBackup:safetyKey});
+};
+
+exports._test={checksum,validateSnapshot};

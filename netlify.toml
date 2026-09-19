@@ -11,8 +11,12 @@
     node --check commerce-pro.js &&
     node --check final-hardening.js &&
     node --check commerce-suite.js &&
+    node --check commercial-finish.js &&
+    node --check compare-suite.js &&
     node --check product-variants.js &&
     node --check producto.js &&
+    node --check product-education.js &&
+    node --check comparar.js &&
     node --check checkout.js &&
     node --check cuenta.js &&
     node --check smart-shop.js &&
@@ -115,6 +119,12 @@
     Cache-Control = "no-store"
 
 [[headers]]
+  for = "/comparar*"
+  [headers.values]
+    X-Robots-Tag = "noindex, follow"
+    Cache-Control = "no-store"
+
+[[headers]]
   for = "/sources/productos/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
@@ -132,6 +142,16 @@
 [[redirects]]
   from = "/ayuda"
   to = "/ayuda.html"
+  status = 200
+
+[[redirects]]
+  from = "/aprende"
+  to = "/aprende.html"
+  status = 200
+
+[[redirects]]
+  from = "/comparar"
+  to = "/comparar.html"
   status = 200
 
 [[redirects]]

@@ -20,7 +20,7 @@
     "test": "node scripts/test-precios.js",
     "fotos": "node scripts/fotos-incorporar.js",
     "stock": "node scripts/stock-actualizar.js",
-    "test:redsys": "node scripts/test-redsys.js",
+    "test:redsys": "node scripts/test-commerce-core.js",
     "catalogo": "node scripts/catalogo-actualizar.js",
     "panel": "node scripts/panel-servidor.js",
     "test:catalogo": "node scripts/test-catalogo.js",

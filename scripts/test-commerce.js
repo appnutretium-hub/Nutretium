@@ -1,6 +1,8 @@
 'use strict';
 const assert=require('assert');
 const {slugify,escapeXml,productPath,categoryPath,buildSitemap}=require('../netlify/lib/seo');
+const settings=require('../netlify/lib/settings');
+const {quoteWithPolicy}=require('../netlify/lib/shipping');
 let tests=0;function test(name,fn){try{fn();tests+=1;console.log('✓',name);}catch(err){console.error('✗',name);throw err;}}
 test('slugify normaliza tildes y espacios',()=>assert.strictEqual(slugify('Proteínas y Salud'),'proteinas-y-salud'));
 test('slugify elimina símbolos peligrosos',()=>assert.strictEqual(slugify('Whey <80%> / CFM'),'whey-80-cfm'));
@@ -10,4 +12,10 @@ test('escapeXml escapa entidades XML',()=>assert.strictEqual(escapeXml('A & B < 
 test('sitemap incluye home categorías y productos activos',()=>{const xml=buildSitemap({baseUrl:'https://nutretium.com/',categories:['Proteínas'],products:[{id:1,name:'Whey Gold',active:true},{id:2,name:'Oculto',active:false}]});assert(xml.includes('<loc>https://nutretium.com/</loc>'));assert(xml.includes('<loc>https://nutretium.com/categoria/proteinas</loc>'));assert(xml.includes('<loc>https://nutretium.com/producto/whey-gold-1</loc>'));assert(!xml.includes('oculto-2'));});
 test('sitemap elimina URLs duplicadas',()=>{const xml=buildSitemap({categories:['Creatinas','Creatinas'],products:[]});assert.strictEqual((xml.match(/categoria\/creatinas/g)||[]).length,1);});
 test('sitemap marca featured con prioridad superior',()=>{const xml=buildSitemap({products:[{id:7,name:'Top',active:true,featured:true}]});const block=xml.split('<url>').find((x)=>x.includes('/top-7'));assert(block.includes('<priority>0.8</priority>'));});
+test('settings incorpora política de envío segura por defecto',()=>{const s=settings.normalize({});assert.strictEqual(s.shipping.managed,false);assert.strictEqual(s.shipping.enabled,false);assert.strictEqual(s.shipping.rateCents,null);assert.strictEqual(s.shipping.freeFromCents,5000);assert.strictEqual(s.shipping.country,'España')});
+test('shipping bloquea política gestionada pero desactivada',()=>{const q=quoteWithPolicy({managed:true,enabled:false,rateCents:490,freeFromCents:5000,country:'España',label:'Envío'},{subtotalCents:2000,address:{pais:'España',cp:'39001'}});assert.strictEqual(q.ok,false);assert.strictEqual(q.reason,'shipping-disabled')});
+test('shipping aplica tarifa normal por debajo del umbral',()=>{const q=quoteWithPolicy({managed:true,enabled:true,rateCents:490,freeFromCents:5000,country:'España',label:'Envío'},{subtotalCents:4999,address:{pais:'España',cp:'39001'}});assert.strictEqual(q.ok,true);assert.strictEqual(q.shippingCents,490);assert.strictEqual(q.free,false)});
+test('shipping aplica envío gratis desde el umbral',()=>{const q=quoteWithPolicy({managed:true,enabled:true,rateCents:490,freeFromCents:5000,country:'España',label:'Envío'},{subtotalCents:5000,address:{pais:'España',cp:'39001'}});assert.strictEqual(q.ok,true);assert.strictEqual(q.shippingCents,0);assert.strictEqual(q.free,true)});
+test('shipping rechaza país no permitido',()=>{const q=quoteWithPolicy({managed:true,enabled:true,rateCents:490,freeFromCents:5000,country:'España',label:'Envío'},{subtotalCents:6000,address:{pais:'Francia',cp:'75001'}});assert.strictEqual(q.ok,false);assert.strictEqual(q.reason,'country-not-supported')});
+test('shipping rechaza código postal inválido',()=>{const q=quoteWithPolicy({managed:true,enabled:true,rateCents:490,freeFromCents:5000,country:'España',label:'Envío'},{subtotalCents:6000,address:{pais:'España',cp:'3900'}});assert.strictEqual(q.ok,false);assert.strictEqual(q.reason,'postal-code')});
 console.log(`\n${tests} pruebas commerce superadas.`);

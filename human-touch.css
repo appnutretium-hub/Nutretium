@@ -1,105 +1,12 @@
-/* NUTRETIUM — Human Touch Layer
-   Preserva la arquitectura original y suaviza la estética para que se vea más editorial,
-   comercial y real. Diseñado como capa de override, no reemplaza la web existente. */
-
-:root{
-  --nt-bg:#0b0b0b;
-  --nt-card:#121212;
-  --nt-card-2:#171717;
-  --nt-gold:#d4af37;
-  --nt-gold-soft:#c7a449;
-  --nt-text:#f3f1eb;
-  --nt-muted:#aaa59a;
-  --nt-border:rgba(212,175,55,.18);
-  --nt-shadow:0 14px 45px rgba(0,0,0,.26);
-}
-
-html{scroll-behavior:smooth}
-body{
-  background:
-    radial-gradient(circle at 12% 12%,rgba(212,175,55,.055),transparent 28%),
-    radial-gradient(circle at 88% 22%,rgba(255,255,255,.025),transparent 25%),
-    var(--nt-bg)!important;
-  color:var(--nt-text)!important;
-  letter-spacing:-.008em;
-}
-
-.gold-text{text-shadow:none!important}
-.hero-bg{
-  background:linear-gradient(90deg,rgba(5,5,5,.98) 0%,rgba(8,8,8,.94) 48%,rgba(16,14,8,.82) 100%)!important;
-}
-.hero-bg::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(120deg,transparent 0 62%,rgba(212,175,55,.05) 62% 100%)}
-body > div:first-of-type{box-shadow:inset 0 -1px rgba(0,0,0,.22)}
-nav{background:rgba(10,10,10,.94)!important;backdrop-filter:blur(18px) saturate(120%)!important;-webkit-backdrop-filter:blur(18px) saturate(120%)!important;box-shadow:0 10px 32px rgba(0,0,0,.12)}
-#navSearchWrapDesktop > div{background:#141414!important;border-color:rgba(255,255,255,.08)!important;box-shadow:inset 0 1px rgba(255,255,255,.025)}
-#navSearchWrapDesktop > div:focus-within{border-color:rgba(212,175,55,.62)!important;box-shadow:0 0 0 3px rgba(212,175,55,.07)}
-
-.hero-bg .max-w-3xl{max-width:760px!important}
-.hero-title{max-width:730px;letter-spacing:-.055em!important;line-height:.96!important;text-wrap:balance}
-.hero-bg p{color:#b7b2a8!important;max-width:650px!important}
-.hero-bg a{border-radius:12px!important;box-shadow:none!important;transition:transform .18s ease,background .18s ease,border-color .18s ease!important}
-.hero-bg a:hover{transform:translateY(-2px)}
-
-.product-card,.category-card,.cert-card,.pay-badge{background:linear-gradient(180deg,#151515,#101010)!important;border-color:rgba(255,255,255,.075)!important;box-shadow:none!important}
-.product-card{border-radius:18px!important;overflow:hidden;transform:none!important}
-.product-card:hover{border-color:rgba(212,175,55,.38)!important;transform:translateY(-3px)!important;box-shadow:var(--nt-shadow)!important}
-.product-card img{transition:transform .45s cubic-bezier(.2,.7,.2,1),filter .25s ease;filter:saturate(.96) contrast(1.02)}
-.product-card:hover img{transform:scale(1.025)}
-.category-card{border-radius:16px!important;transform:none!important}
-.category-card:hover{transform:translateY(-2px)!important;background:#171717!important;border-color:rgba(212,175,55,.34)!important}
-.add-to-cart-btn,.bg-brand-gold{background:linear-gradient(180deg,#dfbd4c,#c9a52f)!important;box-shadow:inset 0 1px rgba(255,255,255,.24)!important}
-.add-to-cart-btn:hover,.bg-brand-gold:hover{background:linear-gradient(180deg,#e7c95f,#d1ad35)!important}
-h1,h2,h3,h4{text-wrap:balance} h2,h3{letter-spacing:-.03em!important}
-#statsBar{gap:0!important;padding-top:20px!important;padding-bottom:20px!important}
-#statsBar > div{border-right:1px solid rgba(255,255,255,.07)}
-#statsBar > div:last-child{border-right:none}
-section > .max-w-7xl,footer > .max-w-7xl{max-width:1280px!important}
-section{position:relative} section + section{border-top-color:rgba(255,255,255,.055)!important}
-input,select,textarea{background:#101010!important;border-color:rgba(255,255,255,.09)!important;border-radius:12px!important}
-input:focus,select:focus,textarea:focus{border-color:rgba(212,175,55,.62)!important;box-shadow:0 0 0 3px rgba(212,175,55,.07)!important}
-.modal-box{border:1px solid rgba(255,255,255,.08)!important;box-shadow:0 35px 100px rgba(0,0,0,.55)!important}
-footer{background:#0e0e0e!important} footer p{line-height:1.75}
-
-/* ── CAPA DE CONFIANZA: solo afirmaciones sostenibles ───────────────────── */
-.hero-bg .max-w-3xl > p{font-size:0!important;line-height:1.6!important}
-.hero-bg .max-w-3xl > p::after{content:"Suplementación deportiva, alimentación saludable y atención cercana desde nuestra tienda física en Santander.";display:block;font-size:1.1rem;line-height:1.65;color:#b7b2a8}
-body > div.bg-brand-card.border-b[class~="sm:block"] p{font-size:0!important}
-body > div.bg-brand-card.border-b[class~="sm:block"] p::after{content:"Tienda física en Santander · Atención personalizada";font-size:.75rem;color:#aaa59a}
-body > div.bg-brand-card.border-b[class~="sm:block"] span.flex.items-center.gap-1\.5 > span{font-size:0!important}
-body > div.bg-brand-card.border-b[class~="sm:block"] span.flex.items-center.gap-1\.5 > span::after{content:"Lun – Sáb 09:30 – 22:00";font-size:.75rem;color:#aaa59a}
-#about ul,#about .about-certs{display:none!important}
-#about .max-w-7xl > div:first-child::after{content:"Seleccionamos productos de marcas especializadas y te atendemos también en nuestra tienda física de Calle La Albericia 1, Santander. Para cualquier duda sobre un producto, ingredientes, alérgenos o suplementación, consulta al equipo antes de comprar.";display:block;margin-top:1.25rem;padding:1rem 1.1rem;border:1px solid rgba(212,175,55,.18);border-radius:14px;background:#111;color:#b7b2a8;font-size:.92rem;line-height:1.7}
-footer .pay-badge:nth-child(n+2){display:none!important}
-footer .pay-badge:first-child{font-size:0!important}
-footer .pay-badge:first-child::after{content:"Tarjeta · Redsys";font-size:.75rem}
-
-/* ── FRANCHISE TRUST LAYER ─────────────────────────────────────────────── */
-.nt-franchise-fact{display:flex;align-items:center;gap:12px;padding:2px 14px;text-align:left}
-.nt-franchise-fact-icon{width:38px;height:38px;display:grid;place-items:center;border-radius:50%;background:rgba(212,175,55,.10);border:1px solid rgba(212,175,55,.18);font-size:1rem;flex:0 0 38px}
-.nt-franchise-fact strong{display:block;font-size:.87rem;color:#fff}
-.nt-franchise-fact div span{display:block;margin-top:3px;font-size:.72rem;line-height:1.35;color:#9f9a90}
-.nt-franchise-section{border-top:1px solid rgba(255,255,255,.055)}
-.nt-franchise-head{max-width:720px;margin-bottom:26px}
-.nt-franchise-eyebrow{display:block;color:#d4af37;text-transform:uppercase;letter-spacing:.13em;font-size:.72rem;font-weight:800;margin-bottom:8px}
-.nt-franchise-head h2,.nt-store-proof h2{font-size:clamp(1.8rem,3vw,2.6rem);font-weight:900;line-height:1.05;margin:0;color:#f7f5ef;letter-spacing:-.035em}
-.nt-franchise-head p,.nt-store-proof p{color:#aaa59a;line-height:1.7;margin-top:10px;font-size:.95rem}
-.nt-goal-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
-.nt-goal-card{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:18px;border-radius:16px;background:#111;border:1px solid rgba(255,255,255,.075);min-height:145px;transition:transform .18s ease,border-color .18s ease,background .18s ease}
-.nt-goal-card:hover{transform:translateY(-3px);border-color:rgba(212,175,55,.38);background:#151515}
-.nt-goal-icon{font-size:1.65rem;margin-bottom:auto}.nt-goal-title{font-weight:800;color:#f5f3ed;font-size:.9rem;margin-top:14px}.nt-goal-sub{font-size:.72rem;color:#918c82;margin-top:5px}
-.nt-brand-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
-.nt-brand-chip{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:15px;border-radius:13px;background:#111;border:1px solid rgba(255,255,255,.07);transition:border-color .18s ease,transform .18s ease}
-.nt-brand-chip:hover{border-color:rgba(212,175,55,.38);transform:translateY(-2px)}
-.nt-brand-chip strong{color:#f1efe9;font-size:.85rem;line-height:1.2}.nt-brand-chip span{color:#817d75;font-size:.68rem;margin-top:5px}
-.nt-store-proof{max-width:1280px;margin:20px auto 64px;padding:0 24px}
-.nt-store-proof-inner{display:grid;grid-template-columns:1.35fr 1fr;gap:36px;align-items:center;padding:34px;border-radius:22px;background:linear-gradient(135deg,#121212,#0e0e0e);border:1px solid rgba(212,175,55,.20);box-shadow:0 20px 60px rgba(0,0,0,.18)}
-.nt-store-proof-copy p{max-width:670px}
-.nt-store-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}.nt-store-actions a{display:inline-flex;align-items:center;justify-content:center;padding:11px 16px;border-radius:10px;text-decoration:none;font-weight:800;font-size:.82rem;background:#d4af37;color:#0a0a0a}.nt-store-actions a.secondary{background:transparent;color:#eee;border:1px solid rgba(255,255,255,.10)}
-.nt-store-proof-points{display:grid;grid-template-columns:1fr 1fr;gap:10px}.nt-store-proof-points div{padding:18px;border-radius:14px;background:#0c0c0c;border:1px solid rgba(255,255,255,.065)}.nt-store-proof-points strong{display:block;color:#d4af37;font-size:1rem}.nt-store-proof-points span{display:block;color:#99948b;font-size:.72rem;margin-top:4px}
-.nt-product-detail-link{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.09);color:#d4af37;text-decoration:none;font-size:.75rem;font-weight:800;border-radius:10px;padding:9px 11px;white-space:nowrap}.nt-product-detail-link:hover{border-color:rgba(212,175,55,.45);background:rgba(212,175,55,.06)}
-.nt-legal-identity{margin:0 0 28px;padding:13px 15px;border:1px solid rgba(255,255,255,.065);border-radius:12px;background:#101010;color:#8f8a80;font-size:.72rem;line-height:1.5}
-
-@media(max-width:1000px){.nt-goal-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.nt-brand-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.nt-store-proof-inner{grid-template-columns:1fr}}
-@media(max-width:767px){#statsBar{grid-template-columns:1fr 1fr!important}.nt-franchise-fact{border-right:0!important;padding:9px}.hero-bg .max-w-7xl{padding-top:56px!important;padding-bottom:64px!important}.hero-title{letter-spacing:-.045em!important}.product-card{border-radius:15px!important}.hero-bg .max-w-3xl > p::after{font-size:1rem}.nt-goal-grid{grid-template-columns:1fr 1fr}.nt-brand-grid{grid-template-columns:1fr 1fr}.nt-store-proof{padding:0 16px;margin-bottom:48px}.nt-store-proof-inner{padding:22px;gap:24px}.nt-store-proof-points{grid-template-columns:1fr 1fr}.nt-product-detail-link{padding:9px 10px}}
-@media(max-width:430px){.nt-goal-grid{grid-template-columns:1fr}.nt-store-proof-points{grid-template-columns:1fr}}
+/* NUTRETIUM — Human Touch + Franchise Commerce UI */
+:root{--nt-bg:#0b0b0b;--nt-card:#121212;--nt-card-2:#171717;--nt-gold:#d4af37;--nt-text:#f3f1eb;--nt-muted:#aaa59a;--nt-border:rgba(212,175,55,.18);--nt-shadow:0 14px 45px rgba(0,0,0,.26)}
+html{scroll-behavior:smooth}body{background:radial-gradient(circle at 12% 12%,rgba(212,175,55,.055),transparent 28%),radial-gradient(circle at 88% 22%,rgba(255,255,255,.025),transparent 25%),var(--nt-bg)!important;color:var(--nt-text)!important;letter-spacing:-.008em}.gold-text{text-shadow:none!important}.hero-bg{background:linear-gradient(90deg,rgba(5,5,5,.98),rgba(8,8,8,.94) 48%,rgba(16,14,8,.82))!important}.hero-bg::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(120deg,transparent 0 62%,rgba(212,175,55,.05) 62%)}nav{background:rgba(10,10,10,.94)!important;backdrop-filter:blur(18px) saturate(120%)!important;-webkit-backdrop-filter:blur(18px) saturate(120%)!important;box-shadow:0 10px 32px rgba(0,0,0,.12)}
+.hero-bg .max-w-3xl{max-width:760px!important}.hero-title{max-width:730px;letter-spacing:-.055em!important;line-height:.96!important;text-wrap:balance}.hero-bg p{color:#b7b2a8!important;max-width:650px!important}.hero-bg a{border-radius:12px!important;box-shadow:none!important}.product-card,.category-card,.cert-card,.pay-badge{background:linear-gradient(180deg,#151515,#101010)!important;border-color:rgba(255,255,255,.075)!important;box-shadow:none!important}.product-card{border-radius:18px!important;overflow:hidden;transform:none!important}.product-card:hover{border-color:rgba(212,175,55,.38)!important;transform:translateY(-3px)!important;box-shadow:var(--nt-shadow)!important}.product-card img{transition:transform .45s cubic-bezier(.2,.7,.2,1),filter .25s ease;filter:saturate(.96) contrast(1.02)}.product-card:hover img{transform:scale(1.025)}.category-card{border-radius:16px!important}.category-card:hover{transform:translateY(-2px)!important;background:#171717!important;border-color:rgba(212,175,55,.34)!important}.add-to-cart-btn,.bg-brand-gold{background:linear-gradient(180deg,#dfbd4c,#c9a52f)!important;box-shadow:inset 0 1px rgba(255,255,255,.24)!important}h1,h2,h3,h4{text-wrap:balance}h2,h3{letter-spacing:-.03em!important}section> .max-w-7xl,footer>.max-w-7xl{max-width:1280px!important}input,select,textarea{background:#101010!important;border-color:rgba(255,255,255,.09)!important;border-radius:12px!important}input:focus,select:focus,textarea:focus{border-color:rgba(212,175,55,.62)!important;box-shadow:0 0 0 3px rgba(212,175,55,.07)!important}.modal-box{border:1px solid rgba(255,255,255,.08)!important;box-shadow:0 35px 100px rgba(0,0,0,.55)!important}footer{background:#0e0e0e!important}footer .pay-badge:nth-child(n+2){display:none!important}footer .pay-badge:first-child{font-size:0!important}footer .pay-badge:first-child::after{content:"Tarjeta · Redsys";font-size:.75rem}
+.hero-bg .max-w-3xl>p{font-size:0!important;line-height:1.6!important}.hero-bg .max-w-3xl>p::after{content:"Suplementación deportiva, alimentación saludable y atención cercana desde nuestra tienda física en Santander.";display:block;font-size:1.1rem;line-height:1.65;color:#b7b2a8}body>div.bg-brand-card.border-b[class~="sm:block"] p{font-size:0!important}body>div.bg-brand-card.border-b[class~="sm:block"] p::after{content:"Tienda física en Santander · Atención personalizada";font-size:.75rem;color:#aaa59a}#about ul,#about .about-certs{display:none!important}
+.nt-franchise-fact{display:flex;align-items:center;gap:12px;padding:2px 14px;text-align:left}.nt-franchise-fact-icon{width:38px;height:38px;display:grid;place-items:center;border-radius:50%;background:rgba(212,175,55,.10);border:1px solid rgba(212,175,55,.18);font-size:1rem;flex:0 0 38px}.nt-franchise-fact strong{display:block;font-size:.87rem;color:#fff}.nt-franchise-fact div span{display:block;margin-top:3px;font-size:.72rem;line-height:1.35;color:#9f9a90}.nt-franchise-section{border-top:1px solid rgba(255,255,255,.055)}.nt-franchise-head{max-width:720px;margin-bottom:26px}.nt-franchise-eyebrow,.nt-help-eyebrow{display:block;color:#d4af37;text-transform:uppercase;letter-spacing:.13em;font-size:.72rem;font-weight:800;margin-bottom:8px}.nt-franchise-head h2,.nt-store-proof h2,.nt-help-center h2{font-size:clamp(1.8rem,3vw,2.6rem);font-weight:900;line-height:1.05;margin:0;color:#f7f5ef;letter-spacing:-.035em}.nt-franchise-head p,.nt-store-proof p,.nt-help-center p{color:#aaa59a;line-height:1.7;margin-top:10px;font-size:.95rem}.nt-goal-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.nt-goal-card{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:18px;border-radius:16px;background:#111;border:1px solid rgba(255,255,255,.075);min-height:145px}.nt-goal-card:hover{transform:translateY(-3px);border-color:rgba(212,175,55,.38);background:#151515}.nt-goal-icon{font-size:1.65rem;margin-bottom:auto}.nt-goal-title{font-weight:800;color:#f5f3ed;font-size:.9rem;margin-top:14px}.nt-goal-sub{font-size:.72rem;color:#918c82;margin-top:5px}.nt-brand-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}.nt-brand-chip{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:15px;border-radius:13px;background:#111;border:1px solid rgba(255,255,255,.07)}.nt-brand-chip:hover{border-color:rgba(212,175,55,.38);transform:translateY(-2px)}.nt-brand-chip strong{color:#f1efe9;font-size:.85rem}.nt-brand-chip span{color:#817d75;font-size:.68rem;margin-top:5px}.nt-store-proof{max-width:1280px;margin:20px auto 64px;padding:0 24px}.nt-store-proof-inner{display:grid;grid-template-columns:1.35fr 1fr;gap:36px;align-items:center;padding:34px;border-radius:22px;background:linear-gradient(135deg,#121212,#0e0e0e);border:1px solid rgba(212,175,55,.20)}.nt-store-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}.nt-store-actions a{padding:11px 16px;border-radius:10px;text-decoration:none;font-weight:800;font-size:.82rem;background:#d4af37;color:#0a0a0a}.nt-store-actions a.secondary{background:transparent;color:#eee;border:1px solid rgba(255,255,255,.10)}.nt-store-proof-points{display:grid;grid-template-columns:1fr 1fr;gap:10px}.nt-store-proof-points div{padding:18px;border-radius:14px;background:#0c0c0c;border:1px solid rgba(255,255,255,.065)}.nt-store-proof-points strong{display:block;color:#d4af37}.nt-store-proof-points span{display:block;color:#99948b;font-size:.72rem;margin-top:4px}.nt-product-detail-link{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.09);color:#d4af37;text-decoration:none;font-size:.75rem;font-weight:800;border-radius:10px;padding:9px 11px;white-space:nowrap}.nt-legal-identity{margin:0 0 28px;padding:13px 15px;border:1px solid rgba(255,255,255,.065);border-radius:12px;background:#101010;color:#8f8a80;font-size:.72rem}
+/* Commerce Pro */
+.nt-catalog-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 22px;padding:14px 16px;border:1px solid rgba(255,255,255,.075);border-radius:14px;background:#101010}.nt-toolbar-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.nt-toolbar-left>strong{font-size:.82rem;color:#b9b4aa}.nt-toolbar-btn,.nt-stock-toggle,.nt-sort-label{font-size:.76rem;color:#aaa59a}.nt-toolbar-btn{border:1px solid rgba(255,255,255,.09);border-radius:9px;padding:8px 10px;background:#141414}.nt-toolbar-btn.active{color:#d4af37;border-color:rgba(212,175,55,.42)}.nt-stock-toggle{display:flex;align-items:center;gap:7px}.nt-stock-toggle input{accent-color:#d4af37}.nt-sort-label{display:flex;align-items:center;gap:8px}.nt-sort-label select{padding:8px 30px 8px 10px;color:#eee}.nt-wish-btn{position:absolute;right:12px;bottom:12px;z-index:3;width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.12);background:rgba(10,10,10,.78);color:#fff;font-size:1.35rem;display:grid;place-items:center;backdrop-filter:blur(8px)}.nt-wish-btn.active{color:#d4af37;border-color:rgba(212,175,55,.5)}.nt-card-title-link{color:inherit;text-decoration:none}.nt-card-title-link:hover{color:#d4af37}.nt-search-host{position:relative}.nt-search-suggestions{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:80;background:#101010;border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:7px;box-shadow:0 24px 60px rgba(0,0,0,.45);max-height:360px;overflow:auto}.nt-search-result{display:flex;align-items:center;justify-content:space-between;gap:12px;text-decoration:none;padding:10px;border-radius:10px}.nt-search-result:hover{background:#171717}.nt-search-result span{display:flex;flex-direction:column;min-width:0}.nt-search-result strong{color:#f5f3ed;font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nt-search-result small{color:#817d75;font-size:.68rem;margin-top:3px}.nt-search-result b{color:#d4af37;font-size:.78rem;white-space:nowrap}.nt-recent-section{border-top:1px solid rgba(255,255,255,.055)}.nt-recent-section>h2{font-size:1.45rem;font-weight:900;margin:0}.nt-recent-section>p{color:#8f8a80;font-size:.82rem;margin:7px 0 18px}.nt-recent-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}.nt-recent-card{display:flex;flex-direction:column;text-decoration:none;background:#111;border:1px solid rgba(255,255,255,.07);border-radius:14px;overflow:hidden}.nt-recent-card img,.nt-recent-emoji{width:100%;height:120px;object-fit:contain;background:#0d0d0d;padding:10px}.nt-recent-emoji{display:grid;place-items:center;font-size:3rem}.nt-recent-card div{padding:10px}.nt-recent-card strong{display:block;color:#eee;font-size:.75rem;line-height:1.3}.nt-recent-card div span{display:block;color:#d4af37;font-weight:900;font-size:.82rem;margin-top:7px}.nt-help-center{max-width:1280px;margin:0 auto 50px;padding:0 24px}.nt-help-inner{display:grid;grid-template-columns:.75fr 1.5fr;gap:30px;padding:30px;border:1px solid rgba(212,175,55,.16);border-radius:20px;background:#111}.nt-help-links{display:grid;grid-template-columns:1fr 1fr;gap:10px}.nt-help-links a{display:flex;flex-direction:column;text-decoration:none;padding:15px;border:1px solid rgba(255,255,255,.07);border-radius:13px;background:#0d0d0d}.nt-help-links a:hover{border-color:rgba(212,175,55,.38)}.nt-help-links strong{color:#eee;font-size:.84rem}.nt-help-links span{color:#858078;font-size:.7rem;line-height:1.45;margin-top:5px}.nt-skip-link{position:fixed;top:-60px;left:16px;z-index:99999;padding:10px 14px;background:#d4af37;color:#080808;font-weight:900;border-radius:0 0 8px 8px;text-decoration:none}.nt-skip-link:focus{top:0}
+@media(max-width:1000px){.nt-goal-grid{grid-template-columns:repeat(3,1fr)}.nt-brand-grid{grid-template-columns:repeat(4,1fr)}.nt-store-proof-inner,.nt-help-inner{grid-template-columns:1fr}.nt-recent-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:767px){#statsBar{grid-template-columns:1fr 1fr!important}.hero-bg .max-w-7xl{padding-top:56px!important;padding-bottom:64px!important}.nt-goal-grid,.nt-brand-grid,.nt-help-links{grid-template-columns:1fr 1fr}.nt-store-proof{padding:0 16px}.nt-store-proof-inner{padding:22px}.nt-catalog-toolbar{align-items:stretch;flex-direction:column}.nt-sort-label{justify-content:space-between}.nt-sort-label select{flex:1}.nt-recent-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory}.nt-recent-card{min-width:160px;scroll-snap-align:start}.nt-help-center{padding:0 16px}.nt-help-inner{padding:22px}.nt-search-suggestions{position:fixed;left:16px;right:16px;top:auto;margin-top:6px}}
+@media(max-width:430px){.nt-goal-grid,.nt-help-links,.nt-brand-grid{grid-template-columns:1fr}.nt-store-proof-points{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}

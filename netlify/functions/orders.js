@@ -7,31 +7,33 @@
  * Devuelve los pedidos del usuario autenticado, del más reciente al más
  * antiguo. El usuario se determina SIEMPRE a partir del token firmado, nunca
  * de un parámetro de la petición: así nadie puede pedir los pedidos de otro.
- *
- * Los pedidos se guardan en el store "redsys-orders" (clave = nº de pedido) y
- * el índice por usuario en "user-orders" (clave = email → array de pedidos).
  */
 
 'use strict';
 
-const { getBlobStore }        = require('../lib/blob-store');
+const { getBlobStore } = require('../lib/blob-store');
 const { cabecerasCORS } = require('../lib/cors');
 const { verifyJWT, tokenFromHeader, secretConfigured } = require('../lib/jwt');
 
 const CORS = cabecerasCORS('GET, OPTIONS');
-
 const MAX_PEDIDOS = 50;
 
-/** Solo exponemos lo que la página necesita mostrar. */
 function toPublic(rec) {
   return {
-    order:      rec.order,
-    status:     rec.status || 'PENDING',
-    amount:     rec.amount,
-    items:      Array.isArray(rec.items) ? rec.items : [],
-    authCode:   rec.authCode || null,
-    createdAt:  rec.createdAt || null,
+    order: rec.order,
+    status: rec.status || 'PENDING',
+    fulfilmentStatus: rec.fulfilmentStatus || null,
+    amount: rec.amount,
+    items: Array.isArray(rec.items) ? rec.items : [],
+    authCode: rec.authCode || null,
+    createdAt: rec.createdAt || null,
     receivedAt: rec.receivedAt || null,
+    tracking: rec.tracking ? {
+      carrier: String(rec.tracking.carrier || ''),
+      code: String(rec.tracking.code || ''),
+      url: String(rec.tracking.url || ''),
+    } : null,
+    updatedAt: rec.updatedAt || null,
   };
 }
 
@@ -41,14 +43,11 @@ exports.handler = async function (event) {
     return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: 'Method Not Allowed' }) };
   }
 
-  // ── Autenticación ──────────────────────────────────────────────────────────
   const token = tokenFromHeader(event.headers);
   if (!token) {
     return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'Debes iniciar sesión.' }) };
   }
 
-  // Sin JWT_SECRET no se puede verificar ninguna sesión: 503 explícito en vez de
-  // hacer creer al usuario que su sesión ha caducado.
   if (!secretConfigured()) {
     console.error('[orders] Falta JWT_SECRET. Configúralo en Netlify.');
     return { statusCode: 503, headers: CORS, body: JSON.stringify({ error: 'Servicio no disponible ahora mismo.' }) };
@@ -62,10 +61,8 @@ exports.handler = async function (event) {
     return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'Sesión caducada. Vuelve a iniciar sesión.' }) };
   }
 
-  // ── Índice de pedidos del usuario ──────────────────────────────────────────
   const index = getBlobStore('user-orders');
   const store = getBlobStore('redsys-orders');
-
   if (!index || !store) {
     return { statusCode: 503, headers: CORS, body: JSON.stringify({ error: 'Almacenamiento no disponible.' }) };
   }
@@ -75,13 +72,11 @@ exports.handler = async function (event) {
     return { statusCode: 200, headers: CORS, body: JSON.stringify({ orders: [] }) };
   }
 
-  // ── Cargar cada pedido (en paralelo, acotado) ──────────────────────────────
   const registros = await Promise.all(
     numeros.slice(0, MAX_PEDIDOS).map(n => store.get(n, { type: 'json' }).catch(() => null))
   );
 
   const orders = registros
-    // Defensa extra: aunque el índice es por email, comprobamos la propiedad.
     .filter(r => r && (!r.email || r.email === email))
     .map(toPublic);
 

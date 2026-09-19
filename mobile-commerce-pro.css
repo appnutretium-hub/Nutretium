@@ -1,0 +1,45 @@
+/* NUTRETIUM — Mobile Commerce PRO
+   Prioridad: controles táctiles inequívocos, carrito accesible y cero solapes. */
+@media(max-width:767px){
+  body{padding-bottom:calc(78px + env(safe-area-inset-bottom,0px))!important}
+  #products{scroll-margin-top:132px}
+  #productGrid{gap:14px!important}
+  #productGrid .product-card{border-radius:18px!important;overflow:hidden!important}
+  #productGrid .product-card>.relative{height:190px!important}
+  #productGrid .product-card>.p-5{padding:15px!important}
+  #productGrid .product-card h3{font-size:1rem!important;line-height:1.3!important;margin-bottom:5px!important}
+  #productGrid .product-card .nt-card-title-link{display:block;padding:2px 0;min-height:26px}
+  #productGrid .nt-mobile-purchase{display:grid!important;grid-template-columns:1fr!important;align-items:stretch!important;gap:10px!important;margin-top:2px}
+  #productGrid .nt-mobile-price{font-size:1.45rem!important;line-height:1.1!important;display:block}
+  #productGrid .nt-mobile-actions{display:grid!important;grid-template-columns:minmax(0,.85fr) minmax(0,1.25fr)!important;gap:9px!important;width:100%}
+  #productGrid .nt-mobile-actions .nt-product-detail-link,
+  #productGrid .nt-mobile-actions .add-to-cart-btn,
+  #productGrid .nt-mobile-actions button[disabled]{width:100%!important;min-width:0!important;min-height:50px!important;padding:11px 10px!important;border-radius:12px!important;font-size:.82rem!important;line-height:1.1!important;display:flex!important;align-items:center!important;justify-content:center!important;white-space:nowrap!important}
+  #productGrid .nt-mobile-actions .add-to-cart-btn{background:linear-gradient(180deg,#e0bd49,#cda72f)!important;color:#090909!important;font-weight:900!important;border:1px solid #d4af37!important;box-shadow:0 8px 22px rgba(212,175,55,.10)!important}
+  #productGrid .nt-mobile-actions .nt-product-detail-link{background:#111!important;color:#e7e2d8!important;border:1px solid rgba(255,255,255,.12)!important}
+  #productGrid .nt-compare-btn{min-height:46px!important;margin-top:10px!important;padding:10px 12px!important;font-size:.78rem!important}
+  #productGrid .nt-wish-btn{width:46px!important;height:46px!important;right:10px!important;bottom:10px!important;font-size:1.45rem!important}
+  .filter-scroll .filter-btn{min-height:44px!important;padding:9px 14px!important}
+  .nt-catalog-toolbar .nt-toolbar-btn,.nt-catalog-toolbar .nt-stock-toggle,.nt-catalog-toolbar select{min-height:44px!important}
+  .nt-mobile-dock{grid-template-columns:repeat(5,1fr)!important;bottom:max(7px,env(safe-area-inset-bottom,0px))!important;padding:5px!important;z-index:10020!important}
+  .nt-mobile-dock a,.nt-mobile-dock button{min-height:48px!important;border:0;background:transparent;color:#aaa59a;text-decoration:none;text-align:center;padding:7px 2px;font-size:.62rem;font-weight:850;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;position:relative}
+  .nt-mobile-dock button:active,.nt-mobile-dock a:active{background:#1a160c;color:#d4af37}
+  .nt-dock-cart-badge{position:absolute;top:2px;right:calc(50% - 24px);min-width:18px;height:18px;padding:0 4px;border-radius:999px;background:#d4af37;color:#070707;font-size:.62rem;line-height:18px;font-weight:950}
+  .nt-mobile-cart-confirm{position:fixed;left:10px;right:10px;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:10019;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px 11px 15px;border:1px solid rgba(212,175,55,.32);border-radius:15px;background:rgba(13,13,13,.98);box-shadow:0 18px 48px rgba(0,0,0,.55);transform:translateY(18px);opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease}
+  .nt-mobile-cart-confirm.show{opacity:1;transform:translateY(0);pointer-events:auto}
+  .nt-mobile-cart-confirm div{min-width:0}.nt-mobile-cart-confirm strong{display:block;color:#f6f2e8;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nt-mobile-cart-confirm span{display:block;color:#aaa59a;font-size:.68rem;margin-top:3px}.nt-mobile-cart-confirm button{min-height:44px;border:0;border-radius:10px;background:#d4af37;color:#080808;padding:9px 13px;font-weight:950;font-size:.74rem;white-space:nowrap}
+  .toast{bottom:calc(82px + env(safe-area-inset-bottom,0px))!important;max-width:calc(100vw - 20px)!important;white-space:normal!important;text-align:center!important}
+  .nt-compare-tray{bottom:calc(82px + env(safe-area-inset-bottom,0px))!important;z-index:10018!important}
+  #cartSidebar{padding-bottom:calc(82px + env(safe-area-inset-bottom,0px))!important}
+  #cartSidebar .cart-item-row{gap:10px!important;padding:11px!important;align-items:center!important}
+  #cartSidebar .cart-item-row button{min-width:42px!important;width:42px!important;height:42px!important;min-height:42px!important;border-radius:10px!important;font-size:1rem!important}
+  #cartSidebar .cart-item-row>div:last-child{gap:5px!important}
+  #redsysBtn{min-height:52px!important;font-size:.94rem!important}
+}
+@media(max-width:390px){
+  #productGrid .nt-mobile-actions{grid-template-columns:1fr!important}
+  #productGrid .nt-mobile-actions .add-to-cart-btn{order:-1}
+  #cartSidebar .cart-item-row{flex-wrap:wrap!important}
+  #cartSidebar .cart-item-row>div:last-child{width:100%;justify-content:flex-end!important}
+}
+@media(hover:none) and (pointer:coarse){button,a,[role="button"]{-webkit-tap-highlight-color:rgba(212,175,55,.14)}button:active,a:active{touch-action:manipulation}}

@@ -5,6 +5,10 @@ Disallow: /admin
 Disallow: /admin.html
 Disallow: /ops
 Disallow: /ops.html
+Disallow: /enterprise
+Disallow: /enterprise.html
+Disallow: /mi-cuenta
+Disallow: /cuenta.html
 Disallow: /pago-ok
 Disallow: /pago-ko
 Disallow: /.netlify/

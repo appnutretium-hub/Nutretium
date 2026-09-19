@@ -20,7 +20,9 @@
     "test:catalogo": "node scripts/test-catalogo.js",
     "test:admin": "node scripts/test-admin.js",
     "test:cuentas": "node scripts/test-cuentas.js",
-    "test:commerce": "node scripts/test-commerce.js"
+    "test:commerce": "node scripts/test-commerce.js",
+    "test:enterprise": "node --check netlify/functions/enterprise.js && node --check netlify/functions/customer-commerce.js && node --check netlify/functions/account-security.js && node --check enterprise.js && node --check cuenta.js && node scripts/test-enterprise.js",
+    "test:all": "npm test && npm run test:redsys && npm run test:catalogo && npm run test:admin && npm run test:cuentas && npm run test:commerce && npm run test:enterprise"
   },
-  "engines": { "node": ">=20" }
+  "engines": { "node": ">=22" }
 }

@@ -1,7 +1,7 @@
 'use strict';
 
-const crypto = require('crypto');
 const usuarios = require('../lib/usuarios');
+const { hashPassword, verifyPassword: verifyPasswordRecord } = require('../lib/passwords');
 const { signJWT, secretConfigured } = require('../lib/jwt');
 const { roleFor } = require('../lib/staff');
 const { secretFor, verify: verifyTotp } = require('../lib/totp');
@@ -18,16 +18,16 @@ const response = (statusCode, body, headers = {}) => ({
 });
 
 function verifyPassword(password, stored) {
-  try {
-    const [salt, hash] = String(stored || '').split(':');
-    if (!salt || !hash) return false;
-    const attempt = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
-    const a = Buffer.from(hash, 'hex');
-    const b = Buffer.from(attempt, 'hex');
-    return a.length === b.length && crypto.timingSafeEqual(a, b);
-  } catch {
-    return false;
-  }
+  return verifyPasswordRecord(password, stored).ok;
+}
+
+async function upgradeHashIfNeeded(email, password, user, verification) {
+  if (!verification.needsRehash) return;
+  const upgraded = hashPassword(password);
+  const at = new Date().toISOString();
+  await usuarios.muta(email, current => current.passwordHash === user.passwordHash
+    ? { ...current, passwordHash:upgraded, passwordHashUpgradedAt:at, updatedAt:at }
+    : null).catch(() => null);
 }
 
 async function checkThrottle(event, email) {
@@ -83,7 +83,8 @@ exports.handler = async event => {
 
   const user = await usuarios.lee(email);
   const role = roleFor(email);
-  if (!user || role === 'client' || !verifyPassword(password, user.passwordHash)) {
+  const verification = user ? verifyPasswordRecord(password, user.passwordHash) : { ok:false, needsRehash:false };
+  if (!user || role === 'client' || !verification.ok) {
     return response(401, { error: 'Credenciales incorrectas.' });
   }
 
@@ -113,6 +114,7 @@ exports.handler = async event => {
     mfaVerified = true;
   }
 
+  await upgradeHashIfNeeded(email, password, user, verification);
   await clearAttempts(event, email);
   const token = signJWT({
     sub: user.id,
@@ -137,4 +139,4 @@ exports.handler = async event => {
   });
 };
 
-exports._test = { verifyPassword, checkThrottle, staffMfaRequired };
+exports._test = { verifyPassword, upgradeHashIfNeeded, checkThrottle, staffMfaRequired };

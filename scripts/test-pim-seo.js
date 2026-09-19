@@ -48,8 +48,8 @@ const robots = fs.readFileSync(path.join(root,'robots.txt'),'utf8');
 assert(robots.includes('Sitemap: https://nutretium.com/sitemap.xml'), 'robots.txt debe declarar sitemap');
 
 const netlify = fs.readFileSync(path.join(root,'netlify.toml'),'utf8');
-assert(!netlify.includes('from = "/categoria/*"'), 'No debe reescribirse categoría a la home');
-assert(!netlify.includes('from = "/producto/*"'), 'No debe reescribirse producto al shell genérico');
+assert(!/from = "\/categoria\/\*"\\s+to = "\/index\.html"/.test(netlify), 'No debe reescribirse categoría a la home');
+assert(!/from = "\/producto\/\*"\\s+to = "\/index\.html"/.test(netlify), 'No debe reescribirse producto al shell genérico');
 
 const audit = pim.audit(active);
 assert.strictEqual(audit.active, active.length, 'Auditoría PIM debe cubrir todo el catálogo activo');

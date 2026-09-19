@@ -24,6 +24,7 @@ process.env.JWT_SECRET = 'secreto-de-pruebas-con-mas-de-32-caracteres-de-sobra';
 process.env.URL = 'https://nutretium.com';
 process.env.GITHUB_REPO = 'appnutretium-hub/Nutretium';
 process.env.GITHUB_BRANCH = 'main';
+process.env.NUTRETIUM_TEST_MEMORY_BLOBS = 'true';
 
 const { signJWT } = require('../netlify/lib/jwt');
 const admin = require('../netlify/lib/admin');

@@ -8,6 +8,7 @@
     cat franchise-trust.js >> app.js &&
     cat commerce-core.js >> app.js &&
     cat enterprise-storefront.js >> app.js &&
+    cat commerce-account-sync.js >> app.js &&
     rm -rf \
       'Listado de stock disponible.pdf' \
       'CATALOGO_NUTRETIUM.xlsx' \
@@ -28,6 +29,7 @@
       'commerce-core.css' \
       'commerce-core.js' \
       'enterprise-storefront.js' \
+      'commerce-account-sync.js' \
       'sources/01_PNG_MAX_CALIDAD_CON_PVP' \
       'sources/00_CONTROL_CALIDAD.csv' \
       'sources/00_RELACION_IMAGENES_PVP.csv' \
@@ -55,12 +57,12 @@
 
 [functions."platform-backup"]
   schedule = "@daily"
-
 [functions."automation-worker"]
   schedule = "0 7 * * *"
-
 [functions."notification-worker"]
   schedule = "*/15 * * * *"
+[functions."price-snapshot"]
+  schedule = "15 2 * * *"
 
 [[headers]]
   for = "/*"
@@ -139,6 +141,26 @@
 [[redirects]]
   from = "/mi-cuenta"
   to = "/cuenta.html"
+  status = 200
+[[redirects]]
+  from = "/tienda"
+  to = "/index.html"
+  status = 200
+[[redirects]]
+  from = "/suplementacion/*"
+  to = "/index.html"
+  status = 200
+[[redirects]]
+  from = "/alimentacion/*"
+  to = "/index.html"
+  status = 200
+[[redirects]]
+  from = "/marcas/*"
+  to = "/index.html"
+  status = 200
+[[redirects]]
+  from = "/objetivos/*"
+  to = "/index.html"
   status = 200
 [[redirects]]
   from = "/categoria/*"

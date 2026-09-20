@@ -24,6 +24,10 @@ function expectedOrigins() {
       if (url.protocol === 'https:' || url.hostname === 'localhost' || url.hostname === '127.0.0.1') out.add(url.origin);
     } catch {}
   }
+  if (security.productionLike()) {
+    out.add('https://nutretium.com');
+    out.add('https://www.nutretium.com');
+  }
   if (!out.size) out.add('http://localhost:8888');
   return out;
 }
@@ -46,7 +50,7 @@ function assertBrowserBoundary(event) {
     throw Object.assign(new Error('Solicitud cross-site bloqueada.'), { code: 'CROSS_SITE_BLOCKED' });
   }
   const origin = normalizeOrigin(header(event, 'origin'));
-  if (origin && !expectedOrigins().has(origin)) {
+  if (!origin || !expectedOrigins().has(origin)) {
     throw Object.assign(new Error('Origen no autorizado.'), { code: 'ORIGIN_BLOCKED' });
   }
   const contentType = header(event, 'content-type').toLowerCase();

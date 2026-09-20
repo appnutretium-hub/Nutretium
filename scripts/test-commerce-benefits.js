@@ -1,4 +1,5 @@
 'use strict';
+process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
 const assert=require('assert');
 const store=require('../netlify/lib/enterprise-store');
 const effects=require('../netlify/lib/order-effects');

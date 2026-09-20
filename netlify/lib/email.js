@@ -5,6 +5,7 @@
 'use strict';
 const direccion = require('./direccion');
 const { tokenFor } = require('./guest-access');
+const { conFirmaLegal } = require('./legal');
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 async function sendEmail({ to, subject, html, idempotencyKey }) {
   const apiKey = process.env.RESEND_API_KEY;
@@ -15,7 +16,7 @@ async function sendEmail({ to, subject, html, idempotencyKey }) {
   try {
     const headers = { Authorization:`Bearer ${apiKey}`, 'Content-Type':'application/json' };
     if (idempotencyKey) headers['Idempotency-Key'] = String(idempotencyKey).slice(0,256);
-    const res = await fetch(RESEND_ENDPOINT,{method:'POST',headers,body:JSON.stringify({from,to:[to],subject,html})});
+    const res = await fetch(RESEND_ENDPOINT,{method:'POST',headers,body:JSON.stringify({from,to:[to],subject,html:conFirmaLegal(html)})});
     const payload = await res.json().catch(()=>({}));
     if (!res.ok) { console.error('[email] Resend devolvió',res.status,JSON.stringify(payload).slice(0,400)); return {ok:false,reason:'provider-error',status:res.status}; }
     return {ok:true,id:payload.id||null};

@@ -19,7 +19,7 @@ function objectivePath(intent){return `/objetivo/${slugify(intent.slug||intent.l
 function buildSitemap({baseUrl='https://nutretium.com',products=[],categories=[],intents=SEO_INTENTS}={}){
   const base=String(baseUrl).replace(/\/+$/,'');
   const activeProducts=(products||[]).filter(product=>product&&product.active!==false&&Number.isFinite(Number(product.id))&&String(product.name||'').trim());
-  const urls=[{loc:`${base}/`,changefreq:'daily',priority:'1.0'}];
+  const urls=[{loc:`${base}/`,changefreq:'daily',priority:'1.0'},{loc:`${base}/privacidad`,changefreq:'yearly',priority:'0.3'}];
 
   for(const category of categories||[]){
     if(!String(category||'').trim())continue;

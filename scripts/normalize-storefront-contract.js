@@ -37,6 +37,20 @@ html=html.replace(/<video[\s\S]*?<\/video>/i,`<div class="w-full h-full flex ite
         <div class="text-center max-w-2xl"><p class="text-brand-gold text-xs font-bold uppercase tracking-widest">NUTRETIUM · SANTANDER</p><p class="text-white text-2xl sm:text-4xl font-black mt-3">Tienda física + compra online</p><p class="text-brand-muted mt-3">C/ La Albericia 1 · Suplementación deportiva, açaí, smoothies y alimentación saludable.</p></div>
       </div>`);
 
+// Fallbacks para plantillas legacy cuyo marcado no coincide exactamente con los bloques actuales.
+const factualReplacements=[
+  ['+5.000','Santander'],
+  ['Clientes activos','Tienda física · La Albericia'],
+  ['>100%</p>','>Online</p>'],
+  ['Calidad certificada','Catálogo y compra desde la web'],
+  ['Envío express 48h','Redsys · pago con tarjeta'],
+  ['Devolución gratuita 30 días','Atención antes y después de comprar'],
+  ['10% de descuento en tu primer pedido','Crea tu cuenta para guardar pedidos y favoritos']
+];
+for(const [from,to] of factualReplacements)html=html.split(from).join(to);
+html=html.replace(/https:\/\/cdn\.coverr\.co\/[^"]+/g,'');
+html=html.replace(/https:\/\/images\.unsplash\.com\/photo-1534438327276-14e5300c3a48[^"]*/g,'');
+
 const forbidden=['09:00 – 21:00','+5.000','Clientes activos','>100%</p>','Calidad certificada','Envío express 48h','Devolución gratuita 30 días','Nueva temporada 2026','10% de descuento en tu primer pedido','cdn.coverr.co','images.unsplash.com/photo-1534438327276-14e5300c3a48'];
 for(const value of forbidden){if(html.includes(value))throw new Error(`Permanece copy prohibido: ${value}`);}
 if(!html.includes('09:30 – 22:00'))throw new Error('Falta el horario validado.');

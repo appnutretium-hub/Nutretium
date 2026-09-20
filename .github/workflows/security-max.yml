@@ -1,0 +1,45 @@
+name: Nutretium Maximum Security Gate
+on:
+  push:
+    branches: [main, 'security/**', 'hardening/**', 'hotfix/**']
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '17 3 * * 1'
+concurrency:
+  group: security-max-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --omit=optional
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+      - name: Maximum security repository gate
+        run: node scripts/security-max-gate.js
+      - name: Existing security regressions
+        run: |
+          npm run test:security
+          npm run test:admin-security
+          node scripts/test-zero-trust-security.js
+          node scripts/security-audit.js
+          node scripts/audit-workflow-pinning.js
+      - name: Critical syntax
+        run: |
+          node --check netlify/lib/totp.js
+          node --check netlify/lib/mfa-replay.js
+          node --check netlify/lib/security-defense.js
+          node --check netlify/functions/staff-login.js
+          node --check netlify/functions/admin-step-up.js

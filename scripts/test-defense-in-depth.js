@@ -8,9 +8,11 @@ process.env.URL='https://nutretium.com';
 const security=require('../netlify/lib/security-policy');
 const defense=require('../netlify/lib/security-defense');
 const mfaReplay=require('../netlify/lib/mfa-replay');
+const audit=require('../netlify/lib/audit-log');
+const {getBlobStore}=require('../netlify/lib/blob-store');
 
 function event({origin='https://nutretium.com',ua='Nutretium-Test/1.0',lang='es-ES',request='req-1234567890-abcdef',contentType='application/json',site='same-origin'}={}){
- return{httpMethod:'POST',headers:{origin,'user-agent':ua,'accept-language':lang,'content-type':contentType,'sec-fetch-site':site,'x-nutretium-request':request},body:'{"action":"test"}'};
+ return{httpMethod:'POST',headers:{origin,'user-agent':ua,'accept-language':lang,'content-type':contentType,'sec-fetch-site':site,'x-nutretium-request':request,'x-nf-client-connection-ip':'127.0.0.90'},body:'{"action":"test"}'};
 }
 
 (async()=>{
@@ -43,5 +45,16 @@ function event({origin='https://nutretium.com',ua='Nutretium-Test/1.0',lang='es-
  const binding=defense.newSessionBinding(event());
  assert(binding.sid.length>=30&&binding.jti.length>=30&&binding.fp===fp,'session binding must carry independent high-entropy identifiers');
 
- console.log('[defense-in-depth] OK · origin boundary + browser binding + mutation replay guard + MFA replay guard');
+ await audit.append({event:event({request:'audit-seed-1234567890'}),actor:'owner@nutretium.test',action:'SECURITY_TEST',resource:'defense'});
+ const intact=await defense.verifyAuditIntegrity();
+ assert.equal(intact.ok,true,'intact audit chain must permit critical operations');
+ const store=getBlobStore('security-audit');
+ const head=await store.get('chain-head',{type:'json',consistency:'strong'});
+ const latest=await store.get(head.key,{type:'json',consistency:'strong'});
+ await store.setJSON(head.key,{...latest,resource:'tampered'});
+ const broken=await defense.verifyAuditIntegrity();
+ assert.equal(broken.ok,false,'tampered audit chain must block critical operations');
+ assert.equal(broken.code,'AUDIT_INTEGRITY_FAILED');
+
+ console.log('[defense-in-depth] OK · origin boundary + browser binding + anti-replay + MFA replay + audit integrity fail-closed');
 })().catch(err=>{console.error(err);process.exit(1)});

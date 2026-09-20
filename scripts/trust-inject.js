@@ -44,6 +44,16 @@ html = html
   .replaceAll('>30d</p>', '>AYUDA</p>')
   .replaceAll('Garantía total', 'Atención y soporte');
 
+// Landmark principal: se añade en build para no tocar a mano la Home de gran tamaño.
+// Es idempotente porque Netlify y los quality gates pueden ejecutar este script más de una vez.
+if (!html.includes('<main id="mainContent"')) {
+  const heroMarker = '  <!-- ══════════════════════════════════════════\n       HERO';
+  const footerMarker = '  <!-- ══════════════════════════════════════════\n       FOOTER';
+  if (!html.includes(heroMarker) || !html.includes(footerMarker)) throw new Error('No se encontraron los límites seguros para el landmark principal.');
+  html = html.replace(heroMarker, `  <main id="mainContent">\n\n${heroMarker}`);
+  html = html.replace(footerMarker, `  </main>\n\n${footerMarker}`);
+}
+
 const localBusiness = {
   '@context':'https://schema.org','@type':'SportingGoodsStore',name:'Nutretium',url:'https://nutretium.com/',telephone:'+34633753517',
   address:{'@type':'PostalAddress',streetAddress:'Calle La Albericia 1',addressLocality:'Santander',addressRegion:'Cantabria',addressCountry:'ES'},
@@ -70,4 +80,4 @@ NUTRETIUM_CATEGORIES.forEach(c => urls.add(`https://nutretium.com/categoria/${sl
 NUTRETIUM_PRODUCTS.filter(p => p.active !== false).forEach(p => urls.add(`https://nutretium.com/producto/${slugify(p.name)}-${p.id}`));
 const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...urls].map((u,i)=>`  <url><loc>${u}</loc><changefreq>${i===0?'daily':'weekly'}</changefreq><priority>${i===0?'1.0':'0.7'}</priority></url>`).join('\n')}\n</urlset>\n`;
 fs.writeFileSync(path.join(process.cwd(),'sitemap.xml'), xml, 'utf8');
-console.log(`[trust-inject] comercio + sesión interna HttpOnly + favoritos + SEO · sitemap ${urls.size} URLs`);
+console.log(`[trust-inject] comercio + sesión interna HttpOnly + favoritos + accesibilidad + SEO · sitemap ${urls.size} URLs`);

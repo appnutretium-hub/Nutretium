@@ -4,6 +4,7 @@ const {signJWT}=require('../lib/jwt');
 const {verifyEventSession,verifyStaffEventSession,STAFF_COOKIE,staffMfaRequired}=require('../lib/session');
 const {permisosDe}=require('../lib/staff');
 const security=require('../lib/security-policy');
+const defense=require('../lib/security-defense');
 const CORS=cabecerasCORS('POST, OPTIONS');
 const MAX_AGE=security.STAFF_SESSION_TTL_SECONDS;
 const json=(statusCode,payload,headers={})=>({statusCode,headers:{...CORS,...security.securityHeaders(headers)},body:JSON.stringify(payload)});
@@ -11,13 +12,15 @@ const cookie=(value,maxAge)=>`${STAFF_COOKIE}=${encodeURIComponent(value)}; Path
 exports.handler=async function(event){
  if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
  if(event.httpMethod!=='POST')return json(405,{error:'Method Not Allowed'});
+ try{defense.assertBrowserBoundary(event)}catch(e){return json(403,{error:e.message,code:e.code||'REQUEST_BLOCKED'})}
  let body;try{body=JSON.parse(event.body||'{}')}catch{return json(400,{error:'JSON no válido.'})}
  if(body.action==='exchange'){
   let verified;try{verified=await verifyEventSession(event,{requireUser:true})}catch{return json(401,{error:'Credencial de acceso no válida o caducada.'})}
   if(verified.claims.kind!=='staff-login')return json(401,{error:'La credencial no procede del acceso de personal.'});
   if(staffMfaRequired()&&verified.claims.mfa!==true)return json(401,{error:'El acceso de personal requiere MFA.'});
+  try{defense.assertSessionBinding(event,verified.claims)}catch{return json(401,{error:'La credencial cambió de contexto. Vuelve a iniciar sesión.'})}
   const permisos=permisosDe(verified.email);if(!permisos.size)return json(403,{error:'Esta cuenta no tiene permisos internos.'});
-  const now=Math.floor(Date.now()/1000),csrf=security.randomToken(32),token=signJWT({sub:verified.user.id,email:verified.email,kind:'staff',mfa:verified.claims.mfa===true,csrf,sv:Number(verified.user.sessionVersion||0),exp:now+MAX_AGE});
+  const now=Math.floor(Date.now()/1000),csrf=security.randomToken(32),binding=defense.newSessionBinding(event),token=signJWT({sub:verified.user.id,email:verified.email,kind:'staff',mfa:verified.claims.mfa===true,csrf,sid:binding.sid,fp:binding.fp,jti:binding.jti,sv:Number(verified.user.sessionVersion||0),exp:now+MAX_AGE});
   return json(200,{ok:true,email:verified.email,permisos:[...permisos],expiresIn:MAX_AGE,csrf},{'Set-Cookie':cookie(token,MAX_AGE)});
  }
  if(body.action==='status'){

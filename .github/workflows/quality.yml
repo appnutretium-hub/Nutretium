@@ -97,6 +97,8 @@ jobs:
           node --check netlify/lib/staff.js
           node --check netlify/lib/external-readiness.js
           node --check netlify/lib/security-policy.js
+          node --check netlify/lib/security-defense.js
+          node --check netlify/lib/mfa-replay.js
           node --check netlify/lib/security-step-up.js
           node --check netlify/functions/admin-external-readiness.js
           node --check netlify/functions/redsys-notify.js
@@ -115,6 +117,7 @@ jobs:
           node --check netlify/functions/production-sentinel.js
           node --check netlify/functions/admin-orders.js
           node --check netlify/functions/contact.js
+          node --check scripts/test-defense-in-depth.js
           node scripts/test-zero-trust-security.js
           node scripts/smoke-web.js
           node scripts/audit-architecture.js

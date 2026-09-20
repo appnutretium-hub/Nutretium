@@ -11,7 +11,7 @@ function meta(s){return{bannerEnabled:s.content.bannerEnabled,navigationManaged:
 exports.handler=async function(event){
  if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
  const staff=await exigePermiso(event,'settings');if(!staff.ok)return json(staff.statusCode,{error:staff.error});
- if(event.httpMethod==='GET'){const [data,payment,vaultStatus]=await Promise.all([settings.readWithVersion(),paymentConfig.publicStatus(),vault.paymentStatus()]);return json(200,{settings:data.settings,version:data.version,operator:staff.email,role:staff.role,payment:{...payment,...vault:vaultStatus}})}
+ if(event.httpMethod==='GET'){const [data,payment,vaultStatus]=await Promise.all([settings.readWithVersion(),paymentConfig.publicStatus(),vault.paymentStatus()]);return json(200,{settings:data.settings,version:data.version,operator:staff.email,role:staff.role,payment:{...payment,vault:vaultStatus}})}
  if(event.httpMethod==='POST'){
   let body;try{body=JSON.parse(event.body||'{}')}catch{return json(400,{error:'JSON no válido.'})}
   if(body.action==='save-payment-secret'||body.action==='clear-payment-secret'){
@@ -34,7 +34,7 @@ exports.handler=async function(event){
    await audit.append({event,actor:staff.email,action:'COMMERCE_SETTINGS_UPDATED',resource:'commerce-settings',outcome:'SUCCESS',metadata:{version:saved.version,...meta(saved.settings)}}).catch(()=>{});
    return json(200,{ok:true,settings:saved.settings,version:saved.version,operator:staff.email,payment});
   }catch(e){
-   if(e?.code==='CONFLICT'){await audit.append({event,actor:staff.email,action:'COMMERCE_SETTINGS_CONFLICT',resource:'commerce-settings',outcome:'CONFLICT',metadata:{requestedVersion:body.version||null}}).catch(()=>{});return json(409,{error:'Los ajustes han cambiado desde otra sesión. Recarga antes de guardar.',currentVersion:e.currentVersion||null})}
+   if(e?.code==='CONFLICT'){await audit.append({event,actor:staff.email,action:'COMMERCE_SETTINGS_CONFLICT',resource:'commerce-settings',outcome:'CONFLICT',metadata:{requestedVersion:body.version||null}}).catch(()=>{});return json(409,{error:'Los ajustes han cambiado desde otra sesión. Recarga antes de volver a guardar.',currentVersion:e.currentVersion||null})}
    console.error('[admin-settings]',e);return json(503,{error:'No se pudieron guardar los ajustes.'});
   }
  }

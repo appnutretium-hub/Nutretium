@@ -1,0 +1,55 @@
+name: Nutretium Production Smoke
+
+on:
+  workflow_run:
+    workflows: ["Nutretium Full Quality Gate"]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Verify public storefront
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://nutretium.com"
+          curl --fail --silent --show-error --location \
+            --retry 12 --retry-delay 10 --retry-all-errors \
+            --connect-timeout 10 --max-time 30 \
+            -D /tmp/headers -o /tmp/home "$base/"
+
+          grep -qi '^x-frame-options: *DENY' /tmp/headers
+          grep -qi '^x-content-type-options: *nosniff' /tmp/headers
+          grep -qi '^strict-transport-security:' /tmp/headers
+          grep -qi '^content-security-policy:' /tmp/headers
+          grep -qi 'Nutretium' /tmp/home
+
+      - name: Verify production payment readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location \
+            --retry 6 --retry-delay 10 --retry-all-errors \
+            --connect-timeout 10 --max-time 30 \
+            -o /tmp/status "https://nutretium.com/.netlify/functions/site-status"
+          node - <<'NODE'
+          const fs=require('fs');
+          const body=JSON.parse(fs.readFileSync('/tmp/status','utf8'));
+          if(body.maintenance!==false) throw new Error('Producción está en mantenimiento.');
+          if(body.paymentsReady!==true) throw new Error('Redsys/COMMERCE_LIVE no están listos en producción.');
+          console.log('[production-smoke] storefront + seguridad + pagos listos');
+          NODE

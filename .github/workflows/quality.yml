@@ -5,7 +5,7 @@ on:
   pull_request:
     branches: [main]
 concurrency:
-  group: quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: quality-${{ github.workflow }}-${{ github.sha }}
   cancel-in-progress: true
 permissions:
   contents: read
@@ -100,6 +100,7 @@ jobs:
           node --check netlify/functions/analytics-event.js
           node --check netlify/functions/admin-analytics.js
           node --check netlify/functions/system-health.js
+          node --check netlify/functions/production-sentinel.js
           node --check netlify/functions/admin-orders.js
           node --check netlify/functions/contact.js
           node scripts/smoke-web.js

@@ -17,8 +17,11 @@ exports.handler=async function(event){
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return json(400,{error:'Email inválido.'});
  if(name.length<2)return json(400,{error:'El nombre es demasiado corto.'});
  if(message.length<10)return json(400,{error:'El mensaje debe tener al menos 10 caracteres.'});
- const rate=await consume({scope:'contact',event,extra:email,limit:5,windowMs:10*60*1000}).catch(()=>({allowed:true,degraded:true}));
- if(!rate.allowed)return json(429,{error:'Has enviado varias solicitudes seguidas. Espera unos minutos antes de volver a intentarlo.'},{'Retry-After':String(rate.retryAfter)});
+ const rate=await consume({scope:'contact',event,extra:email,limit:5,windowMs:10*60*1000}).catch(()=>({allowed:false,degraded:true,retryAfter:60}));
+ if(!rate.allowed){
+  if(rate.degraded)return json(503,{error:'El formulario no puede validar el límite de solicitudes ahora mismo. Inténtalo de nuevo en unos minutos.'},{'Retry-After':String(rate.retryAfter||60)});
+  return json(429,{error:'Has enviado varias solicitudes seguidas. Espera unos minutos antes de volver a intentarlo.'},{'Retry-After':String(rate.retryAfter||60)});
+ }
  const store=getBlobStore('contact-messages');if(!store)return json(503,{error:'El formulario no está disponible temporalmente. Contacta con Nutretium por teléfono o inténtalo más tarde.'});
  try{const record={id:crypto.randomUUID(),name,email,subject,message,createdAt:new Date().toISOString(),read:false};await store.setJSON(record.id,record);console.log('[Contact]',JSON.stringify({id:record.id,subject:record.subject}));return json(200,{success:true,message:'Mensaje recibido.'})}catch(err){console.error('[Contact] No se pudo persistir el mensaje:',err?.message||err);return json(503,{error:'No hemos podido registrar el mensaje. Inténtalo de nuevo en unos minutos.'})}
 };

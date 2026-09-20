@@ -44,6 +44,7 @@
     node --check netlify/functions/analytics-event.js &&
     node --check netlify/functions/admin-analytics.js &&
     node --check netlify/functions/system-health.js &&
+    node --check netlify/functions/production-sentinel.js &&
     node --check netlify/functions/admin-orders.js &&
     node --check netlify/functions/contact.js &&
     node scripts/smoke-web.js &&
@@ -96,6 +97,8 @@
 
 [functions."platform-backup"]
   schedule = "@daily"
+[functions."production-sentinel"]
+  schedule = "*/15 * * * *"
 [functions."automation-worker"]
   schedule = "0 7 * * *"
 [functions."notification-worker"]

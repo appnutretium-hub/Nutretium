@@ -24,5 +24,9 @@ async function verifyReturn(event){
   const code=parseInt(json.Ds_Response,10),estado=Number.isInteger(code)&&code>=0&&code<=99?'PAID':'FAILED';console.log('[pago-return]',JSON.stringify({order,estado,code:json.Ds_Response}));return{order,estado};
  }catch(err){console.error('[pago-return] Error procesando la vuelta:',err);return{order:null,estado:null}}
 }
-exports.handler=async function(event){const result=(event.queryStringParameters||{}).result==='ok'?'ok':'ko',verified=await verifyReturn(event),params=new URLSearchParams({pago:result});if(verified.order)params.set('order',verified.order);if(verified.estado)params.set('estado',verified.estado);return{statusCode:303,headers:{Location:`/?${params.toString()}`,'Cache-Control':'no-store'},body:''}};
+exports.handler=async function(event){
+ const verified=await verifyReturn(event),result=verified.estado==='PAID'?'ok':verified.estado==='FAILED'?'ko':'pending',params=new URLSearchParams({pago:result});
+ if(verified.order)params.set('order',verified.order);if(verified.estado)params.set('estado',verified.estado);
+ return{statusCode:303,headers:{Location:`/?${params.toString()}`,'Cache-Control':'no-store'},body:''};
+};
 exports._test={deriveSigningKey,toBase64Url,safeEqual,parseForm,verifyReturn};

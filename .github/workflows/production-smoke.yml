@@ -59,7 +59,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          commerce_ready="$(node -e "const b=require('/tmp/status');process.stdout.write(String(b.commerceReady===true))")"
+          commerce_ready="$(node -e "const fs=require('fs');const b=JSON.parse(fs.readFileSync('/tmp/status','utf8'));process.stdout.write(String(b.commerceReady===true))")"
           if [[ "$commerce_ready" == "true" ]]; then
             if [[ "$AUTO_ROLLBACK_ENABLED" != "true" || -z "$NETLIFY_SITE_ID" || -z "$NETLIFY_API_TOKEN" ]]; then
               echo "Comercio real está activo, pero rollback automático no está configurado." >&2

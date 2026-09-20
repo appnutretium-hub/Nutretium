@@ -27,8 +27,17 @@ async function promoteValidatedRun(record,{requestedBy='system'}={}){
     return{promoted:false,status:'not_eligible',reason:'RUN_NOT_FULLY_VALIDATED'};
   }
   const promotion=await safeMemory.recordVerifiedRun({agent:record.agent,run:summary,requestedBy});
-  await enterprise.audit(SYSTEM,promotion.promoted?'agent-memory-promote':'agent-memory-reject','ai-runs',record.id,{agent:record.agent,...promotion}).catch(()=>{});
-  return promotion;
+  let postPromotionIntegrity=null;
+  if(promotion.promoted){
+    postPromotionIntegrity=await safeMemory.integrity(record.agent,{depth:5});
+    if(!postPromotionIntegrity.ok){
+      await enterprise.audit(SYSTEM,'agent-memory-integrity-failed','ai-runs',record.id,{agent:record.agent,promotion,errors:postPromotionIntegrity.errors}).catch(()=>{});
+      return{...promotion,status:'integrity_failed',postPromotionIntegrity};
+    }
+  }
+  const result={...promotion,status:promotion.promoted?'promoted':promotion.status,postPromotionIntegrity};
+  await enterprise.audit(SYSTEM,promotion.promoted?'agent-memory-promote':'agent-memory-reject','ai-runs',record.id,{agent:record.agent,...result}).catch(()=>{});
+  return result;
 }
 
 async function promoteRunById(runId,{requestedBy='system'}={}){

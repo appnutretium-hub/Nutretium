@@ -8,6 +8,12 @@ updates:
       time: "06:00"
       timezone: "Europe/Madrid"
     open-pull-requests-limit: 5
+    ignore:
+      # Tailwind 4 elimina el CLI compatible con el build actual. Mantener
+      # actualizaciones 3.x y hacer la migración mayor de forma explícita.
+      - dependency-name: "tailwindcss"
+        update-types:
+          - "version-update:semver-major"
     labels:
       - "dependencies"
     commit-message:

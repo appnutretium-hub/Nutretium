@@ -1,6 +1,7 @@
 'use strict';
 
 const governance=require('../lib/agent-governance');
+const runtime=require('../lib/enterprise-workforce-runtime');
 const {requireStaff}=require('../lib/staff');
 const {cabecerasCORS}=require('../lib/cors');
 const security=require('../lib/security-policy');
@@ -15,12 +16,16 @@ exports.handler=async event=>{
   if(!auth.ok)return json(auth.statusCode,{error:auth.error});
   try{
     const summary=governance.workforceSummary();
+    const operational=runtime.status();
+    const plans=Object.keys(governance.workforce.FAMILIES).map(f=>runtime.familyPlan(f));
     return json(200,{
       summary,
+      operational,
       hierarchy:governance.workforce.hierarchy(),
       families:governance.workforce.FAMILIES,
+      familyPlans:plans.map(p=>({family:p.family,label:p.label,roles:p.roles.length,executable:p.roles.filter(x=>x.executable).length})),
       roles:governance.workforce.publicRegistry(),
-      note:'Registro corporativo IA gobernado. No concede autonomía para decisiones críticas, laborales, legales, financieras, de seguridad, food-safety o producción.'
+      note:'Registro corporativo IA gobernado y runtime operativo. La falta de fuentes produce NO_VALIDADO; decisiones críticas siguen requiriendo aprobación humana.'
     });
   }catch(error){
     console.error('[workforce-status]',error);

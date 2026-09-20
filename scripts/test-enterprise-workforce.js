@@ -21,8 +21,17 @@ for(const [id,r] of Object.entries(workforce.ROLES)){
   for(const a of r.autonomous){
     assert(!workforce.FORBIDDEN_AUTONOMY.has(a),`${id}: acción crítica autónoma ${a}`);
   }
-  const p=governance.profile(id);
-  assert(p&&p.source==='enterprise-workforce',`${id}: no conectado a governance.profile()`);
+  const agentId=governance.workforceAgentId(id);
+  const p=governance.profile(agentId);
+  assert(p&&p.source==='enterprise-workforce',`${id}: no conectado a governance.profile() mediante ${agentId}`);
+  assert.strictEqual(p.roleId,id,`${id}: roleId incorrecto`);
+}
+
+for(const collision of ['data_quality','enterprise_risk','product_innovation']){
+  assert.strictEqual(governance.profile(collision).source,'legacy',`${collision}: el agente heredado debe conservarse`);
+  const enterpriseId=governance.workforceAgentId(collision);
+  assert.notStrictEqual(enterpriseId,collision,`${collision}: la identidad enterprise debe estar namespaced`);
+  assert.strictEqual(governance.profile(enterpriseId).source,'enterprise-workforce',`${enterpriseId}: puesto enterprise no accesible`);
 }
 
 const blocked=[
@@ -36,8 +45,8 @@ const blocked=[
   ['regulatory_affairs','claim-approve'],
   ['ecommerce_director','price-change']
 ];
-for(const [agent,action] of blocked){
-  const p=governance.policy(agent,action);
+for(const [roleId,action] of blocked){
+  const agent=governance.workforceAgentId(roleId),p=governance.policy(agent,action);
   assert.strictEqual(p.allowed,true,`${agent}/${action} debe ser reconocida`);
   assert.strictEqual(p.autonomous,false,`${agent}/${action} no puede ser autónoma`);
   assert.strictEqual(p.requiresApproval,true,`${agent}/${action} debe requerir aprobación`);
@@ -51,18 +60,20 @@ const safe=[
   ['inventory_manager','rotation-scan'],
   ['support_agent','case-triage']
 ];
-for(const [agent,action] of safe){
-  const p=governance.policy(agent,action);
+for(const [roleId,action] of safe){
+  const agent=governance.workforceAgentId(roleId),p=governance.policy(agent,action);
   assert.strictEqual(p.allowed,true,`${agent}/${action} debe ser reconocida`);
   assert.strictEqual(p.autonomous,true,`${agent}/${action} debería ser autónoma de bajo riesgo`);
 }
 
 for(const id of workforce.VETO_ROLES){
-  assert.strictEqual(governance.profile(id).vetoAgent,true,`${id} debe conservar capacidad de veto`);
+  const agent=governance.workforceAgentId(id);
+  assert.strictEqual(governance.profile(agent).vetoAgent,true,`${agent} debe conservar capacidad de veto`);
 }
 
 const summary=governance.workforceSummary();
 assert.strictEqual(summary.ok,true,'El resumen de plantilla debe ser válido.');
-assert(summary.totalRegistered>=summary.roles,'El registro total no puede ser menor que la plantilla nueva.');
+assert.strictEqual(summary.collisionSafe,true,'El registro debe declarar identidades collision-safe.');
+assert.strictEqual(summary.totalRegistered,summary.legacyAgents+summary.roles,'Ningún puesto puede sobrescribir otro registro.');
 
-console.log(JSON.stringify({ok:true,roles:validation.roles,families:validation.families,vetoRoles:validation.vetoRoles,totalRegistered:summary.totalRegistered},null,2));
+console.log(JSON.stringify({ok:true,roles:validation.roles,families:validation.families,vetoRoles:validation.vetoRoles,totalRegistered:summary.totalRegistered,collisionSafe:summary.collisionSafe},null,2));

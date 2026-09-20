@@ -2,6 +2,7 @@
 const core=require('../lib/checkout-enterprise-core');
 const {verifyUserToken}=require('../lib/session');
 const {consume}=require('../lib/rate-limit');
+const siteConfig=require('../lib/site-config');
 function response(statusCode,body,headers={}){return{statusCode,headers:{'Content-Type':'application/json','Cache-Control':'no-store',...headers},body:JSON.stringify(body)}}
 function publicProductionHost(host){const h=String(host||'').toLowerCase().split(':')[0];return h==='nutretium.com'||h==='www.nutretium.com'}
 exports.handler=async function(event){
@@ -13,8 +14,9 @@ exports.handler=async function(event){
  let body;try{body=JSON.parse(event.body||'{}')}catch{return response(400,{error:'JSON no válido.'})}
  if(body.token){try{await verifyUserToken(body.token,{requireUser:true})}catch{return response(401,{error:'La sesión no es válida, ha sido revocada o ha caducado. Inicia sesión de nuevo.'})}}
  if(body.action==='pay'){
-  const host=event.headers?.['x-forwarded-host']||event.headers?.host||'',env=String(process.env.REDSYS_ENV||'test').toLowerCase();
-  if(publicProductionHost(host)&&(env!=='production'||process.env.COMMERCE_LIVE!=='true'))return response(503,{error:'El pago online está temporalmente desactivado mientras se completa la configuración de producción.'});
+  const host=event.headers?.['x-forwarded-host']||event.headers?.host||'',runtime=await siteConfig.paymentRuntime().catch(()=>({}));
+  if(!runtime.enabled)return response(503,{error:'El pago online está desactivado desde Administración.'});
+  if(publicProductionHost(host)&&(runtime.environment!=='production'||runtime.commerceLive!==true))return response(503,{error:'El pago online está temporalmente desactivado mientras se completa la configuración de producción.'});
  }
  return core.handler(event);
 };

@@ -2,6 +2,7 @@
 
 const {verifyUserToken,cookieValue}=require('./session');
 const security=require('./security-policy');
+const defense=require('./security-defense');
 
 const STEP_UP_COOKIE='nt_staff_stepup';
 
@@ -18,6 +19,8 @@ async function verifyStepUp(event,auth){
   const claims=verified.claims||{};
   if(claims.kind!=='staff-step-up'||claims.mfa!==true)return{ok:false,statusCode:428,error:'Reautenticación requerida.',code:'STEP_UP_REQUIRED'};
   if(String(verified.email||'').toLowerCase()!==String(auth?.email||'').toLowerCase())return{ok:false,statusCode:428,error:'Reautenticación requerida.',code:'STEP_UP_REQUIRED'};
+  if(!claims.sid||!auth?.claims?.sid||claims.sid!==auth.claims.sid)return{ok:false,statusCode:428,error:'La reautenticación no pertenece a esta sesión.',code:'STEP_UP_REQUIRED'};
+  defense.assertSessionBinding(event,claims);
   return{ok:true,claims:verified.claims,email:verified.email};
  }catch{return{ok:false,statusCode:428,error:'Reautenticación requerida.',code:'STEP_UP_REQUIRED'}}
 }

@@ -6,7 +6,7 @@ on:
       - 'security/live-adversarial-audit-*'
   workflow_dispatch:
   schedule:
-    - cron: '17 3 * * 1'
+    - cron: '23 4 * * 3'
 
 permissions:
   contents: read

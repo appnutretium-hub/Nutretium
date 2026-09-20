@@ -5,6 +5,9 @@ globalThis.__NUTRETIUM_TEST_BLOBS__=new Map();globalThis.__NUTRETIUM_TEST_BLOB_E
 const directory=require('../netlify/lib/staff-directory');
 const productContent=require('../netlify/lib/product-content');
 const report=require('../netlify/functions/commerce-report')._test;
+const schema=require('../netlify/lib/enterprise-schema');
+const governance=require('../netlify/lib/agent-governance');
+const traceability=require('../netlify/functions/traceability-status')._test;
 (async()=>{
  let rejected=false;try{await directory.save({email:'owner-test@nutretium.com',role:'owner'})}catch{rejected=true}assert.equal(rejected,true,'dynamic directory must reject owner role');
  const member=await directory.save({email:'manager-test@nutretium.com',role:'manager',name:'Manager Test',active:true});assert.equal(member.role,'manager');assert.equal((await directory.read(member.email)).active,true);
@@ -14,5 +17,10 @@ const report=require('../netlify/functions/commerce-report')._test;
  await productContent.replaceAll([approved]);assert.equal((await productContent.read('SKU-1')).status,'approved','restore must preserve approved state');
  const costs=new Map([['A',500]]),summary=report.summarize([{amount:20,items:[{code:'A',qty:2},{code:'B',qty:1}]}],costs);assert.equal(summary.revenueCents,2000);assert.equal(summary.knownCostCents,1000);assert.deepEqual(summary.unknownCostSkus,['B']);assert.equal(summary.grossMarginKnownCostPct,null,'margin must remain unvalidated when a cost is missing');
  const complete=report.summarize([{amount:20,items:[{code:'A',qty:2}]}],costs);assert.equal(complete.grossMarginKnownCostPct,50);
- console.log('[test-admin-suite] dynamic roles, product content and financial validation OK');
+ const lotOk=schema.validate('inventory-lots',{sku:'SKU-1',warehouseId:'principal',lotCode:'L-1',expiresAt:'2027-01-20',onHand:10,reserved:2,status:'active'});assert.equal(lotOk.ok,true,'valid traceable lot must pass');
+ const lotBad=schema.validate('inventory-lots',{sku:'SKU-1',warehouseId:'principal',lotCode:'L-1',expiresAt:'bad-date',onHand:1,reserved:2,status:'active'});assert.equal(lotBad.ok,false,'invalid lot date/reservation must fail');
+ const erpBlocked=schema.validate('erp-sync-jobs',{provider:'tpvsol',direction:'import',status:'ready',validatedConnection:false});assert.equal(erpBlocked.ok,false,'TPVsol cannot be operational without validated connection');
+ const agent=governance.policy('finance','refund');assert.equal(agent.allowed,true);assert.equal(agent.sensitive,true);assert.equal(governance.canApprove({proposedBy:'same@x.com'},{email:'same@x.com',role:'owner'}),false,'proposer cannot self-approve');assert.equal(governance.canApprove({proposedBy:'a@x.com'},{email:'owner@x.com',role:'owner'}),true);
+ assert.equal(traceability.daysUntil('not-a-date'),null);assert.ok(Number.isInteger(traceability.daysUntil(new Date(Date.now()+2*86400000).toISOString())));
+ console.log('[test-admin-suite] roles, PIM, finance, lots, ERP fail-closed and agent governance OK');
 })().catch(err=>{console.error(err);process.exit(1)});

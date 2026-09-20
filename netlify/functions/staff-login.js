@@ -31,7 +31,8 @@ async function checkThrottle(event, email) {
   return {ok: gate.allowed === true,retryAfter: Math.max(1, Number(gate.retryAfter) || 60),degraded: gate.degraded === true};
 }
 async function clearAttempts(event, email) { await reset({ scope: 'staff-login', event, extra: email }).catch(() => false); }
-function staffMfaRequired(){return security.staffMfaRequired()}
+function privilegedMfaExempt(role){return role==='owner'||role==='admin'}
+function mfaRequiredFor(role,user){return !privilegedMfaExempt(role)&&user?.mfaEnabled===true}
 
 exports.handler = async event => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
@@ -44,9 +45,9 @@ exports.handler = async event => {
   if (!wait.ok) return response(wait.degraded ? 503 : 429,{error: wait.degraded ? 'El control de acceso del personal no está disponible. Prueba de nuevo más tarde.' : 'Demasiados intentos. Prueba más tarde.'},{ 'Retry-After': String(wait.retryAfter) });
   const user = await usuarios.lee(email),role = await effectiveRoleFor(email),verification = user ? verifyPasswordRecord(password, user.passwordHash) : { ok:false, needsRehash:false };
   if (!user || role === 'client' || !verification.ok) return response(401, { error: 'Credenciales incorrectas.' });
-  const requireMfa = staffMfaRequired(),secret = secretFor(email);let mfaVerified = false;
+  const requireMfa = mfaRequiredFor(role,user),secret = secretFor(email,user);let mfaVerified = false;
   if (requireMfa) {
-    if (!secret) return response(503, {error: 'MFA está activado para el personal, pero esta cuenta aún no tiene TOTP configurado.',mfaSetupRequired: true});
+    if (!secret) return response(503, {error: 'El MFA está activado para esta cuenta, pero necesita ser regenerado por un administrador.',mfaSetupRequired: true});
     if (!mfaCode) return response(401, {error: 'Introduce el código de 6 dígitos de tu aplicación de autenticación.',mfaRequired: true});
     if (!verifyTotp(secret, mfaCode)) return response(401, { error: 'Código MFA incorrecto.', mfaRequired: true });
     const once=await mfaReplay.consume(email,mfaCode);
@@ -56,6 +57,6 @@ exports.handler = async event => {
   await upgradeHashIfNeeded(email, password, user, verification);await clearAttempts(event, email);
   const binding=defense.newSessionBinding(event);
   const token = signJWT({sub: user.id,email,role,kind: 'staff-login',mfa: mfaVerified,sv: Number(user.sessionVersion || 0),fp:binding.fp,jti:binding.jti,exp: Math.floor(Date.now() / 1000) + security.STAFF_LOGIN_TTL_SECONDS});
-  return response(200, {user: {id: user.id,name: user.name,surname: user.surname,email: user.email,phone: user.phone,role,token,mfa: mfaVerified,expiresIn:security.STAFF_LOGIN_TTL_SECONDS}});
+  return response(200, {user: {id: user.id,name: user.name,surname: user.surname,email: user.email,phone: user.phone,role,token,mfa: mfaVerified,mfaRequired:requireMfa,mfaExempt:privilegedMfaExempt(role),expiresIn:security.STAFF_LOGIN_TTL_SECONDS}});
 };
-exports._test = { verifyPassword, upgradeHashIfNeeded, checkThrottle, staffMfaRequired };
+exports._test = { verifyPassword, upgradeHashIfNeeded, checkThrottle, privilegedMfaExempt, mfaRequiredFor };

@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 18
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 22
           cache: npm
@@ -38,6 +38,7 @@ jobs:
           npm run test:passwords
           npm run test:contracts
           npm run test:external-readiness
+          npm run test:production-quality
       - name: Syntax hardening
         run: |
           node --check product-pim.js
@@ -47,6 +48,7 @@ jobs:
           node --check staff-session-bridge.js
           node --check scripts/build-seo-pages.js
           node --check scripts/test-external-readiness.js
+          node --check scripts/audit-workflow-pinning.js
           node --check runtime-content.js
           node --check runtime-performance.js
           node --check runtime-guard.js
@@ -88,6 +90,7 @@ jobs:
         run: |
           node scripts/audit-architecture.js
           node scripts/security-audit.js
+          node scripts/audit-workflow-pinning.js
       - name: Build final HTML trust audit
         run: |
           node scripts/trust-inject.js
@@ -108,4 +111,4 @@ jobs:
           cat /tmp/nutretium-server.log
           exit 1
       - name: Browser E2E
-        run: npx playwright test tests/e2e-storefront.spec.js --browser=chromium --workers=1
+        run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js --browser=chromium --workers=1

@@ -15,10 +15,10 @@ jobs:
     env:
       STAGING_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 22
           cache: npm
@@ -28,6 +28,7 @@ jobs:
       - name: Supply-chain and contracts
         run: |
           node scripts/audit-supply-chain.js
+          node scripts/audit-workflow-pinning.js
           node scripts/audit-api-contracts.js
           # Netlify and CI install with --omit=optional; audit that exact production set.
           npm audit --omit=dev --omit=optional --audit-level=high
@@ -35,6 +36,7 @@ jobs:
         run: |
           node scripts/performance-budget.js
           node scripts/accessibility-static-audit.js
+          node scripts/test-storefront-commercial.js
       - name: Syntax and enterprise tests
         run: npm run test:enterprise
       - name: Install Chromium

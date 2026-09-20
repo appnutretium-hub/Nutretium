@@ -3,7 +3,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: ['feat/nutretium-nexus-40']
+    branches: ['feat/nutretium-nexus-40','feat/enterprise-ai-workforce']
 permissions:
   contents: read
 jobs:
@@ -24,10 +24,15 @@ jobs:
         run: |
           node --check netlify/lib/nexus-core.js
           node --check netlify/functions/nexus-status.js
+          node --check netlify/lib/enterprise-workforce.js
+          node --check netlify/functions/workforce-status.js
           node --check scripts/test-nexus-core.js
+          node --check scripts/test-enterprise-workforce.js
           node --check scripts/normalize-storefront-contract.js
       - name: Nexus architecture regressions
         run: node scripts/test-nexus-core.js
+      - name: Enterprise workforce regressions
+        run: node scripts/test-enterprise-workforce.js
       - name: Existing AI governance regressions
         run: node scripts/test-ai-control-plane.js
       - name: Maximum security repository gate

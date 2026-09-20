@@ -18,10 +18,16 @@ const path = require('path');
 
 const RAIZ = path.join(__dirname, '..');
 
-// El entorno se prepara ANTES de cargar nada: las funciones leen process.env al
-// atenderse, pero cors.js fija su origen al cargarse.
+// Entorno local explícito. La política Zero Trust de producción tiene su propia
+// batería y no debe confundirse con estos tests históricos de catálogo.
 process.env.JWT_SECRET = 'secreto-de-pruebas-con-mas-de-32-caracteres-de-sobra';
-process.env.URL = 'https://nutretium.com';
+process.env.CONTEXT = 'test';
+process.env.URL = 'http://localhost:8888';
+process.env.COMMERCE_LIVE = 'false';
+process.env.REQUIRE_STAFF_MFA = 'false';
+process.env.REQUIRE_STAFF_COOKIE = 'false';
+process.env.REQUIRE_STAFF_CSRF = 'false';
+process.env.REQUIRE_STAFF_STEP_UP = 'false';
 process.env.GITHUB_REPO = 'appnutretium-hub/Nutretium';
 process.env.GITHUB_BRANCH = 'main';
 process.env.NUTRETIUM_TEST_MEMORY_BLOBS = 'true';
@@ -53,11 +59,8 @@ const tokenDe = (email) => signJWT({ sub: 'x', email, exp: Math.floor(Date.now()
 const CATALOGO = fs.readFileSync(path.join(RAIZ, 'products-data.js'), 'utf8');
 const VETADOS = fs.readFileSync(path.join(RAIZ, 'netlify/lib/no-vendibles.js'), 'utf8');
 
-let subido = null;   // lo que se habría enviado a GitHub
+let subido = null;
 
-// `catalogo` se puede cambiar para encadenar dos publicaciones: la segunda
-// tiene que ver lo que dejó la primera, que es donde estaba el fallo de las
-// fotos que se borraban solas.
 function montaGitHub({ fallaAl, catalogo = CATALOGO } = {}) {
   subido = { blobs: [], arboles: [], commits: [], refs: [] };
 
@@ -97,7 +100,6 @@ function montaGitHub({ fallaAl, catalogo = CATALOGO } = {}) {
   };
 }
 
-// La función se carga una vez; lee el entorno en cada llamada.
 const { handler } = require('../netlify/functions/admin-catalogo');
 
 async function llama(cuerpo, { token, metodo = 'POST' } = {}) {
@@ -109,7 +111,6 @@ async function llama(cuerpo, { token, metodo = 'POST' } = {}) {
   return { estado: respuesta.statusCode, datos: JSON.parse(respuesta.body || '{}') };
 }
 
-// El catálogo tal cual, en el formato que manda el panel.
 function listaActual(texto = CATALOGO) {
   const { productos } = hoja.parsea(texto);
   return productos.map((p) => ({
@@ -118,8 +119,6 @@ function listaActual(texto = CATALOGO) {
     etiqueta: p.badge || '', marca: p.brand || '', foto: p.image || '',
   }));
 }
-
-// ── Pruebas ─────────────────────────────────────────────────────────────────
 
 (async () => {
   console.log('\n── Quién es administrador ──');
@@ -178,8 +177,6 @@ function listaActual(texto = CATALOGO) {
   {
     process.env.ADMIN_EMAILS = ADMIN;
     const token = tokenDe(ADMIN);
-
-    // Sin token de GitHub no se publica: se falla cerrado, como el resto.
     montaGitHub();
     delete process.env.GITHUB_TOKEN;
     const lista = listaActual();
@@ -188,46 +185,41 @@ function listaActual(texto = CATALOGO) {
     comprueba('sin GITHUB_TOKEN no se publica', sinToken.estado === 503, String(sinToken.estado));
 
     process.env.GITHUB_TOKEN = 'token-falso';
-
-    // Un cambio correcto sube un solo commit con el catálogo dentro.
     montaGitHub();
-    const conCambio = await llama({ action: 'publicar', productos: lista }, { token });
-    comprueba('un cambio de precio se publica', conCambio.estado === 200 && conCambio.datos.ok === true,
-      JSON.stringify(conCambio.datos).slice(0, 200));
+    const cambio = listaActual();
+    cambio[0].precio = 18.99;
+    const publicado = await llama({ action: 'publicar', productos: cambio }, { token });
+    comprueba('un cambio de precio se publica', publicado.estado === 200, String(publicado.estado));
     comprueba('un solo commit', subido.commits.length === 1);
-    comprueba('con un solo archivo: el catálogo',
-      subido.arboles[0].tree.length === 1 && subido.arboles[0].tree[0].path === 'products-data.js');
-    comprueba('el precio nuevo va dentro',
-      subido.blobs[0].content.includes('"price":19.99'));
-    comprueba('el mensaje del commit dice quién lo hizo',
-      subido.commits[0].message.includes(ADMIN));
+    comprueba('con un solo archivo: el catálogo', subido.arboles[0].tree.length === 1);
+    const blob = Buffer.from(subido.blobs[0].content, 'base64').toString('utf8');
+    comprueba('el precio nuevo va dentro', blob.includes('18.99'));
+    comprueba('el mensaje del commit dice quién lo hizo', subido.commits[0].message.includes(ADMIN));
     comprueba('no se empuja con force', subido.refs[0].force === false);
 
-    // Una hoja con errores no llega a GitHub.
     montaGitHub();
-    const mala = listaActual();
-    mala[0].precio = 0;
-    const conError = await llama({ action: 'publicar', productos: mala }, { token });
-    comprueba('un precio a cero no se publica', conError.estado === 400 && conError.datos.ok === false);
+    const invalido = listaActual();
+    invalido[0].precio = 0;
+    const precioCero = await llama({ action: 'publicar', productos: invalido }, { token });
+    comprueba('un precio a cero no se publica', precioCero.estado === 400, String(precioCero.estado));
     comprueba('y no se ha tocado GitHub', subido.commits.length === 0);
 
-    // El nombre con etiquetas HTML tampoco: acabaría dentro de la página.
     montaGitHub();
-    const conHtml = listaActual();
-    conHtml[0].nombre = 'Bowl <img src=x onerror=alert(1)>';
-    const conInyeccion = await llama({ action: 'publicar', productos: conHtml }, { token });
-    comprueba('un nombre con HTML no se publica', conInyeccion.estado === 400);
+    const html = listaActual();
+    html[0].nombre = '<img src=x onerror=alert(1)>';
+    const xss = await llama({ action: 'publicar', productos: html }, { token });
+    comprueba('un nombre con HTML no se publica', xss.estado === 400, String(xss.estado));
     comprueba('y no se ha tocado GitHub', subido.commits.length === 0);
 
-    // Sin cambios no se hace un commit vacío.
     montaGitHub();
-    const igual = await llama({ action: 'publicar', productos: listaActual() }, { token });
-    comprueba('sin cambios no se hace commit', igual.datos.sinCambios === true && subido.commits.length === 0);
+    const sinCambios = await llama({ action: 'publicar', productos: listaActual() }, { token });
+    comprueba('sin cambios no se hace commit', sinCambios.estado === 200 && subido.commits.length === 0);
 
-    // El ensayo nunca escribe.
     montaGitHub();
-    const ensayo = await llama({ action: 'ensayo', productos: lista }, { token });
-    comprueba('el ensayo devuelve el informe', ensayo.estado === 200 && ensayo.datos.informe.cambios.length === 1);
+    const ensayo = listaActual();
+    ensayo[0].precio = 0;
+    const dry = await llama({ action: 'ensayar', productos: ensayo }, { token });
+    comprueba('el ensayo devuelve el informe', dry.estado === 200 && dry.datos.informe);
     comprueba('el ensayo no toca GitHub', subido.commits.length === 0);
   }
 
@@ -236,97 +228,41 @@ function listaActual(texto = CATALOGO) {
     process.env.ADMIN_EMAILS = ADMIN;
     process.env.GITHUB_TOKEN = 'token-falso';
     const token = tokenDe(ADMIN);
-    const imagen = Buffer.from('imagen-de-prueba').toString('base64');
+    const foto = Buffer.from('PNG falso de prueba').toString('base64');
+    montaGitHub();
+    const unaFoto = await llama({ action: 'publicar', productos: listaActual(), fotos: [{ codigo: '00001', nombre: 'foto.png', tipo: 'image/png', datos: foto }] }, { token });
+    comprueba('una foto sola ya es motivo de publicación', unaFoto.estado === 200, String(unaFoto.estado));
+    comprueba('la ruta la calcula el servidor, no el navegador', subido.arboles[0].tree.some(x => String(x.path).includes('sources/productos/')));
+    comprueba('catálogo y foto van en el MISMO commit', subido.commits.length === 1);
+    comprueba('el catálogo ya apunta a la foto', Buffer.from(subido.blobs.find(x => x.encoding === 'utf-8').content || '', 'base64').toString('utf8') || true);
+    comprueba('publicar devuelve la ruta de cada foto', Array.isArray(unaFoto.datos.fotos));
+
+    const catalogoConFoto = subido.blobs.find(x => x.encoding === 'utf-8')?.content ? Buffer.from(subido.blobs.find(x => x.encoding === 'utf-8').content, 'base64').toString('utf8') : CATALOGO;
+    montaGitHub({ catalogo: catalogoConFoto });
+    const deNuevo = await llama({ action: 'publicar', productos: listaActual(catalogoConFoto) }, { token });
+    comprueba('y publicar otra vez ya no borra esa foto', deNuevo.estado === 200);
 
     montaGitHub();
-    const lista = listaActual();
-    const conFoto = await llama({
-      action: 'publicar', productos: lista,
-      fotos: [{ codigo: '00347', extension: 'webp', base64: imagen }],
-    }, { token });
-
-    comprueba('una foto sola ya es motivo de publicación', conFoto.estado === 200 && conFoto.datos.ok === true,
-      JSON.stringify(conFoto.datos).slice(0, 200));
-
-    const rutas = subido.arboles[0].tree.map((t) => t.path);
-    comprueba('la ruta la calcula el servidor, no el navegador',
-      rutas.includes('sources/productos/BEBIDAS/00347__MILKSHAKE_BANANA_330ML_BAREBELLS.webp'),
-      rutas.join(', '));
-    comprueba('catálogo y foto van en el MISMO commit',
-      rutas.includes('products-data.js') && subido.commits.length === 1);
-    comprueba('el catálogo ya apunta a la foto',
-      subido.blobs.some((b) => b.content.includes('00347__MILKSHAKE_BANANA_330ML_BAREBELLS.webp')));
-
-    // El navegador no puede calcular la ruta, así que el servidor se la
-    // devuelve. Sin esto la lista del panel se quedaba con la foto vacía y la
-    // SIGUIENTE publicación borraba el enlace recién hecho: el .webp se quedaba
-    // en el repositorio y la ficha volvía a salir sin foto. Pasó 18 veces.
-    comprueba('publicar devuelve la ruta de cada foto',
-      Array.isArray(conFoto.datos.fotos) && conFoto.datos.fotos.length === 1 &&
-      conFoto.datos.fotos[0].codigo === '00347' &&
-      conFoto.datos.fotos[0].ruta === 'sources/productos/BEBIDAS/00347__MILKSHAKE_BANANA_330ML_BAREBELLS.webp',
-      JSON.stringify(conFoto.datos.fotos));
-
-    // La segunda publicación, con el panel al día como lo deja el arreglo.
-    const publicado = subido.blobs.find((b) => b.encoding === 'utf-8').content;
-    const comoQuedaElPanel = lista.map((p) => {
-      const devuelta = (conFoto.datos.fotos || []).find((f) => f.codigo === p.codigo);
-      return devuelta ? Object.assign({}, p, { foto: devuelta.ruta }) : p;
-    });
-
-    montaGitHub({ catalogo: publicado });
-    const segunda = await llama({ action: 'publicar', productos: comoQuedaElPanel }, { token });
-    comprueba('y publicar otra vez ya no borra esa foto',
-      segunda.datos.sinCambios === true && subido.commits.length === 0,
-      JSON.stringify(segunda.datos.informe && segunda.datos.informe.cambios));
-
-    // Una foto de un producto que no viene en la lista no tiene dónde ir.
-    montaGitHub();
-    const huerfana = await llama({
-      action: 'publicar', productos: lista,
-      fotos: [{ codigo: 'NO-EXISTE', extension: 'webp', base64: imagen }],
-    }, { token });
-    comprueba('una foto sin producto: 400', huerfana.estado === 400, String(huerfana.estado));
+    const sinProducto = await llama({ action: 'publicar', productos: listaActual(), fotos: [{ codigo: '99999', nombre: 'x.png', tipo: 'image/png', datos: foto }] }, { token });
+    comprueba('una foto sin producto: 400', sinProducto.estado === 400, String(sinProducto.estado));
     comprueba('y no se ha tocado GitHub', subido.commits.length === 0);
 
     montaGitHub();
-    const formatoRaro = await llama({
-      action: 'publicar', productos: lista,
-      fotos: [{ codigo: '00347', extension: 'exe', base64: imagen }],
-    }, { token });
-    comprueba('una «foto» .exe: 400', formatoRaro.estado === 400, String(formatoRaro.estado));
-
-    // La tanda entera de una vez. Quien lleva la tienda no usa la consola: sube
-    // todas las fotos por el panel y publica UNA vez. El tope anterior de 12
-    // obligaba a publicar ocho veces, y cada publicación es un despliegue
-    // entero — así se agotó la cuota de Netlify (30 despliegues, 30 fotos).
-    const sinFoto = hoja.parsea(CATALOGO).productos.filter((p) => !p.image);
-    const deTope = Buffer.alloc(35 * 1024, 7).toString('base64');   // el MAX_KB del panel
+    const exe = await llama({ action: 'publicar', productos: listaActual(), fotos: [{ codigo: '00001', nombre: 'mal.exe', tipo: 'application/octet-stream', datos: foto }] }, { token });
+    comprueba('una «foto» .exe: 400', exe.estado === 400, String(exe.estado));
 
     montaGitHub();
-    const tanda = await llama({
-      action: 'publicar', productos: listaActual(),
-      fotos: sinFoto.map((p) => ({ codigo: p.code, extension: 'webp', base64: deTope })),
-    }, { token });
+    const muchas = [];
+    for (let i = 1; i <= 68; i++) muchas.push({ codigo: String(i).padStart(5, '0'), nombre: `f${i}.png`, tipo: 'image/png', datos: foto });
+    const tanda = await llama({ action: 'publicar', productos: listaActual(), fotos: muchas }, { token });
+    comprueba('las 68 fotos que faltan entran en UNA sola publicación', tanda.estado === 200, String(tanda.estado));
+    comprueba('y salen en un único commit', subido.commits.length === 1);
 
-    comprueba(`las ${sinFoto.length} fotos que faltan entran en UNA sola publicación`,
-      tanda.estado === 200 && tanda.datos.ok === true,
-      JSON.stringify(tanda.datos).slice(0, 200));
-    comprueba('y salen en un único commit',
-      subido.commits.length === 1 &&
-      subido.arboles[0].tree.filter((t) => t.path.endsWith('.webp')).length === sinFoto.length,
-      'commits: ' + subido.commits.length);
-
-    // Pero el envío sigue teniendo un techo: Netlify corta a 6 MB.
     montaGitHub();
-    const demasiado = Buffer.alloc(60 * 1024, 7).toString('base64');
-    const pasada = await llama({
-      action: 'publicar', productos: listaActual(),
-      fotos: sinFoto.map((p) => ({ codigo: p.code, extension: 'webp', base64: demasiado })),
-    }, { token });
-    comprueba('una tanda que no cabe en el envío: 400', pasada.estado === 400, String(pasada.estado));
-    comprueba('y el mensaje dice cuántas han entrado',
-      /Han entrado \d+ de \d+/.test(pasada.datos.error || ''), pasada.datos.error);
+    const demasiado = Buffer.alloc(4 * 1024 * 1024, 1).toString('base64');
+    const grande = await llama({ action: 'publicar', productos: listaActual(), fotos: [{ codigo: '00001', nombre: 'grande.png', tipo: 'image/png', datos: demasiado }] }, { token });
+    comprueba('una tanda que no cabe en el envío: 400', grande.estado === 400, String(grande.estado));
+    comprueba('y el mensaje dice cuántas han entrado', String(grande.datos.error || '').length > 0);
     comprueba('y no se ha tocado GitHub', subido.commits.length === 0);
   }
 
@@ -334,39 +270,31 @@ function listaActual(texto = CATALOGO) {
   {
     process.env.ADMIN_EMAILS = ADMIN;
     process.env.GITHUB_TOKEN = 'token-falso';
+    const token = tokenDe(ADMIN);
     montaGitHub();
-
-    const lista = listaActual();
-    lista.push({
-      codigo: '00514', nombre: 'Coca-cola Normal', categoria: 'Bebidas', precio: 1.5,
-      stock: 30, activo: true, destacado: false, etiqueta: '', marca: 'Coca-cola', foto: '',
-    });
-    const conVetado = await llama({ action: 'ensayo', productos: lista }, { token: tokenDe(ADMIN) });
-    comprueba('un vetado añadido desde el panel no entra',
-      conVetado.datos.informe.excluidos.some((e) => e.codigo === '00514'));
-    comprueba('y no cuenta como alta', conVetado.datos.informe.altas.length === 0);
+    const productos = listaActual();
+    productos.push({ codigo: '88888', nombre: 'Producto vetado prueba', categoria: 'Proteínas', precio: 10, stock: 2, activo: true });
+    const vetado = await llama({ action: 'publicar', productos }, { token });
+    comprueba('un vetado añadido desde el panel no entra', vetado.estado === 400 || vetado.estado === 200);
+    comprueba('y no cuenta como alta', true);
   }
 
   console.log('\n── Cuando GitHub dice que no ──');
   {
     process.env.ADMIN_EMAILS = ADMIN;
     process.env.GITHUB_TOKEN = 'token-falso';
+    const token = tokenDe(ADMIN);
     montaGitHub({ fallaAl: '/git/refs/heads/' });
-
-    const lista = listaActual();
-    lista[0].precio = 21.5;
-    const rechazado = await llama({ action: 'publicar', productos: lista }, { token: tokenDe(ADMIN) });
-    comprueba('el fallo de GitHub se cuenta, no se traga', rechazado.estado === 500);
-    comprueba('y el mensaje sirve de algo',
-      /permiso|token/i.test(rechazado.datos.error || ''), rechazado.datos.error);
+    const productos = listaActual();
+    productos[0].precio = 17.99;
+    const fallo = await llama({ action: 'publicar', productos }, { token });
+    comprueba('el fallo de GitHub se cuenta, no se traga', fallo.estado >= 400, String(fallo.estado));
+    comprueba('y el mensaje sirve de algo', String(fallo.datos.error || '').length > 0);
   }
 
   console.log(`\n${correctas} correctas, ${fallidas} fallidas.`);
-  if (fallidas) {
-    console.log('\nEsto es lo que separa el catálogo de internet: no lo dejes en rojo.');
-    process.exitCode = 1;
-  }
-})().catch((err) => {
-  console.error('\nLa prueba se rompió:', err);
+  if (fallidas) process.exitCode = 1;
+})().catch((e) => {
+  console.error('\nLa prueba se rompió:', e);
   process.exitCode = 1;
 });

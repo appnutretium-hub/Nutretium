@@ -55,6 +55,18 @@ jobs:
           }
           NODE
 
+      - name: Require rollback controls when commerce is live
+        shell: bash
+        run: |
+          set -euo pipefail
+          commerce_ready="$(node -e "const b=require('/tmp/status');process.stdout.write(String(b.commerceReady===true))")"
+          if [[ "$commerce_ready" == "true" ]]; then
+            if [[ "$AUTO_ROLLBACK_ENABLED" != "true" || -z "$NETLIFY_SITE_ID" || -z "$NETLIFY_API_TOKEN" ]]; then
+              echo "Comercio real está activo, pero rollback automático no está configurado." >&2
+              exit 1
+            fi
+          fi
+
       - name: Require live commerce when explicitly enabled
         if: ${{ env.REQUIRE_COMMERCE_LIVE_SMOKE == 'true' }}
         shell: bash

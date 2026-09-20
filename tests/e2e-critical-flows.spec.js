@@ -31,19 +31,19 @@ test('mi cuenta: historial de consentimientos se renderiza y controles quedan fu
  await expect(page.locator('#consentAnalytics')).toBeChecked();
 });
 
-test('admin center: sesión HttpOnly usa CSRF y no persiste JWT en localStorage',async({page})=>{
+test('admin center: admin exento de MFA usa sesión HttpOnly + CSRF y no persiste JWT en localStorage',async({page})=>{
  let exchanged=false;
  let csrfObserved=false;
  const csrf='e2e-zero-trust-csrf';
- await page.route('**/.netlify/functions/staff-login',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({user:{id:'1',name:'Admin',email:'admin@nutretium.com',role:'admin',token:'secret-jwt',mfa:true}})}));
+ await page.route('**/.netlify/functions/staff-login',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({user:{id:'1',name:'Admin',email:'admin@nutretium.com',role:'admin',token:'secret-jwt',mfa:false,mfaRequired:false,mfaExempt:true}})}));
  await page.route('**/.netlify/functions/admin-session',async route=>{
   const body=JSON.parse(route.request().postData()||'{}');
   if(body.action==='exchange'){
    exchanged=true;
-   return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,csrf,expiresIn:1800})});
+   return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,email:'admin@nutretium.com',role:'admin',csrf,expiresIn:1800})});
   }
   if(body.action==='status'){
-   return route.fulfill({status:exchanged?200:401,contentType:'application/json',body:JSON.stringify(exchanged?{ok:true,csrf,expiresAt:Math.floor(Date.now()/1000)+1800}:{error:'Sesión interna no válida o caducada.'})});
+   return route.fulfill({status:exchanged?200:401,contentType:'application/json',body:JSON.stringify(exchanged?{ok:true,email:'admin@nutretium.com',role:'admin',csrf,expiresAt:Math.floor(Date.now()/1000)+1800}:{error:'Sesión interna no válida o caducada.'})});
   }
   if(body.action==='logout'){
    exchanged=false;
@@ -55,18 +55,20 @@ test('admin center: sesión HttpOnly usa CSRF y no persiste JWT en localStorage'
   if(!exchanged)return route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({error:'La sesión ha caducado. Vuelve a entrar.'})});
   csrfObserved=route.request().headers()['x-nutretium-csrf']===csrf;
   if(!csrfObserved)return route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({error:'CSRF inválido'})});
-  return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({actor:{email:'admin@nutretium.com',role:'admin'},security:{staffMfaRequired:true,mfaConfigured:true,audit:{valid:true,checked:1}},backups:[],tpvsol:{status:'NO VALIDADO',message:'Sin sincronización validada'}})});
+  return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({actor:{email:'admin@nutretium.com',role:'admin'},security:{mfaExempt:true,staffMfaMode:'per-user',audit:{valid:true,checked:1}},backups:[],tpvsol:{status:'NO VALIDADO',message:'Sin sincronización validada'}})});
  });
  await page.goto(BASE+'/admin-center.html',{waitUntil:'domcontentloaded'});
  await expect(page.locator('#login')).toBeVisible();
+ await expect(page.locator('#mfaWrap')).toHaveClass(/hidden/);
  await page.locator('#email').fill('admin@nutretium.com');
  await page.locator('#password').fill('Password123!');
- await page.locator('#mfaCode').fill('123456');
  await page.locator('#loginForm button').click();
  await expect(page.locator('#app')).toBeVisible();
  expect(csrfObserved).toBe(true);
- const stored=await page.evaluate(()=>({keys:Array.from({length:localStorage.length},(_,i)=>localStorage.key(i))}));
- expect(stored.keys).not.toContain('nutretium_user');
+ const storage=await page.evaluate(()=>({keys:Array.from({length:localStorage.length},(_,i)=>localStorage.key(i)),marker:localStorage.getItem('nutretium_user')}));
+ expect(storage.keys).not.toContain('nutretium_user');
+ expect(storage.marker).toBe(JSON.stringify({token:'http-only-cookie'}));
+ expect(storage.marker).not.toContain('secret-jwt');
 });
 
 test('home: controles con role=button responden a teclado',async({page})=>{

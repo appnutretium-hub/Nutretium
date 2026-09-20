@@ -9,6 +9,8 @@ const direccion = require('../lib/direccion');
 const promotions = require('../lib/promotions');
 const shipping = require('../lib/shipping');
 const inventory = require('../lib/inventory');
+const paymentConfig = require('../lib/payment-config');
+const settings = require('../lib/settings');
 const { consume } = require('../lib/rate-limit');
 
 const CORS = cabecerasCORS('POST, OPTIONS');
@@ -31,7 +33,7 @@ function summary(pedido,promo,shipment,totalCents){return{subtotal:pedido.totalC
 exports.handler=async function(event){
   if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
   if(event.httpMethod!=='POST')return json(405,{error:'Method Not Allowed'});
-  if(String(process.env.MAINTENANCE_MODE||'').toLowerCase()==='true')return json(503,{error:'La tienda online está temporalmente en mantenimiento. No se iniciará ningún cobro.'},{'Retry-After':'300'});
+  const managedSettings=await settings.read().catch(()=>null);if(Boolean(managedSettings?.maintenance?.enabled)||String(process.env.MAINTENANCE_MODE||'').toLowerCase()==='true')return json(503,{error:'La tienda online está temporalmente en mantenimiento. No se iniciará ningún cobro.'},{'Retry-After':'300'});
   const rate=await consume({scope:'checkout',event,limit:8,windowMs:10*60*1000}).catch(()=>({allowed:false,degraded:true,retryAfter:60}));
   if(!rate.allowed)return json(429,{error:rate.degraded?'El control de seguridad del checkout no está disponible. Reintenta en un minuto.':'Demasiados intentos de checkout seguidos. Espera unos minutos antes de volver a intentarlo.'},{'Retry-After':String(rate.retryAfter||60)});
 
@@ -48,9 +50,8 @@ exports.handler=async function(event){
   if(!shipment.ok){console.error('[checkout] envío bloqueado:',shipment.reason);return json(503,{error:shipment.error,motivo:shipment.reason});}
   const totalCents=merchandiseCents+shipment.shippingCents;
 
-  const secret=process.env.REDSYS_SECRET_KEY,merchant=process.env.REDSYS_MERCHANT_CODE,terminal=process.env.REDSYS_TERMINAL||'1',env=process.env.REDSYS_ENV||'test';if(!secret||!merchant)return json(503,{error:'Pasarela de pago no configurada.'});
-  const host=event.headers['x-forwarded-host']||event.headers.host||'';if(publicProductionHost(host)&&(env!=='production'||process.env.COMMERCE_LIVE!=='true'))return json(503,{error:'El pago online está temporalmente desactivado mientras se completa la configuración de producción.'});
-  const base=host?`https://${host}`:'',ok=process.env.URL_OK||`${base}/.netlify/functions/pago-return?result=ok`,ko=process.env.URL_KO||`${base}/.netlify/functions/pago-return?result=ko`,notify=process.env.MERCHANT_URL||`${base}/.netlify/functions/redsys-notify`;
+  const pay=await paymentConfig.resolve().catch(()=>null);if(!pay?.enabled)return json(503,{error:'El pago online está desactivado desde Administración.'});if(!pay.credentialsConfigured)return json(503,{error:'Faltan las credenciales Redsys en Administración.'});if(pay.environment==='production'&&!pay.commerceLive)return json(503,{error:'Los cobros reales están bloqueados hasta autorizar COMMERCE_LIVE desde Administración.'});if(pay.environment==='production'&&pay.managed&&!pay.dedicatedVaultKey)return json(503,{error:'La bóveda de pagos de producción no tiene una clave dedicada configurada.'});const secret=pay.secretKey,merchant=pay.merchantCode,terminal=pay.terminal||'1',env=pay.environment||'test';
+  const host=event.headers['x-forwarded-host']||event.headers.host||'',base=host?`https://${host}`:'',ok=pay.urlOk||`${base}/.netlify/functions/pago-return?result=ok`,ko=pay.urlKo||`${base}/.netlify/functions/pago-return?result=ko`,notify=pay.merchantUrl||`${base}/.netlify/functions/redsys-notify`;
   const reqId=requestId(event),order=orderNumber(reqId),fp=fingerprint({email:identidad.email,lineas:pedido.lineas,totalCents,coupon:promo.ok?promo.code:''});
 
   const store=getBlobStore('redsys-orders');if(!store)return json(503,{error:'No se ha podido guardar el pedido de forma segura. No se iniciará ningún cobro.'});

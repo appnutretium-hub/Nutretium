@@ -1,0 +1,37 @@
+name: Nutretium Nexus Architecture Gate
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: ['feat/nutretium-nexus-40']
+permissions:
+  contents: read
+jobs:
+  nexus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --omit=optional
+      - name: Nexus syntax
+        run: |
+          node --check netlify/lib/nexus-core.js
+          node --check netlify/functions/nexus-status.js
+          node --check scripts/test-nexus-core.js
+      - name: Nexus architecture regressions
+        run: node scripts/test-nexus-core.js
+      - name: Existing AI governance regressions
+        run: node scripts/test-ai-control-plane.js
+      - name: Maximum security repository gate
+        run: node scripts/security-max-gate.js
+      - name: Security regressions
+        run: npm run test:security
+      - name: Enterprise regressions
+        run: npm run test:enterprise

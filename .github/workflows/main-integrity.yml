@@ -1,0 +1,34 @@
+name: Nutretium Main Integrity Audit
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  verify-pr-origin:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Verify main commit comes from a pull request
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls"
+          curl --fail --silent --show-error \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$api" > /tmp/prs.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const rows=JSON.parse(fs.readFileSync('/tmp/prs.json','utf8'));
+          const ok=Array.isArray(rows)&&rows.some(pr=>pr?.merged_at&&pr?.base?.ref==='main');
+          if(!ok) throw new Error('El commit de main no está asociado a un PR fusionado hacia main. Activa branch protection/ruleset para bloquear este caso antes del push.');
+          console.log('[main-integrity] commit trazable a PR fusionado hacia main');
+          NODE

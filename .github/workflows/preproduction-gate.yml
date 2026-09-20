@@ -29,7 +29,8 @@ jobs:
         run: |
           node scripts/audit-supply-chain.js
           node scripts/audit-api-contracts.js
-          npm audit --omit=dev --audit-level=high
+          # Netlify and CI install with --omit=optional; audit that exact production set.
+          npm audit --omit=dev --omit=optional --audit-level=high
       - name: Static quality budgets
         run: |
           node scripts/performance-budget.js

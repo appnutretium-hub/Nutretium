@@ -7,11 +7,14 @@
 const crypto = require('crypto');
 const { getBlobStore } = require('../lib/blob-store');
 const inventory = require('../lib/inventory');
+const enterpriseEffects = require('../lib/order-effects');
+const finalize = require('../lib/order-finalize');
 const { sendEmail, buildStoreOrderEmail, buildCustomerOrderEmail } = require('../lib/email');
 
 const HEADERS = { 'Content-Type':'text/plain; charset=utf-8' };
 
 async function getStore(){ return getBlobStore('redsys-orders'); }
+function isEnterpriseOrder(record){return Array.isArray(record?.reservations)||Boolean(record?.complianceCheckedAt)}
 
 function deriveSigningKey(secretKeyBase64, orderNumber){
   const keyBuffer = Buffer.from(secretKeyBase64,'base64');
@@ -70,6 +73,15 @@ async function sendOrderEmails(record){
     } catch(err){ console.error('[Redsys-notify] Email cliente:',err); }
   }
   return results;
+}
+
+async function releaseForReview(record){
+  if(record.missingOrderRecord||!Array.isArray(record.items))return {ok:true};
+  if(isEnterpriseOrder(record)){
+    try{await enterpriseEffects.releaseReservations(record.order,record.reservations||[]);return{ok:true,type:'enterprise'}}
+    catch(err){return{ok:false,error:err.message,type:'enterprise'}}
+  }
+  return inventory.release(record.order,record.items);
 }
 
 exports.handler=async function(event){
@@ -137,6 +149,9 @@ exports.handler=async function(event){
         record.amountMismatch={esperado:esperadoCents/100,cobrado:cobradoCents/100};
         record.fulfilmentStatus='REVIEW_REQUIRED';
         console.error('[Redsys-notify] IMPORTE DISTINTO',order,esperadoCents,cobradoCents);
+      }else{
+        delete record.amountMismatch;
+        if(authorised)record.fulfilmentStatus='PENDING_FULFILMENT';
       }
       await store.setJSON(order,record);
     }
@@ -145,11 +160,33 @@ exports.handler=async function(event){
     return {statusCode:503,headers:HEADERS,body:'Persistence failed'};
   }
 
-  // Inventario: un pago autorizado consume definitivamente la reserva. Un pago
-  // rechazado/cancelado la libera. Si la confirmación falla, se fuerza revisión
-  // y se devuelve 503 para que Redsys pueda reintentar la notificación.
-  if(!record.missingOrderRecord && Array.isArray(record.items)){
-    if(authorised){
+  if(record.amountMismatch&&!record.missingOrderRecord){
+    const released=await releaseForReview(record);
+    record.fulfilmentStatus='REVIEW_REQUIRED';
+    record.inventoryReservation={...(record.inventoryReservation||{}),status:released.ok?'RELEASED_REVIEW':'RELEASE_PENDING',releasedAt:released.ok?new Date().toISOString():null,error:released.ok?null:released.error};
+    try{await store.setJSON(order,record)}catch(err){console.error('[Redsys-notify] No se pudo guardar revisión por importe',order,err);return{statusCode:503,headers:HEADERS,body:'Persistence failed'}}
+    console.error('[Redsys-notify] Pago firmado con importe discrepante; fulfillment bloqueado',order);
+    return {statusCode:200,headers:HEADERS,body:'OK'};
+  }
+
+  if(!record.missingOrderRecord&&Array.isArray(record.items)){
+    if(isEnterpriseOrder(record)){
+      try{
+        if(authorised){
+          await finalize.finalizePaid(record,{source:'redsys',sendCustomerEmail:false});
+          record.enterpriseFinalization={status:'FINALIZED',at:new Date().toISOString()};
+        }else{
+          await finalize.finalizeFailed(record);
+          record.enterpriseFinalization={status:'RELEASED',at:new Date().toISOString()};
+        }
+      }catch(err){
+        record.fulfilmentStatus='REVIEW_REQUIRED';
+        record.enterpriseFinalization={status:'FAILED',error:String(err.message||err).slice(0,240),at:new Date().toISOString()};
+        try{await store.setJSON(order,record)}catch{}
+        console.error('[Redsys-notify] Finalización Enterprise fallida',order,err);
+        return {statusCode:503,headers:HEADERS,body:'Enterprise finalization failed'};
+      }
+    }else if(authorised){
       const inv=await inventory.commit(order,record.items);
       if(!inv.ok){
         record.fulfilmentStatus='REVIEW_REQUIRED';
@@ -163,7 +200,7 @@ exports.handler=async function(event){
       const inv=await inventory.release(order,record.items);
       record.inventoryReservation={...(record.inventoryReservation||{}),status:inv.ok?'RELEASED':'RELEASE_PENDING',releasedAt:inv.ok?new Date().toISOString():null,error:inv.ok?null:inv.error};
     }
-    try{await store.setJSON(order,record)}catch(err){console.error('[Redsys-notify] No se pudo guardar estado inventario',order,err);return{statusCode:503,headers:HEADERS,body:'Persistence failed'}}
+    try{await store.setJSON(order,record)}catch(err){console.error('[Redsys-notify] No se pudo guardar estado de finalización',order,err);return{statusCode:503,headers:HEADERS,body:'Persistence failed'}}
   }
 
   if(authorised && !record.missingOrderRecord){
@@ -178,6 +215,8 @@ exports.handler=async function(event){
     catch(err){ console.error('[Redsys-notify] No se pudo guardar estado de emails',order,err); return {statusCode:503,headers:HEADERS,body:'Persistence failed'}; }
   }
 
-  console.log('[Redsys-notify]',JSON.stringify({order,status:record.status,fulfilmentStatus:record.fulfilmentStatus,inventoryStatus:record.inventoryReservation?.status||null,missingOrderRecord:Boolean(record.missingOrderRecord),emailNotifications:record.emailNotifications||null}));
+  console.log('[Redsys-notify]',JSON.stringify({order,status:record.status,fulfilmentStatus:record.fulfilmentStatus,inventoryStatus:record.inventoryReservation?.status||null,enterpriseFinalization:record.enterpriseFinalization?.status||null,missingOrderRecord:Boolean(record.missingOrderRecord),emailNotifications:record.emailNotifications||null}));
   return {statusCode:200,headers:HEADERS,body:'OK'};
 };
+
+exports._test={isEnterpriseOrder,releaseForReview};

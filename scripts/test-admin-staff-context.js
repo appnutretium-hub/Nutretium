@@ -1,20 +1,19 @@
 'use strict';
-// Adaptador exclusivo de test: las pruebas históricas de admin fabricaban JWT
-// genéricos antes de que existiera separación client/staff. Conservamos toda su
-// cobertura de catálogo, pero hacemos que esos JWT representen staff-login real.
-// Este proceso simula explícitamente entorno local: los controles Zero Trust de
-// producción se prueban aparte en test-zero-trust-security.js.
+// Adaptador exclusivo de test: las pruebas de admin ejercitan ahora el mismo
+// contrato que producción: sesión interna de staff en cookie HttpOnly. El
+// bootstrap Bearer queda cubierto por sus pruebas específicas y no autoriza
+// directamente endpoints administrativos.
 process.env.CONTEXT='test';
 process.env.URL='http://localhost:8888';
 process.env.COMMERCE_LIVE='false';
 process.env.REQUIRE_STAFF_MFA='false';
-process.env.REQUIRE_STAFF_COOKIE='false';
+process.env.REQUIRE_STAFF_COOKIE='true';
 process.env.REQUIRE_STAFF_CSRF='false';
 process.env.REQUIRE_STAFF_STEP_UP='false';
 
 const jwt=require('../netlify/lib/jwt');
 const originalSign=jwt.signJWT;
-jwt.signJWT=(payload,secret)=>originalSign({...payload,kind:payload?.kind||'staff-login'},secret);
+jwt.signJWT=(payload,secret)=>originalSign({...payload,kind:payload?.kind||'staff'},secret);
 
 const root=globalThis.__NUTRETIUM_TEST_BLOBS__||(globalThis.__NUTRETIUM_TEST_BLOBS__=new Map());
 const users=root.get('users')||new Map();

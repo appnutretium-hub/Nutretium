@@ -41,7 +41,7 @@ exports.handler = async event => {
   if (!wait.ok) return response(wait.degraded ? 503 : 429,{error: wait.degraded ? 'El control de acceso del personal no está disponible. Prueba de nuevo más tarde.' : 'Demasiados intentos. Prueba más tarde.'},{ 'Retry-After': String(wait.retryAfter) });
   const user = await usuarios.lee(email),role = await effectiveRoleFor(email),verification = user ? verifyPasswordRecord(password, user.passwordHash) : { ok:false, needsRehash:false };
   if (!user || role === 'client' || !verification.ok) return response(401, { error: 'Credenciales incorrectas.' });
-  const requireMfa = staffMfaRequired(),secret = secretFor(email);let mfaVerified = false;
+  const requireMfa = staffMfaRequired(),secret = await secretFor(email);let mfaVerified = false;
   if (requireMfa) {
     if (!secret) return response(503, {error: 'MFA está activado para el personal, pero esta cuenta aún no tiene TOTP configurado.',mfaSetupRequired: true});
     if (!mfaCode) return response(401, {error: 'Introduce el código de 6 dígitos de tu aplicación de autenticación.',mfaRequired: true});

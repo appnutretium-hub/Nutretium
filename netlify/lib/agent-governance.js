@@ -51,7 +51,10 @@ const NEVER_AUTONOMOUS=new Set([
 const VETO_AGENTS=new Set(['audit','compliance','enterprise_risk','security','finance','procurement_control']);
 const safe=v=>String(v||'').trim().toLowerCase();
 const WORKFORCE_PREFIX='workforce__';
-function workforceAgentId(roleId){const id=safe(roleId);return AGENTS[id]?`${WORKFORCE_PREFIX}${id}`:id;}
+function workforceAgentId(roleId){
+ const id=safe(roleId);
+ return workforce.getRole(id)?`${WORKFORCE_PREFIX}${id}`:id;
+}
 function resolveWorkforceId(agent){const id=safe(agent);if(id.startsWith(WORKFORCE_PREFIX))return id.slice(WORKFORCE_PREFIX.length);return AGENTS[id]?null:id;}
 
 function profile(agent){

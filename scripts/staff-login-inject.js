@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('fs');
-const files=['admin.html','backoffice.html','settings.html','control.html','ops.html','enterprise.html','admin-center.html','product-editor.html'];
+const files=['admin.html','backoffice.html','settings.html','control.html','ops.html','enterprise.html','admin-center.html','product-editor.html','catalog-management.html','financial-dashboard.html'];
 for(const file of files){
  if(!fs.existsSync(file))continue;
  let html=fs.readFileSync(file,'utf8');
@@ -12,11 +12,15 @@ for(const file of files){
   const shell='<script src="/admin-shell.js"></script>';
   html=html.includes('</body>')?html.replace('</body>',shell+'</body>'):html+shell;
  }
- if(!html.includes('/staff-login-ui.js')&&!['admin-center.html','product-editor.html'].includes(file)){
+ if(!html.includes('/staff-login-ui.js')&&!['admin-center.html','product-editor.html','catalog-management.html','financial-dashboard.html'].includes(file)){
   const login='<script src="/staff-login-ui.js"></script>';
   html=html.includes('</body>')?html.replace('</body>',login+'</body>'):html+login;
  }
  if(file==='admin.html'&&!html.includes('/admin-product-enhancer.js'))html=html.replace('</body>','<script src="/admin-product-enhancer.js"></script></body>');
+ if(file==='admin-center.html'){
+  if(!html.includes('/admin-center-hash.js'))html=html.replace('</body>','<script src="/admin-center-hash.js"></script></body>');
+  if(!html.includes('/admin-security-enhancer.js'))html=html.replace('</body>','<script src="/admin-security-enhancer.js"></script></body>');
+ }
  fs.writeFileSync(file,html);
  console.log('[admin-shell-inject]',file);
 }

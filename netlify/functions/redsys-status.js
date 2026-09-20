@@ -1,66 +1,20 @@
 /**
  * netlify/functions/redsys-status.js — NUTRETIUM
- *
- * GET /.netlify/functions/redsys-status?order=XXXXXXXXXXXX
- *
- * Devuelve el estado REAL de un pedido, tal y como lo confirmó la
- * notificación servidor-a-servidor de Redsys (redsys-notify.js), leído
- * desde Netlify Blobs. La página /pago-ok la usa para NO fiarse solo del
- * redirect del navegador.
- *
- * Respuesta:
- *   { order, found, status }  status ∈ "PAID" | "FAILED" | "PENDING"
- *   (+ amount, authCode, responseCode cuando found = true)
+ * Estado autoritativo del pedido confirmado por redsys-notify.
  */
-
 'use strict';
-
-const { getBlobStore }  = require('../lib/blob-store');
-const { cabecerasCORS } = require('../lib/cors');
-
-const CORS = cabecerasCORS('GET, OPTIONS');
-
-async function getStore() {
-  return getBlobStore('redsys-orders');
-}
-
-exports.handler = async function (event) {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
-  if (event.httpMethod !== 'GET') {
-    return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: 'Method Not Allowed' }) };
-  }
-
-  const order = (event.queryStringParameters || {}).order;
-  // El nº de pedido de Redsys es alfanumérico de 4 a 12 caracteres.
-  if (!order || !/^[0-9A-Za-z]{4,12}$/.test(order)) {
-    return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Pedido inválido.' }) };
-  }
-
-  const store = await getStore();
-  if (!store) {
-    // Sin almacenamiento no podemos confirmar; el frontend lo tratará como pendiente.
-    return { statusCode: 200, headers: CORS, body: JSON.stringify({ order, found: false, status: 'PENDING' }) };
-  }
-
-  let rec = null;
-  try { rec = await store.get(order, { type: 'json' }); } catch { rec = null; }
-
-  if (!rec) {
-    // Aún no llegó la notificación de Redsys (o el pedido no existe).
-    return { statusCode: 200, headers: CORS, body: JSON.stringify({ order, found: false, status: 'PENDING' }) };
-  }
-
-  // Solo exponemos campos no sensibles.
-  return {
-    statusCode: 200,
-    headers: CORS,
-    body: JSON.stringify({
-      order,
-      found:        true,
-      status:       rec.status,        // "PAID" | "FAILED"
-      amount:       rec.amount,        // céntimos
-      authCode:     rec.authCode || null,
-      responseCode: rec.responseCode,
-    }),
-  };
+const {getBlobStore}=require('../lib/blob-store');
+const {cabecerasCORS}=require('../lib/cors');
+const CORS=cabecerasCORS('GET, OPTIONS');
+async function getStore(){return getBlobStore('redsys-orders')}
+exports.handler=async function(event){
+ if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
+ if(event.httpMethod!=='GET')return{statusCode:405,headers:CORS,body:JSON.stringify({error:'Method Not Allowed'})};
+ const order=(event.queryStringParameters||{}).order;if(!order||!/^[0-9A-Za-z]{4,12}$/.test(order))return{statusCode:400,headers:CORS,body:JSON.stringify({error:'Pedido inválido.'})};
+ const store=await getStore();if(!store)return{statusCode:200,headers:{...CORS,'Cache-Control':'no-store'},body:JSON.stringify({order,found:false,status:'PENDING'})};
+ let rec=null;try{rec=await store.get(order,{type:'json',consistency:'strong'})}catch{rec=null}
+ if(!rec)return{statusCode:200,headers:{...CORS,'Cache-Control':'no-store'},body:JSON.stringify({order,found:false,status:'PENDING'})};
+ const review=Boolean(rec.amountMismatch)||rec.fulfilmentStatus==='REVIEW_REQUIRED';
+ const publicStatus=review?'PENDING':(rec.status==='PAID'?'PAID':rec.status==='FAILED'?'FAILED':'PENDING');
+ return{statusCode:200,headers:{...CORS,'Cache-Control':'no-store'},body:JSON.stringify({order,found:true,status:publicStatus,amount:review?null:Number(rec.amount||0),reviewRequired:review})};
 };

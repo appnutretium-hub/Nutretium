@@ -9,7 +9,8 @@ function publicOrder(r){return{order:r.order,status:r.status||'PENDING',fulfilme
 exports.handler=async function(event){
  if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
  if(event.httpMethod!=='POST')return{statusCode:405,headers:CORS,body:JSON.stringify({error:'Method Not Allowed'})};
- const rate=await consume({scope:'guest-order',event,limit:10,windowMs:10*60*1000}).catch(()=>({allowed:true}));if(!rate.allowed)return{statusCode:429,headers:{...CORS,'Retry-After':String(rate.retryAfter)},body:JSON.stringify({error:'Demasiadas consultas. Espera unos minutos.'})};
+ const rate=await consume({scope:'guest-order',event,limit:10,windowMs:10*60*1000}).catch(()=>({allowed:false,degraded:true,retryAfter:60}));
+ if(!rate.allowed){const status=rate.degraded?503:429;return{statusCode:status,headers:{...CORS,'Retry-After':String(rate.retryAfter||60),'Cache-Control':'no-store'},body:JSON.stringify({error:rate.degraded?'El control de seguridad no está disponible temporalmente.':'Demasiadas consultas. Espera unos minutos.'})}}
  let b;try{b=JSON.parse(event.body||'{}')}catch{return{statusCode:400,headers:CORS,body:JSON.stringify({error:'JSON no válido.'})}};
  const order=clean(b.order,32),token=clean(b.token,200);if(!order||!token)return{statusCode:400,headers:CORS,body:JSON.stringify({error:'Faltan datos de seguimiento.'})};
  const store=getBlobStore('redsys-orders');if(!store)return{statusCode:503,headers:CORS,body:JSON.stringify({error:'Seguimiento no disponible temporalmente.'})};

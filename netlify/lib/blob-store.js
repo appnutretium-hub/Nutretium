@@ -30,4 +30,8 @@ function getBlobStore(name){
     return getStore(name);
   }catch{return null}
 }
-module.exports={getBlobStore};
+async function blobStoreReady(name='system-health-probe'){
+  const store=getBlobStore(name);if(!store||typeof store.list!=='function')return false;
+  try{const page=await store.list({paginate:false});return Boolean(page&&Array.isArray(page.blobs))}catch{return false}
+}
+module.exports={getBlobStore,blobStoreReady};

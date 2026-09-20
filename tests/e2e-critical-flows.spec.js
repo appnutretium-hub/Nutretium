@@ -31,11 +31,32 @@ test('mi cuenta: historial de consentimientos se renderiza y controles quedan fu
  await expect(page.locator('#consentAnalytics')).toBeChecked();
 });
 
-test('admin center: login interno no persiste JWT en localStorage',async({page})=>{
+test('admin center: sesión HttpOnly usa CSRF y no persiste JWT en localStorage',async({page})=>{
  let exchanged=false;
+ let csrfObserved=false;
+ const csrf='e2e-zero-trust-csrf';
  await page.route('**/.netlify/functions/staff-login',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({user:{id:'1',name:'Admin',email:'admin@nutretium.com',role:'admin',token:'secret-jwt',mfa:true}})}));
- await page.route('**/.netlify/functions/admin-session',route=>{exchanged=true;return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true})})});
- await page.route('**/.netlify/functions/admin-governance',route=>exchanged?route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({actor:{email:'admin@nutretium.com',role:'admin'},security:{staffMfaRequired:true,mfaConfigured:true,audit:{valid:true,checked:1}},backups:[],tpvsol:{status:'NO VALIDADO',message:'Sin sincronización validada'}})}):route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({error:'La sesión ha caducado. Vuelve a entrar.'})}));
+ await page.route('**/.netlify/functions/admin-session',async route=>{
+  const body=JSON.parse(route.request().postData()||'{}');
+  if(body.action==='exchange'){
+   exchanged=true;
+   return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,csrf,expiresIn:1800})});
+  }
+  if(body.action==='status'){
+   return route.fulfill({status:exchanged?200:401,contentType:'application/json',body:JSON.stringify(exchanged?{ok:true,csrf,expiresAt:Math.floor(Date.now()/1000)+1800}:{error:'Sesión interna no válida o caducada.'})});
+  }
+  if(body.action==='logout'){
+   exchanged=false;
+   return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true})});
+  }
+  return route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({error:'Acción no reconocida.'})});
+ });
+ await page.route('**/.netlify/functions/admin-governance',route=>{
+  if(!exchanged)return route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({error:'La sesión ha caducado. Vuelve a entrar.'})});
+  csrfObserved=route.request().headers()['x-nutretium-csrf']===csrf;
+  if(!csrfObserved)return route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({error:'CSRF inválido'})});
+  return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({actor:{email:'admin@nutretium.com',role:'admin'},security:{staffMfaRequired:true,mfaConfigured:true,audit:{valid:true,checked:1}},backups:[],tpvsol:{status:'NO VALIDADO',message:'Sin sincronización validada'}})});
+ });
  await page.goto(BASE+'/admin-center.html',{waitUntil:'domcontentloaded'});
  await expect(page.locator('#login')).toBeVisible();
  await page.locator('#email').fill('admin@nutretium.com');
@@ -43,6 +64,7 @@ test('admin center: login interno no persiste JWT en localStorage',async({page})
  await page.locator('#mfaCode').fill('123456');
  await page.locator('#loginForm button').click();
  await expect(page.locator('#app')).toBeVisible();
+ expect(csrfObserved).toBe(true);
  const stored=await page.evaluate(()=>({keys:Array.from({length:localStorage.length},(_,i)=>localStorage.key(i))}));
  expect(stored.keys).not.toContain('nutretium_user');
 });

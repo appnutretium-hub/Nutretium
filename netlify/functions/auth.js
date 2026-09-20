@@ -20,6 +20,11 @@ function authenticatedResponse(statusCode,user,email){
  const token=customerToken(user,email);
  return response(statusCode,{user:fichaPublica(user,{token}),sessionTransport:'cookie',legacyToken:true},{...CORS,'Set-Cookie':session.customerSessionCookie(token),'Cache-Control':'no-store'});
 }
+function profileResponse(user,verified){
+ const headers={...CORS,'Cache-Control':'no-store'};
+ if(verified.source!=='cookie')headers['Set-Cookie']=session.customerSessionCookie(customerToken(user,verified.email));
+ return response(200,{user:fichaPublica(user),sessionTransport:verified.source==='cookie'?'cookie':'cookie-upgraded'},headers);
+}
 async function upgradeHashIfNeeded(email,password,user,verification){
  if(!verification.needsRehash)return;
  const upgraded=hashPassword(password),at=new Date().toISOString();
@@ -50,16 +55,19 @@ exports.handler=async function(event){
  }
  if(body.action==='logout')return response(200,{ok:true},{...CORS,'Set-Cookie':session.clearCustomerSessionCookie(),'Cache-Control':'no-store'});
  if(body.action==='profile'){
-  let verified;try{verified=await session.verifyCustomerEventSession(event,{legacyToken:body.token,requireUser:false})}catch{return response(401,{error:'Sesión inválida, revocada o expirada.'})}if(!verified.user)return response(404,{error:'Usuario no encontrado.'});return response(200,{user:fichaPublica(verified.user),sessionTransport:verified.source});
+  let verified;try{verified=await session.verifyCustomerEventSession(event,{legacyToken:body.token,requireUser:false})}catch{return response(401,{error:'Sesión inválida, revocada o expirada.'})}
+  if(!verified.user)return response(404,{error:'Usuario no encontrado.'});
+  return profileResponse(verified.user,verified);
  }
  if(body.action==='update'){
   let verified;try{verified=await session.verifyCustomerEventSession(event,{legacyToken:body.token,requireUser:false})}catch{return response(401,{error:'Sesión inválida, revocada o expirada.'})}if(!verified.user)return response(404,{error:'Usuario no encontrado.'});
   const ficha={name:String(body.name||'').trim(),surname:String(body.surname||'').trim(),phone:String(body.phone||'').trim()},problema=revisaFicha(ficha);if(problema)return response(400,{error:problema});
   let requestedDir=null;if(body.direccion!==undefined){requestedDir=direccion.normaliza(body.direccion);const problemaDir=direccion.revisa(requestedDir);if(problemaDir)return response(400,{error:problemaDir})}
   let actualizado;try{actualizado=await usuarios.muta(verified.email,current=>({...current,name:ficha.name,surname:ficha.surname,phone:ficha.phone,direccion:requestedDir||direccion.normaliza(current.direccion),updatedAt:new Date().toISOString()}))}catch{return response(409,{error:'Tu perfil cambió al mismo tiempo desde otra sesión. Inténtalo de nuevo.'})}
-  if(!actualizado)return response(404,{error:'Usuario no encontrado.'});return response(200,{user:fichaPublica(actualizado),sessionTransport:verified.source},{...CORS,'Cache-Control':'no-store'});
+  if(!actualizado)return response(404,{error:'Usuario no encontrado.'});
+  return profileResponse(actualizado,verified);
  }
  return response(400,{error:'Acción no reconocida.'});
 };
 
-exports._test={upgradeHashIfNeeded,customerToken,authenticatedResponse};
+exports._test={upgradeHashIfNeeded,customerToken,authenticatedResponse,profileResponse};

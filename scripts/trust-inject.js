@@ -17,12 +17,14 @@ if (!html.includes('href="runtime-guard.css"')) html = html.replace('</head>', '
 
 html = html
   .replaceAll('Lun – Sáb 09:00 – 21:00', 'Lun – Sáb 09:30 – 22:00')
+  .replaceAll('Lun – Sáb &nbsp;09:00 – 21:00', 'Lun – Sáb &nbsp;09:30 – 22:00')
   .replaceAll('Lunes – Sábado: 09:00 – 21:00', 'Lunes – Sábado: 09:30 – 22:00')
   .replaceAll('633 653 517', '633 753 517')
   .replaceAll('Envío express 48h · Devolución gratuita 30 días', 'Tienda física en Santander · Atención personalizada')
   .replaceAll('Envío a península gratis a partir de 50€', 'Compra online y atención desde Santander')
   .replaceAll('10% de descuento en tu primer pedido', 'Crea tu cuenta para guardar pedidos y favoritos')
-  .replaceAll('Formulaciones avanzadas para atletas que no aceptan compromisos.', 'Suplementación deportiva, alimentación saludable y atención cercana desde nuestra tienda física en Santander.')
+  .replaceAll('Nueva temporada 2026', 'Santander · Tienda física + online')
+  .replaceAll('Formulaciones avanzadas para atletas que no aceptan compromisos.', 'Suplementación deportiva, açaí, smoothies y alimentación saludable desde Santander.')
   .replaceAll('Opiniones verificadas de compradores reales.', 'Opiniones publicadas tras revisión.')
   .replaceAll('Trabaja con profesionales certificados y consigue resultados reales con un acompañamiento 100% personalizado.', 'Solicita información sobre entrenamiento y el equipo te confirmará disponibilidad, alcance y condiciones del servicio.')
   .replaceAll('Planes nutricionales adaptados a tus metas, gustos y alergias.', 'Información sobre hábitos y objetivos dentro del alcance del profesional que preste el servicio.')
@@ -42,7 +44,32 @@ html = html
   .replaceAll('>SSL</p>', '>REDSYS</p>')
   .replaceAll('Pago cifrado', 'Pasarela bancaria')
   .replaceAll('>30d</p>', '>AYUDA</p>')
-  .replaceAll('Garantía total', 'Atención y soporte');
+  .replaceAll('Garantía total', 'Atención y soporte')
+  .replaceAll('>+5.000</p>', '>Santander</p>')
+  .replaceAll('Clientes activos', 'Tienda física · La Albericia')
+  .replaceAll('>100%</p>', '>Online</p>')
+  .replaceAll('Calidad certificada', 'Catálogo web')
+  .replaceAll('>48h</p>', '>Redsys</p>')
+  .replaceAll('>30 días</p>', '>Ayuda</p>')
+  .replaceAll('Garantía devolución', 'Atención postventa')
+  .replaceAll('Compras superiores a <span class="text-brand-gold gold-text">50€</span>', 'Compra online desde <span class="text-brand-gold gold-text">Nutretium</span>')
+  .replaceAll('🎁 Regalo gratis &nbsp;o&nbsp; 🚚 Envío gratis a península', 'Explora el catálogo y revisa las condiciones disponibles antes de confirmar tu pedido')
+  .replaceAll('Aprovechar oferta', 'Ver catálogo');
+
+// El vídeo de stock externo no debe iniciar descargas ni presentarse como material propio.
+// La capa comercial lo sustituye por información real de la tienda al arrancar.
+html = html
+  .replaceAll('poster="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&q=80"', '')
+  .replaceAll('<source src="https://cdn.coverr.co/videos/coverr-a-man-lifting-weights-in-a-gym-4490/1080p.mp4" type="video/mp4"/>', '');
+
+const title = 'Nutretium | Nutrición deportiva y alimentación saludable en Santander';
+html = html.replace(/<title>[^<]*<\/title>/i, `<title>${title}</title>`);
+const description = 'Nutretium en Santander: suplementación deportiva, açaí, smoothies y alimentación saludable. Explora el catálogo online y consulta al equipo si necesitas ayuda para elegir.';
+if (/<meta\s+name=["']description["']/i.test(html)) {
+  html = html.replace(/<meta\s+name=["']description["'][^>]*>/i, `<meta name="description" content="${description}">`);
+} else {
+  html = html.replace('</title>', `</title>\n  <meta name="description" content="${description}">`);
+}
 
 // Landmark principal: se añade en build para no tocar a mano la Home de gran tamaño.
 // Es idempotente porque Netlify y los quality gates pueden ejecutar este script más de una vez.

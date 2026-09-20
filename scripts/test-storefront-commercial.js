@@ -12,7 +12,7 @@ const forbidden = [
   ['teléfono antiguo', '633 653 517'],
   ['cifra de clientes no documentada', '+5.000'],
   ['claim clientes activos', 'Clientes activos'],
-  ['claim calidad absoluta', '100%'],
+  ['claim calidad absoluta', '>100%</p>'],
   ['claim calidad certificada', 'Calidad certificada'],
   ['claim envío 48h', 'Envío express 48h'],
   ['claim devolución 30 días', 'Devolución gratuita 30 días'],

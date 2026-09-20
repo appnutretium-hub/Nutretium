@@ -11,10 +11,11 @@ const {secretFor}=require('../lib/totp');
 const {verifyStepUp}=require('../lib/security-step-up');
 const security=require('../lib/security-policy');
 const defense=require('../lib/security-defense');
+const {tpvState}=require('../lib/external-readiness');
 const CORS=cabecerasCORS('POST, OPTIONS');
 const response=(statusCode,body)=>({statusCode,headers:{...CORS,...security.securityHeaders()},body:JSON.stringify(body)});
 const ownerOrAdmin=auth=>['owner','admin'].includes(auth.role);
-function tpvsolState(){const mode=String(process.env.TPVSOL_SYNC_MODE||'').trim().toLowerCase(),endpoint=String(process.env.TPVSOL_SYNC_ENDPOINT||'').trim(),token=Boolean(process.env.TPVSOL_SYNC_TOKEN),validated=String(process.env.TPVSOL_CONNECTION_VALIDATED||'').toLowerCase()==='true';let endpointOk=false;try{endpointOk=endpoint?new URL(endpoint).protocol==='https:':false}catch{}const configured=['api','middleware'].includes(mode)&&endpointOk&&token,ready=configured&&validated;return{status:ready?'VALIDATED':'NOT_VALIDATED',configured,ready,mode:mode||null,message:ready?'Conexión TPVsol validada y preparada para trabajos auditados.':'TPVsol sigue bloqueado hasta validar API/middleware HTTPS y credenciales autorizadas.'}}
+function tpvsolState(){const s=tpvState(process.env);return{status:s.ready?'VALIDATED':'NOT_VALIDATED',configured:Boolean(s.endpointConfigured&&s.tokenConfigured&&['api','middleware'].includes(s.mode)),ready:s.ready,mode:s.mode||null,reason:s.reason,message:s.ready?'Conexión TPVsol validada y preparada para trabajos auditados.':'TPVsol sigue bloqueado hasta validar API/middleware HTTPS y credenciales autorizadas.'}}
 async function backupList(){const store=getBlobStore('enterprise-backups-v1');if(!store)return[];const found=await store.list({prefix:'daily/'}).catch(()=>({blobs:[]}));return(found.blobs||[]).filter(x=>/^daily\/\d{4}-\d{2}-\d{2}$/.test(String(x.key||''))).sort((a,b)=>String(b.key).localeCompare(String(a.key))).slice(0,30).map(x=>({key:x.key,etag:x.etag||null}))}
 async function staffRows(){const rows=await directory.list(),out=[];for(const row of rows){const user=await usuarios.lee(row.email).catch(()=>null);out.push({...row,accountExists:Boolean(user),emailVerified:Boolean(user?.emailVerifiedAt),mfaConfigured:Boolean(secretFor(row.email)),passwordChangedAt:user?.passwordChangedAt||null})}return out}
 function permissionsCatalog(){return Object.fromEntries(Object.entries(PERMISSIONS).filter(([role])=>role!=='owner'&&role!=='admin'&&role!=='client').map(([role,items])=>[role,items]))}

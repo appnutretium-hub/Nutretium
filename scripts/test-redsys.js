@@ -127,13 +127,16 @@ async function main() {
   process.env.REDSYS_MERCHANT_CODE = COMERCIO;
   process.env.REDSYS_TERMINAL = TERMINAL;
 
+  process.env.REDSYS_ENV = 'production';
+  process.env.COMMERCE_LIVE = 'false';
   const productionLocked = await checkout(paymentRequest(items, {
     host: 'nutretium.com',
     requestId: 'checkout-prodlock-01',
     ip: '127.0.0.13'
   }));
   assert.strictEqual(productionLocked.statusCode, 503);
-  assert.match(bodyOf(productionLocked).error, /desactivado/i);
+  assert.match(bodyOf(productionLocked).error, /bloqueados|desactivado/i);
+  process.env.REDSYS_ENV = 'test';
 
   const requestId = 'checkout-redsys-001';
   const paid = await checkout(paymentRequest(items, {

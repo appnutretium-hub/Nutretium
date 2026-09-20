@@ -12,9 +12,9 @@ function router(routes){return async(url)=>{for(const [match,value] of routes){i
  assert.equal(readiness.shippingState({managed:false,enabled:false,rateCents:null}).ready,false);
  assert.equal(readiness.shippingState({managed:true,enabled:true,rateCents:495}).ready,true);
  assert.equal(readiness.tpvState({}).ready,false);
- assert.equal(readiness.tpvState({TPVSOL_SYNC_MODE:'api',TPVSOL_SYNC_VALIDATED:'true'}).ready,true);
- assert.equal(readiness.tpvState({TPVSOL_SYNC_MODE:'file-export',TPVSOL_SYNC_VALIDATED:'true'}).ready,true);
- assert.equal(readiness.tpvState({TPVSOL_SYNC_MODE:'otro',TPVSOL_SYNC_VALIDATED:'true'}).ready,false);
+ assert.equal(readiness.tpvState({TPVSOL_SYNC_MODE:'api',TPVSOL_SYNC_ENDPOINT:'https://tpv.example/sync',TPVSOL_SYNC_TOKEN:'token',TPVSOL_CONNECTION_VALIDATED:'true'}).ready,true);
+ assert.equal(readiness.tpvState({TPVSOL_SYNC_MODE:'middleware',TPVSOL_SYNC_ENDPOINT:'https://tpv.example/sync',TPVSOL_SYNC_TOKEN:'token',TPVSOL_CONNECTION_VALIDATED:'true'}).ready,true);
+ assert.equal(readiness.tpvState({TPVSOL_SYNC_MODE:'file-export',TPVSOL_SYNC_ENDPOINT:'https://tpv.example/sync',TPVSOL_SYNC_TOKEN:'token',TPVSOL_CONNECTION_VALIDATED:'true'}).ready,false);
  const sha='a'.repeat(40);
  assert.equal((await readiness.githubDeploymentState({GITHUB_REPOSITORY:'bad repo',GITHUB_TOKEN:'x',COMMIT_REF:sha,CONTEXT:'production',BRANCH:'main'},router([]))).reason,'invalid-repository');
  const gh=router([['api.github.com',{commit:{sha}}]]);
@@ -26,7 +26,7 @@ function router(routes){return async(url)=>{for(const [match,value] of routes){i
  const pending=await readiness.resendState({RESEND_API_KEY:'x',ORDER_EMAIL_FROM:'pedidos@nutretium.com'},router([['api.resend.com',{data:[{name:'nutretium.com',status:'pending'}]}]]));
  assert.equal(pending.ready,false);
  const aggregateFetch=router([['api.github.com',{commit:{sha}}],['api.resend.com',{data:[{name:'nutretium.com',status:'verified'}]}]]);
- const aggregate=await readiness.assessExternalReadiness({env:{GITHUB_REPOSITORY:'appnutretium-hub/Nutretium',GITHUB_TOKEN:'x',COMMIT_REF:sha,CONTEXT:'production',BRANCH:'main',RESEND_API_KEY:'x',ORDER_EMAIL_FROM:'pedidos@nutretium.com',REDSYS_ENV:'production',COMMERCE_LIVE:'true',REDSYS_SECRET_KEY:'secret',REDSYS_MERCHANT_CODE:'merchant',TPVSOL_SYNC_MODE:'api',TPVSOL_SYNC_VALIDATED:'true'},shipping:{managed:true,enabled:true,rateCents:495},fetchImpl:aggregateFetch});
+ const aggregate=await readiness.assessExternalReadiness({env:{GITHUB_REPOSITORY:'appnutretium-hub/Nutretium',GITHUB_TOKEN:'x',COMMIT_REF:sha,CONTEXT:'production',BRANCH:'main',RESEND_API_KEY:'x',ORDER_EMAIL_FROM:'pedidos@nutretium.com',REDSYS_ENV:'production',COMMERCE_LIVE:'true',REDSYS_SECRET_KEY:'secret',REDSYS_MERCHANT_CODE:'merchant',TPVSOL_SYNC_MODE:'api',TPVSOL_SYNC_ENDPOINT:'https://tpv.example/sync',TPVSOL_SYNC_TOKEN:'token',TPVSOL_CONNECTION_VALIDATED:'true'},shipping:{managed:true,enabled:true,rateCents:495},fetchImpl:aggregateFetch});
  assert.equal(aggregate.ready,true);
  assert.deepEqual(aggregate.blockers,[]);
  const failClosed=await readiness.assessExternalReadiness({env:{REDSYS_ENV:'test'},shipping:{managed:false},fetchImpl:router([])});

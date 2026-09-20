@@ -1,11 +1,12 @@
 'use strict';
 const {requireStaff}=require('../lib/staff');
 const enterprise=require('../lib/enterprise-store');
+const {tpvState}=require('../lib/external-readiness');
 const {cabecerasCORS}=require('../lib/cors');
 const CORS=cabecerasCORS('GET, POST, OPTIONS');
 const json=(s,b)=>({statusCode:s,headers:{...CORS,'Cache-Control':'no-store'},body:JSON.stringify(b)});
-function configured(){const mode=String(process.env.TPVSOL_SYNC_MODE||'').trim().toLowerCase(),endpoint=String(process.env.TPVSOL_SYNC_ENDPOINT||'').trim(),token=Boolean(process.env.TPVSOL_SYNC_TOKEN);let endpointOk=false;try{endpointOk=endpoint?new URL(endpoint).protocol==='https:':false}catch{}return{mode,endpointConfigured:endpointOk,tokenConfigured:token,validated:String(process.env.TPVSOL_CONNECTION_VALIDATED||'').toLowerCase()==='true'}}
-function status(){const c=configured(),supported=['api','middleware'];const ready=supported.includes(c.mode)&&c.endpointConfigured&&c.tokenConfigured&&c.validated;return{provider:'tpvsol',status:ready?'VALIDATED':'NOT_VALIDATED',ready,checks:c,message:ready?'Conexión TPVsol declarada como validada; la ejecución debe seguir usando jobs auditados.':'TPVsol permanece bloqueado: falta validar un canal autorizado (API o middleware HTTPS) y sus credenciales.'}}
+function configured(){const s=tpvState(process.env);return{mode:s.mode||'',endpointConfigured:s.endpointConfigured,tokenConfigured:s.tokenConfigured,validated:s.validated}}
+function status(){const c=configured(),s=tpvState(process.env);return{provider:'tpvsol',status:s.ready?'VALIDATED':'NOT_VALIDATED',ready:s.ready,checks:c,reason:s.reason,message:s.ready?'Conexión TPVsol declarada como validada; la ejecución debe seguir usando jobs auditados.':'TPVsol permanece bloqueado: falta validar un canal autorizado (API o middleware HTTPS) y sus credenciales.'}}
 exports.handler=async event=>{
  if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
  const auth=await requireStaff(event,event.httpMethod==='POST'?'integrations.manage':'platform.read');if(!auth.ok)return json(auth.statusCode,{error:auth.error});

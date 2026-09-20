@@ -43,8 +43,8 @@ exports.handler=async event=>{
  const auth=await requireStaff(event,'returns.manage');if(!auth.ok)return resp(auth.statusCode,{error:auth.error});
  let body;try{body=JSON.parse(event.body||'{}')}catch{return resp(400,{error:'JSON no válido.'})}
  const orderId=String(body.orderId||''),amountCents=Number(body.amountCents);if(!orderId||!Number.isInteger(amountCents)||amountCents<=0)return resp(400,{error:'Pedido e importe en céntimos son obligatorios.'});
- await paymentConfig.applyRuntime().catch(()=>{});
- const secret=process.env.REDSYS_SECRET_KEY,merchant=process.env.REDSYS_MERCHANT_CODE,terminal=process.env.REDSYS_TERMINAL||'1',env=process.env.REDSYS_ENV||'test';if(!secret||!merchant)return resp(503,{error:'Redsys no está configurado.'});
+ const payment=await paymentConfig.resolve().catch(()=>null),secret=payment?.secretKey,merchant=payment?.merchantCode,terminal=payment?.terminal||'1',env=payment?.environment||'test';if(!payment?.enabled||!secret||!merchant)return resp(503,{error:'Redsys no está configurado.'});
+ if(payment.managed&&env==='production'&&payment.dedicatedVaultKey!==true)return resp(503,{error:'La bóveda de pagos de producción no tiene una clave dedicada configurada.'});
  const orders=getBlobStore('redsys-orders');if(!orders)return resp(503,{error:'Pedidos no disponibles.'});
  try{return await withLock(`refund:${orderId}`,async()=>{
   const order=await orders.get(orderId,{type:'json',consistency:'strong'}).catch(()=>null);if(!order||order.status!=='PAID'||order.amountMismatch)return resp(409,{error:'El pedido no es reembolsable automáticamente.'});

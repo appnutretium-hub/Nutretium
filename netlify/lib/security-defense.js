@@ -102,6 +102,16 @@ async function consumeMutationNonce({ event, actor, scope }) {
   return { ok: true, requestId: id };
 }
 
+async function verifyAuditIntegrity(limit=5000) {
+  const audit = require('./audit-log');
+  let result;
+  try { result = await audit.verify(limit); } catch { result = null; }
+  if (!result || result.valid !== true) {
+    return { ok:false, statusCode:503, code:'AUDIT_INTEGRITY_FAILED', error:'La cadena de auditoría no supera la verificación de integridad. Operación crítica bloqueada.' };
+  }
+  return { ok:true, checked:Number(result.checked||0), truncated:Boolean(result.truncated) };
+}
+
 function newSessionBinding(event) {
   return { sid: security.randomToken(24), fp: requestFingerprint(event), jti: security.randomToken(24) };
 }
@@ -116,5 +126,6 @@ module.exports = {
   requestId,
   validRequestId,
   consumeMutationNonce,
+  verifyAuditIntegrity,
   newSessionBinding,
 };

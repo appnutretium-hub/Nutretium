@@ -17,7 +17,7 @@ function resetStore(){return getBlobStore('password-resets')}
 function verifyStore(){return getBlobStore('email-verifications')}
 function publicOrigin(event){const host=String(event.headers?.['x-forwarded-host']||event.headers?.host||'nutretium.com').replace(/[^a-zA-Z0-9.:-]/g,'');return `https://${host||'nutretium.com'}`}
 async function authEmail(event){try{return(await verifyEventSession(event)).email}catch{return null}}
-function revokedPatch(current,passwordHash){return{...current,...(passwordHash?{passwordHash}:{}),tokensValidAfter:Math.floor(Date.now()/1000),passwordChangedAt:new Date().toISOString()}}
+function revokedPatch(current,passwordHash){return{...current,...(passwordHash?{passwordHash}:{}),tokensValidAfter:Math.floor(Date.now()/1000),sessionVersion:Number(current.sessionVersion||0)+1,passwordChangedAt:new Date().toISOString()}}
 
 async function claimToken(store,key){
  if(!store||typeof store.getWithMetadata!=='function')return null;

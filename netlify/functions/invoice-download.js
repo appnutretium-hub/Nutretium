@@ -2,7 +2,8 @@
 
 const crypto = require('crypto');
 const { cabecerasCORS } = require('../lib/cors');
-const { verifyJWT, tokenFromHeader, secretConfigured } = require('../lib/jwt');
+const { tokenFromHeader } = require('../lib/jwt');
+const { verifyEventSession } = require('../lib/session');
 const { getBlobStore } = require('../lib/blob-store');
 const enterprise = require('../lib/enterprise-store');
 const { createPdf } = require('../lib/simple-pdf');
@@ -20,8 +21,11 @@ async function authorizedOrder(event, orderId) {
   const order = await orders.get(orderId, { type: 'json', consistency: 'strong' }).catch(() => null);
   if (!order || order.status !== 'PAID' || order.amountMismatch) throw Object.assign(new Error('Pedido pagado no encontrado.'), { statusCode: 404 });
   const bearer = tokenFromHeader(event.headers || {});
-  if (bearer && secretConfigured()) {
-    try { const claims = verifyJWT(bearer); if (String(claims.email || '').toLowerCase() === String(order.email || '').toLowerCase()) return order; } catch {}
+  if (bearer) {
+    try {
+      const session = await verifyEventSession(event, { requireUser:true });
+      if (session.email === String(order.email || '').toLowerCase()) return order;
+    } catch {}
   }
   const guest = event.queryStringParameters?.token || '';
   if (order.guest && guest && safeEqual(order.guestAccessHash, hash(guest))) return order;

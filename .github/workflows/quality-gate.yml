@@ -88,8 +88,6 @@ jobs:
           node scripts/trust-inject.js
           node scripts/build-seo-pages.js
           node scripts/build-trust-audit.js
-      - name: Install Playwright test runner
-        run: npm install --no-save --no-package-lock @playwright/test@1.55.0
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Start and verify static storefront

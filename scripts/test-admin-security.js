@@ -2,6 +2,7 @@
 process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
 process.env.JWT_SECRET='admin-security-secret-abcdefghijklmnopqrstuvwxyz-123456';
 process.env.ADMIN_EMAILS='owner@nutretium.test';
+process.env.REQUIRE_STAFF_MFA='true';
 
 const assert=require('assert');
 const fs=require('fs');
@@ -14,15 +15,21 @@ const audit=require('../netlify/lib/audit-log');
 
 const email='owner@nutretium.test';
 const user={id:'owner-test',name:'Owner',surname:'Nutretium',email,phone:'',direccion:{calle:'Calle Test 1',piso:'',cp:'39001',localidad:'Santander',provincia:'Cantabria',pais:'España'},passwordHash:'x'};
-const bearer=signJWT({sub:user.id,email,exp:Math.floor(Date.now()/1000)+3600});
+const customerBearer=signJWT({sub:user.id,email,exp:Math.floor(Date.now()/1000)+3600});
+const staffWithoutMfa=signJWT({sub:user.id,email,kind:'staff-login',mfa:false,exp:Math.floor(Date.now()/1000)+3600});
+const staffBearer=signJWT({sub:user.id,email,kind:'staff-login',mfa:true,exp:Math.floor(Date.now()/1000)+3600});
 const baseHeaders={'x-nf-client-connection-ip':'127.0.0.90'};
 const event=(body,headers={})=>({httpMethod:'POST',headers:{...baseHeaders,...headers},body:JSON.stringify(body)});
 const parse=r=>JSON.parse(r.body||'{}');
 
 (async()=>{
  await usuarios.escribe(email,user);
- const exchange=await adminSession.handler(event({action:'exchange'},{authorization:`Bearer ${bearer}`}));
- assert.strictEqual(exchange.statusCode,200,'El intercambio de sesión interna debe funcionar');
+ const customerExchange=await adminSession.handler(event({action:'exchange'},{authorization:`Bearer ${customerBearer}`}));
+ assert.strictEqual(customerExchange.statusCode,401,'Un JWT de cliente nunca puede convertirse en sesión interna');
+ const noMfaExchange=await adminSession.handler(event({action:'exchange'},{authorization:`Bearer ${staffWithoutMfa}`}));
+ assert.strictEqual(noMfaExchange.statusCode,401,'Con MFA obligatorio no se acepta staff-login sin MFA');
+ const exchange=await adminSession.handler(event({action:'exchange'},{authorization:`Bearer ${staffBearer}`}));
+ assert.strictEqual(exchange.statusCode,200,'El intercambio de sesión interna debe funcionar tras staff-login + MFA');
  const setCookie=exchange.headers['Set-Cookie'];
  assert(setCookie&&/nt_staff_session=/.test(setCookie),'Debe emitirse la cookie interna');
  assert(/HttpOnly/i.test(setCookie),'La cookie debe ser HttpOnly');
@@ -62,5 +69,5 @@ const parse=r=>JSON.parse(r.body||'{}');
 
  const logout=await adminSession.handler(event({action:'logout'},{cookie:cookiePair}));
  assert.strictEqual(logout.statusCode,200);assert(/Max-Age=0/.test(logout.headers['Set-Cookie']),'Logout debe expirar la cookie');
- console.log('[test-admin-security] OK · cookie HttpOnly · auditoría concurrente · detección de manipulación · bridge de panel y staff-login');
+ console.log('[test-admin-security] OK · cliente no escala · MFA obligatorio · cookie HttpOnly · auditoría concurrente · detección de manipulación');
 })().catch(err=>{console.error(err);process.exit(1)});

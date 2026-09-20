@@ -18,7 +18,7 @@ exports.handler=async event=>{
     if(event.httpMethod==='GET'){
       const agent=String(query.agent||'');if(!agent)return json(400,{error:'Falta agent.'});
       const current=await safeMemory.currentCheckpoint(agent),integrity=await safeMemory.integrity(agent,{depth:Number(query.depth)||5});
-      return json(200,{agent:safeMemory.canonicalAgent(agent),current:current?{id:current.id,version:current.version,stateHash:current.stateHash,profileHash:current.profileHash,previousCheckpointId:current.previousCheckpointId,createdAt:current.createdAt,verification:current.verification}:null,integrity});
+      return json(200,{agent:safeMemory.canonicalAgent(agent),current:current?{id:current.id,checkpointVersion:current.checkpointVersion,stateHash:current.stateHash,profileHash:current.profileHash,previousCheckpointId:current.previousCheckpointId,createdAt:current.createdAt,verification:current.verification}:null,integrity});
     }
     if(event.httpMethod!=='POST')return json(405,{error:'Method Not Allowed'});
     if(!privileged(auth))return json(403,{error:'La recuperación de memoria exige propietario o administrador.'});
@@ -28,8 +28,8 @@ exports.handler=async event=>{
     if(mode==='rollback'){
       if(!body.checkpointId)return json(400,{error:'Falta checkpointId.'});
       const restored=await safeMemory.rollback(agent,String(body.checkpointId),{actor:auth});
-      await audit.append({event,actor:auth.email,action:'AGENT_MEMORY_ROLLBACK',resource:restored.id,outcome:'SUCCESS',metadata:{agent:safeMemory.canonicalAgent(agent),targetCheckpointId:String(body.checkpointId),version:restored.version}}).catch(()=>{});
-      return json(200,{restored:{id:restored.id,agent:restored.agent,version:restored.version,stateHash:restored.stateHash,rollbackToCheckpointId:restored.rollbackToCheckpointId}});
+      await audit.append({event,actor:auth.email,action:'AGENT_MEMORY_ROLLBACK',resource:restored.id,outcome:'SUCCESS',metadata:{agent:safeMemory.canonicalAgent(agent),targetCheckpointId:String(body.checkpointId),checkpointVersion:restored.checkpointVersion}}).catch(()=>{});
+      return json(200,{restored:{id:restored.id,agent:restored.agent,checkpointVersion:restored.checkpointVersion,stateHash:restored.stateHash,rollbackToCheckpointId:restored.rollbackToCheckpointId}});
     }
     return json(400,{error:'Modo no reconocido.'});
   }catch(error){console.error('[agent-memory-status]',error);return json(500,{error:error.message||'No se pudo consultar la memoria segura.'});}

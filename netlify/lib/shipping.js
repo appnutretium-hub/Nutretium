@@ -1,5 +1,6 @@
 'use strict';
 const settings=require('./settings');
+const paymentConfig=require('./payment-config');
 
 function env(name){return String(process.env[name]||'').trim()}
 function envCents(name){const v=env(name);if(v==='')return null;const n=Number(v);return Number.isInteger(n)&&n>=0?n:null}
@@ -22,5 +23,5 @@ function quoteWithPolicy(p,{subtotalCents,address}){
  return{ok:true,shippingCents:free?0:p.rateCents,free,label:p.label||'Envío',country:p.country||'España',freeFromCents:p.freeFromCents,source:p.source||'unknown'};
 }
 async function configured(){const p=await policy();return Boolean(p.enabled&&Number.isInteger(p.rateCents)&&p.rateCents>=0)}
-async function quote(input){return quoteWithPolicy(await policy(),input)}
+async function quote(input){await paymentConfig.applyRuntime();return quoteWithPolicy(await policy(),input)}
 module.exports={configured,policy,quote,quoteWithPolicy,envPolicy};

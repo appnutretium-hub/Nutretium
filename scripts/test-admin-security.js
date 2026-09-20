@@ -10,6 +10,8 @@ const usuarios=require('../netlify/lib/usuarios');
 const {signJWT}=require('../netlify/lib/jwt');
 const {getBlobStore}=require('../netlify/lib/blob-store');
 const adminSession=require('../netlify/functions/admin-session');
+const staffLogin=require('../netlify/functions/staff-login');
+const totp=require('../netlify/lib/totp');
 const adminAudit=require('../netlify/functions/admin-audit');
 const audit=require('../netlify/lib/audit-log');
 
@@ -24,13 +26,20 @@ const parse=r=>JSON.parse(r.body||'{}');
 
 (async()=>{
  await usuarios.escribe(email,user);
+ assert.strictEqual(staffLogin._test.privilegedMfaExempt('owner'),true,'Owner debe quedar exento de MFA');
+ assert.strictEqual(staffLogin._test.privilegedMfaExempt('admin'),true,'Admin debe quedar exento de MFA');
+ assert.strictEqual(staffLogin._test.mfaRequiredFor('admin',{mfaEnabled:true}),false,'Admin nunca debe heredar MFA de personal');
+ assert.strictEqual(staffLogin._test.mfaRequiredFor('manager',{mfaEnabled:false}),false,'El personal sin MFA individual no debe ser bloqueado');
+ assert.strictEqual(staffLogin._test.mfaRequiredFor('manager',{mfaEnabled:true}),true,'El personal con MFA individual debe validarlo');
+ const generated=totp.generateSecret();assert(/^[A-Z2-7]+$/.test(generated),'El secreto generado debe ser Base32');const sealed=totp.sealSecret(generated);assert.notStrictEqual(sealed,generated,'El secreto no debe persistirse en claro');assert.strictEqual(totp.openSecret(sealed),generated,'El cifrado MFA debe ser reversible con la clave del servidor');assert(totp.provisioningUri('empleado@nutretium.test',generated).startsWith('otpauth://totp/'),'Debe generarse una URI estándar de aprovisionamiento');
+
  const customerExchange=await adminSession.handler(event({action:'exchange'},{authorization:`Bearer ${customerBearer}`}));
  assert.strictEqual(customerExchange.statusCode,401,'Un JWT de cliente nunca puede convertirse en sesión interna');
  const noMfaExchange=await adminSession.handler(event({action:'exchange'},{authorization:`Bearer ${staffWithoutMfa}`}));
- assert.strictEqual(noMfaExchange.statusCode,401,'Con MFA obligatorio no se acepta staff-login sin MFA');
+ assert.strictEqual(noMfaExchange.statusCode,200,'Owner/Admin debe poder canjear una sesión interna sin MFA aunque exista una antigua bandera global');
  const exchange=await adminSession.handler(event({action:'exchange'},{authorization:`Bearer ${staffBearer}`}));
- assert.strictEqual(exchange.statusCode,200,'El intercambio de sesión interna debe funcionar tras staff-login + MFA');
- const setCookie=exchange.headers['Set-Cookie'];
+ assert.strictEqual(exchange.statusCode,200,'El intercambio también debe aceptar un staff-login ya verificado con MFA');
+ const setCookie=noMfaExchange.headers['Set-Cookie'];
  assert(setCookie&&/nt_staff_session=/.test(setCookie),'Debe emitirse la cookie interna');
  assert(/HttpOnly/i.test(setCookie),'La cookie debe ser HttpOnly');
  assert(/Secure/i.test(setCookie),'La cookie debe ser Secure');
@@ -69,5 +78,5 @@ const parse=r=>JSON.parse(r.body||'{}');
 
  const logout=await adminSession.handler(event({action:'logout'},{cookie:cookiePair}));
  assert.strictEqual(logout.statusCode,200);assert(/Max-Age=0/.test(logout.headers['Set-Cookie']),'Logout debe expirar la cookie');
- console.log('[test-admin-security] OK · cliente no escala · MFA obligatorio · cookie HttpOnly · auditoría concurrente · detección de manipulación');
+ console.log('[test-admin-security] OK · cliente no escala · admin exento de MFA · MFA individual · cookie HttpOnly · auditoría concurrente · detección de manipulación');
 })().catch(err=>{console.error(err);process.exit(1)});

@@ -14,7 +14,7 @@ function testNormalization(){
   shipping:{managed:true,enabled:true,rateCents:490,freeFromCents:5000,country:'España',label:'Envío'}
  });
  assert.equal(n.navigation.items.length,24,'navigation must be capped at 24 items');
- assert.equal(n.navigation.items.find(x=>x.id==='x-0').href,'#','unsafe href must fail closed');
+ assert.equal(n.navigation.items.find(x=>x.id==='x0').href,'#','unsafe href must fail closed');
  assert(!JSON.stringify(n).includes('<script>'),'HTML must be stripped from settings');
  assert.equal(n.contact.email,'owner@example.com');
  assert.equal(n.payment.environment,'production');

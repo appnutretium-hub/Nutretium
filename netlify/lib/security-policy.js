@@ -26,6 +26,7 @@ function envSecurityFlag(name){return productionLike()||boolEnv(name,false)}
 function staffMfaRequired(){return envSecurityFlag('REQUIRE_STAFF_MFA')}
 function staffCsrfRequired(){return envSecurityFlag('REQUIRE_STAFF_CSRF')}
 function staffCookieRequired(){return envSecurityFlag('REQUIRE_STAFF_COOKIE')}
+function staffStepUpRequired(){return envSecurityFlag('REQUIRE_STAFF_STEP_UP')}
 
 function randomToken(bytes=32){return crypto.randomBytes(bytes).toString('base64url')}
 function safeEqual(a,b){const x=Buffer.from(String(a||'')),y=Buffer.from(String(b||''));return x.length===y.length&&x.length>0&&crypto.timingSafeEqual(x,y)}
@@ -59,6 +60,7 @@ module.exports={
  staffMfaRequired,
  staffCsrfRequired,
  staffCookieRequired,
+ staffStepUpRequired,
  randomToken,
  safeEqual,
  mutatingMethod,

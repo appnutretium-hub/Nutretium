@@ -17,9 +17,9 @@ exports.handler=async function(event){
  const admins=emails('ADMIN_EMAILS'),publicEmails=new Set([...emails('CONTACT_EMAIL'),...emails('ORDER_NOTIFICATION_EMAIL')]);
  const adminIsolation=admins.length>0&&admins.every(e=>!publicEmails.has(e));
  const sender=value('ORDER_EMAIL_FROM').toLowerCase(),emailDomain=sender.includes('@nutretium.com');
- const blobs=await blobStoreReady('system-health-probe');
+ const [blobs,shippingReady]=await Promise.all([blobStoreReady('system-health-probe'),shipping.configured().catch(()=>false)]);
  const staffMfaRequired=yes('REQUIRE_STAFF_MFA'),staffTotp=set('STAFF_TOTP_SECRETS');
- const checks={jwt:set('JWT_SECRET'),admin:set('ADMIN_EMAILS'),adminIsolation,staffMfaRequired,staffTotp,github:set('GITHUB_TOKEN'),blobs,redsysSecret:set('REDSYS_SECRET_KEY'),redsysMerchant:set('REDSYS_MERCHANT_CODE'),redsysProduction:value('REDSYS_ENV')==='production',commerceLive:yes('COMMERCE_LIVE'),shipping:shipping.configured(),emailProvider:set('RESEND_API_KEY'),emailRecipient:set('ORDER_NOTIFICATION_EMAIL'),emailFrom:set('ORDER_EMAIL_FROM'),emailDomain,staffRoles:set('STAFF_ROLES_JSON'),maintenance:yes('MAINTENANCE_MODE')};
+ const checks={jwt:set('JWT_SECRET'),admin:set('ADMIN_EMAILS'),adminIsolation,staffMfaRequired,staffTotp,github:set('GITHUB_TOKEN'),blobs,redsysSecret:set('REDSYS_SECRET_KEY'),redsysMerchant:set('REDSYS_MERCHANT_CODE'),redsysProduction:value('REDSYS_ENV')==='production',commerceLive:yes('COMMERCE_LIVE'),shipping:shippingReady,emailProvider:set('RESEND_API_KEY'),emailRecipient:set('ORDER_NOTIFICATION_EMAIL'),emailFrom:set('ORDER_EMAIL_FROM'),emailDomain,staffRoles:set('STAFF_ROLES_JSON'),maintenance:yes('MAINTENANCE_MODE')};
  const platformCritical=['jwt','admin','adminIsolation','staffMfaRequired','staffTotp','github','blobs'];
  const paymentCritical=['redsysSecret','redsysMerchant','redsysProduction','commerceLive','shipping'];
  const emailCritical=['emailProvider','emailRecipient','emailFrom','emailDomain'];

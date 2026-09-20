@@ -37,6 +37,9 @@
     node --check netlify/lib/session.js &&
     node --check netlify/lib/enterprise-store.js &&
     node --check netlify/lib/outbox.js &&
+    node --check netlify/lib/ai-runtime.js &&
+    node --check netlify/functions/ai-control-plane.js &&
+    node --check netlify/functions/ai-worker.js &&
     node --check netlify/functions/auth.js &&
     node --check netlify/functions/outbox-worker.js &&
     node --check netlify/functions/redsys-notify.js &&
@@ -69,6 +72,8 @@
   schedule = "*/30 * * * *"
 [functions."automation-worker"]
   schedule = "0 7 * * *"
+[functions."ai-worker"]
+  schedule = "30 5 * * *"
 [functions."notification-worker"]
   schedule = "*/30 * * * *"
 [functions."outbox-worker"]

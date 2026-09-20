@@ -22,6 +22,7 @@ for(const [id,r] of Object.entries(workforce.ROLES)){
     assert(!workforce.FORBIDDEN_AUTONOMY.has(a),`${id}: acción crítica autónoma ${a}`);
   }
   const agentId=governance.workforceAgentId(id);
+  assert.strictEqual(agentId,`workforce__${id}`,`${id}: identidad Enterprise no canónica`);
   const p=governance.profile(agentId);
   assert(p&&p.source==='enterprise-workforce',`${id}: no conectado a governance.profile() mediante ${agentId}`);
   assert.strictEqual(p.roleId,id,`${id}: roleId incorrecto`);
@@ -69,6 +70,13 @@ for(const [roleId,action] of safe){
 for(const id of workforce.VETO_ROLES){
   const agent=governance.workforceAgentId(id);
   assert.strictEqual(governance.profile(agent).vetoAgent,true,`${agent} debe conservar capacidad de veto`);
+}
+
+const registry=governance.publicRegistry();
+for(const id of Object.keys(workforce.ROLES)){
+  const key=`workforce__${id}`;
+  assert(registry[key],`${key}: falta en el registro público`);
+  assert.strictEqual(registry[key].roleId,id,`${key}: roleId inconsistente en registro público`);
 }
 
 const summary=governance.workforceSummary();

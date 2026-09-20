@@ -1,6 +1,10 @@
 # Dependencias
 node_modules/
 
+# Artefactos generados de release (nunca se versionan)
+dist/
+.release-artifacts/
+
 # Variables de entorno (nunca subir claves)
 .env
 .env.*
@@ -16,8 +20,6 @@ sources/amix_fotos_categoria_nombre_pvp_FINAL_WEB/03_informes_control/
 Thumbs.db
 
 # Documentos internos y fuentes: NO deben llegar al sitio publicado.
-# (netlify.toml también los borra de la copia desplegada, por si el deploy
-#  se hace sin pasar por git.)
 Listado de stock disponible.pdf
 CATALOGO_NUTRETIUM.xlsx
 AUDITORIA_CATALOGO.md
@@ -34,7 +36,7 @@ DESPLIEGUE.md
 PRUEBAS_REDSYS.md
 
 # Material de trabajo de la búsqueda de fotos (informes y hojas de contactos).
-# netlify.toml ya borra 'scripts' de la copia desplegada; esto es para no
+# El build de release usa una allowlist hacia dist/; esto además evita
 # llenar el repositorio de archivos temporales.
 scripts/_*
 

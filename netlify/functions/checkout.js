@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 const { cabecerasCORS } = require('../lib/cors');
 const { getBlobStore } = require('../lib/blob-store');
-const { verifyUserToken } = require('../lib/session');
+const { verifyCustomerEventSession } = require('../lib/session');
 const { valorarCarrito } = require('../lib/catalogo');
 const direccion = require('../lib/direccion');
 const promotions = require('../lib/promotions');
@@ -37,7 +37,12 @@ exports.handler=async function(event){
 
   let body;try{body=JSON.parse(event.body||'{}')}catch{return json(400,{error:'JSON no válido.'})}
   let identidad=null;
-  if(body.token){try{const verified=await verifyUserToken(body.token);const comprador=verified.user;const envio=direccion.normaliza(comprador.direccion),problem=direccion.revisa(envio);if(problem)return json(422,{error:problem,motivo:'sin-direccion'});identidad={email:verified.email,comprador,envio,guest:false}}catch{}}
+  try{
+    const verified=await verifyCustomerEventSession(event,{legacyToken:body.token,requireUser:true});
+    const comprador=verified.user,envio=direccion.normaliza(comprador.direccion),problem=direccion.revisa(envio);
+    if(problem)return json(422,{error:problem,motivo:'sin-direccion'});
+    identidad={email:verified.email,comprador,envio,guest:false};
+  }catch{}
   if(!identidad){const g=guestData(body.guest);if(g.error)return json(401,{error:g.error,motivo:'guest-required'});identidad=g}
 
   const pedido=valorarCarrito(body.items);if(!pedido.ok)return json(400,{error:pedido.errores[0],detalles:pedido.errores});

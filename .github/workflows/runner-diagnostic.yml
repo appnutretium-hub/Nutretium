@@ -1,0 +1,13 @@
+name: Runner Diagnostic
+on:
+  push:
+    branches: ['feat/enterprise-ai-workforce']
+permissions:
+  contents: read
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Runner started
+        run: echo "runner-ok"

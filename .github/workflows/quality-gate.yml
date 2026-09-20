@@ -22,8 +22,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --omit=optional
-      - name: Build CSS
-        run: npm run build:css
+      - name: Build production-equivalent storefront
+        run: |
+          npm run build:css
+          node scripts/staff-login-inject.js
+          node scripts/compose-app.js
+          node --check app.js
       - name: Core tests
         run: |
           npm test
@@ -47,6 +51,7 @@ jobs:
           node --check wishlist-sync.js
           node --check staff-session-bridge.js
           node --check scripts/build-seo-pages.js
+          node --check scripts/compose-app.js
           node --check scripts/test-external-readiness.js
           node --check scripts/audit-workflow-pinning.js
           node --check runtime-content.js
@@ -111,4 +116,4 @@ jobs:
           cat /tmp/nutretium-server.log
           exit 1
       - name: Browser E2E
-        run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js --browser=chromium --workers=1
+        run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js tests/e2e-critical-flows.spec.js --browser=chromium --workers=1

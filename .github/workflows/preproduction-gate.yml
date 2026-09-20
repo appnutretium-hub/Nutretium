@@ -24,13 +24,16 @@ jobs:
           cache: npm
       - run: npm ci --omit=optional
       - name: Build production-equivalent assets
-        run: npm run build:css
+        run: |
+          npm run build:css
+          node scripts/staff-login-inject.js
+          node scripts/compose-app.js
+          node --check app.js
       - name: Supply-chain and contracts
         run: |
           node scripts/audit-supply-chain.js
           node scripts/audit-workflow-pinning.js
           node scripts/audit-api-contracts.js
-          # Netlify and CI install with --omit=optional; audit that exact production set.
           npm audit --omit=dev --omit=optional --audit-level=high
       - name: Static quality budgets
         run: |
@@ -47,7 +50,7 @@ jobs:
           for i in $(seq 1 30); do curl --fail --silent http://127.0.0.1:4173/ >/dev/null && exit 0; sleep 1; done
           cat /tmp/nutretium-preprod.log; exit 1
       - name: Browser quality suite
-        run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js --browser=chromium --workers=1
+        run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js tests/e2e-critical-flows.spec.js --browser=chromium --workers=1
       - name: Optional remote staging smoke
         if: ${{ env.STAGING_BASE_URL != '' }}
         run: |
@@ -58,4 +61,5 @@ jobs:
           const fs=require('fs');
           const s=JSON.parse(fs.readFileSync('/tmp/staging-status','utf8'));
           if(typeof s.maintenance!=='boolean') throw new Error('site-status remoto no tiene el contrato esperado');
+          if(typeof s.shippingReady!=='boolean') throw new Error('site-status remoto no informa shippingReady');
           NODE

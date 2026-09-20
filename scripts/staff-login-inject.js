@@ -1,12 +1,21 @@
 'use strict';
 const fs=require('fs');
 const files=['admin.html','backoffice.html','settings.html','control.html','ops.html','enterprise.html','admin-center.html','product-editor.html','catalog-management.html','financial-dashboard.html','customer-center.html'];
+const bridgePages=new Set(files);
 for(const file of files){
  if(!fs.existsSync(file))continue;
  let html=fs.readFileSync(file,'utf8');
  if(!html.includes('/admin-shell.css')){
   const css='<link rel="stylesheet" href="/admin-shell.css">';
   html=html.includes('</head>')?html.replace('</head>',css+'</head>'):css+html;
+ }
+ if(bridgePages.has(file)&&!html.includes('/staff-session-bridge.js')){
+  const bridge='<script src="/staff-session-bridge.js"></script>';
+  const appScript=file.replace('.html','.js');
+  const needle=`<script src="/${appScript}"></script>`;
+  if(html.includes(needle))html=html.replace(needle,bridge+'\n'+needle);
+  else if(html.includes('</body>'))html=html.replace('</body>',bridge+'</body>');
+  else html+=bridge;
  }
  if(!html.includes('/admin-shell.js')){
   const shell='<script src="/admin-shell.js"></script>';

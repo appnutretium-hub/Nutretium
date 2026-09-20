@@ -8,6 +8,7 @@ function maintenanceOverlay(){if(document.getElementById('ntMaintenance'))return
 async function status(){try{const r=await fetch('/.netlify/functions/site-status',{cache:'no-store'});if(!r.ok)return;const d=await r.json();document.documentElement.dataset.paymentsReady=d.paymentsReady?'true':'false';if(d.maintenance)maintenanceOverlay()}catch{}}
 function externalLinks(){document.querySelectorAll('a[target="_blank"]').forEach(a=>{const rel=new Set(String(a.rel||'').split(/\s+/).filter(Boolean));rel.add('noopener');rel.add('noreferrer');a.rel=[...rel].join(' ')})}
 function touchTargets(){document.querySelectorAll('button,a,input,select').forEach(el=>{if(el.closest('#ntMaintenance'))return;const r=el.getBoundingClientRect();if(r.width>0&&r.height>0&&r.width<36&&r.height<36)el.classList.add('nt-small-target')})}
-function init(){status();externalLinks();requestAnimationFrame(touchTargets)}
+function keyboardRoleButtons(){document.querySelectorAll('[role="button"][tabindex="0"]').forEach(el=>{if(el.dataset.ntKeyboardReady==='1')return;el.dataset.ntKeyboardReady='1';el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();el.click()}})})}
+function init(){status();externalLinks();keyboardRoleButtons();document.addEventListener('nt:products-rendered',keyboardRoleButtons);requestAnimationFrame(touchTargets)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();

@@ -8,6 +8,7 @@ const report=require('../netlify/functions/commerce-report')._test;
 const schema=require('../netlify/lib/enterprise-schema');
 const governance=require('../netlify/lib/agent-governance');
 const traceability=require('../netlify/functions/traceability-status')._test;
+const migrations=require('../netlify/lib/data-migrations');
 (async()=>{
  let rejected=false;try{await directory.save({email:'owner-test@nutretium.com',role:'owner'})}catch{rejected=true}assert.equal(rejected,true,'dynamic directory must reject owner role');
  const member=await directory.save({email:'manager-test@nutretium.com',role:'manager',name:'Manager Test',active:true});assert.equal(member.role,'manager');assert.equal((await directory.read(member.email)).active,true);
@@ -22,5 +23,6 @@ const traceability=require('../netlify/functions/traceability-status')._test;
  const erpBlocked=schema.validate('erp-sync-jobs',{provider:'tpvsol',direction:'import',status:'ready',validatedConnection:false});assert.equal(erpBlocked.ok,false,'TPVsol cannot be operational without validated connection');
  const agent=governance.policy('finance','refund');assert.equal(agent.allowed,true);assert.equal(agent.sensitive,true);assert.equal(governance.canApprove({proposedBy:'same@x.com'},{email:'same@x.com',role:'owner'}),false,'proposer cannot self-approve');assert.equal(governance.canApprove({proposedBy:'a@x.com'},{email:'owner@x.com',role:'owner'}),true);
  assert.equal(traceability.daysUntil('not-a-date'),null);assert.ok(Number.isInteger(traceability.daysUntil(new Date(Date.now()+2*86400000).toISOString())));
- console.log('[test-admin-suite] roles, PIM, finance, lots, ERP fail-closed and agent governance OK');
+ const migrated=migrations.migrateSnapshot({schemaVersion:2,domains:{inventory:[]},counts:{inventory:0}});assert.equal(migrated.ok,true);assert.equal(migrated.snapshot.schemaVersion,3);for(const d of migrations.V3_DOMAINS){assert.deepEqual(migrated.snapshot.domains[d],[]);assert.equal(migrated.snapshot.counts[d],0)}const future=migrations.migrateSnapshot({schemaVersion:99,domains:{},counts:{}});assert.equal(future.ok,false,'future snapshots must fail closed');
+ console.log('[test-admin-suite] roles, PIM, finance, lots, ERP, agents and data migrations OK');
 })().catch(err=>{console.error(err);process.exit(1)});

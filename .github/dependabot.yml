@@ -3,11 +3,10 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "06:00"
       timezone: "Europe/Madrid"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
     ignore:
       # Tailwind 4 elimina el CLI compatible con el build actual. Mantener
       # actualizaciones 3.x y hacer la migración mayor de forma explícita.
@@ -22,11 +21,12 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "06:15"
       timezone: "Europe/Madrid"
-    open-pull-requests-limit: 5
+    # Las acciones ya están fijadas por SHA y scripts/audit-workflow-pinning.js
+    # lo verifica en cada build, así que aquí basta con un PR cada vez.
+    open-pull-requests-limit: 1
     labels:
       - "dependencies"
     commit-message:

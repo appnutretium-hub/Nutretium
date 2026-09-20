@@ -1,7 +1,7 @@
 name: Nutretium Build & Enterprise Gate
 on:
-  push:
-    branches: [main, 'feature/**', 'fix/**', 'hotfix/**', 'hardening/**', 'security/**', 'final-**']
+  # Solo en PR: main-integrity.yml exige que todo commit de main venga de un pull
+  # request, así que el push a main repetiría un CI que ya pasó.
   pull_request:
     branches: [main]
 concurrency:

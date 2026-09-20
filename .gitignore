@@ -1,6 +1,9 @@
 # Dependencias
 node_modules/
 
+# Artefacto público que genera scripts/prepare-dist.js en cada build.
+dist/
+
 # Variables de entorno (nunca subir claves)
 .env
 .env.*

@@ -6,7 +6,9 @@ on:
     types: [completed]
     branches: [main]
   schedule:
-    - cron: "*/30 * * * *"
+    # Cada 6 horas. El smoke que de verdad importa ya lo dispara el workflow_run
+    # de arriba tras cada Full Quality Gate correcto en main.
+    - cron: "0 */6 * * *"
   workflow_dispatch:
 
 permissions:

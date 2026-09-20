@@ -2352,16 +2352,18 @@ const INFO_CONTENT = {
   condiciones: {
     title: 'Condiciones generales de contratación',
     html: `
-      <p>Las presentes condiciones regulan la relación comercial entre NUTRETIUM S.L. (CIF B-27659754) y el cliente.</p>
+      <p>Las presentes condiciones regulan la relación comercial entre BAHÍA NORTE CAPITAL, S.L. (NUTRETIUM), NIF B27659754, y el cliente.</p>
       <p>Los precios incluyen IVA. NUTRETIUM se reserva el derecho de modificar precios y catálogo. La confirmación del pedido implica la aceptación de estas condiciones.</p>
       <p>El pago se realiza de forma segura mediante Redsys y los métodos disponibles en la web.</p>`
   },
   privacidad: {
     title: 'Política de privacidad',
     html: `
-      <p>En NUTRETIUM tratamos tus datos conforme al RGPD (UE) 2016/679 y la LOPDGDD.</p>
-      <p><strong class="text-white">Responsable:</strong> NUTRETIUM S.L. · <strong class="text-white">Finalidad:</strong> gestión de pedidos, cuenta y comunicaciones.</p>
-      <p>Puedes ejercer tus derechos de acceso, rectificación y supresión escribiendo a <a href="mailto:appnutretium@gmail.com" class="text-brand-gold hover:underline">appnutretium@gmail.com</a>.</p>`
+      <p><strong class="text-white">Responsable:</strong> BAHÍA NORTE CAPITAL, S.L. (NUTRETIUM) · NIF B27659754 · CALLE ALBERICIA 1 BAJO, 39012, Santander (Cantabria).</p>
+      <p><strong class="text-white">Finalidad:</strong> gestionar la prestación de los servicios o productos solicitados, la relación contractual y las gestiones administrativas y de facturación; y enviar comunicaciones comerciales previa autorización expresa.</p>
+      <p><strong class="text-white">Legitimación:</strong> ejecución del contrato y medidas precontractuales (art. 6.1.b RGPD), cumplimiento de obligaciones legales (art. 6.1.c RGPD) y consentimiento del interesado (art. 6.1.a RGPD).</p>
+      <p><strong class="text-white">Derechos:</strong> acceso, rectificación, supresión, oposición, limitación y portabilidad, así como retirar el consentimiento, escribiendo a <a href="mailto:nutretium@gmail.com" class="text-brand-gold hover:underline">nutretium@gmail.com</a> o a la dirección postal indicada, adjuntando documento identificativo. También puedes reclamar ante la Agencia Española de Protección de Datos en <a href="https://www.aepd.es" target="_blank" rel="noopener noreferrer" class="text-brand-gold hover:underline">www.aepd.es</a>.</p>
+      <p><a href="/privacidad" class="text-brand-gold hover:underline">Consultar la Política de Privacidad completa →</a></p>`
   },
   cookies: {
     title: 'Uso de cookies',
@@ -2379,8 +2381,8 @@ const INFO_CONTENT = {
   aviso: {
     title: 'Aviso legal',
     html: `
-      <p><strong class="text-white">Titular:</strong> NUTRETIUM S.L. · CIF B-27659754.</p>
-      <p><strong class="text-white">Domicilio:</strong> Calle la Albericia Nº1, 39012 Santander, España.</p>
+      <p><strong class="text-white">Titular:</strong> BAHÍA NORTE CAPITAL, S.L. (NUTRETIUM) · NIF B27659754.</p>
+      <p><strong class="text-white">Domicilio:</strong> Calle la Albericia Nº1 bajo, 39012 Santander, España.</p>
       <p><strong class="text-white">Contacto:</strong> <a href="mailto:appnutretium@gmail.com" class="text-brand-gold hover:underline">appnutretium@gmail.com</a> · 633 753 517.</p>
       <p>El acceso y uso de este sitio web atribuye la condición de usuario y la aceptación de las presentes condiciones.</p>`
   }

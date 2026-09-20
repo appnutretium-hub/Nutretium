@@ -1,7 +1,9 @@
 name: Nutretium Full Quality Gate
 on:
   push:
-    branches: [main, 'feature/**', 'fix/**', 'hotfix/**', 'hardening/**', 'security/**', 'final-**']
+    # Solo main: alimenta el workflow_run del que depende production-smoke.
+    # Las ramas de trabajo ya se validan al abrir el pull request.
+    branches: [main]
   pull_request:
     branches: [main]
 concurrency:

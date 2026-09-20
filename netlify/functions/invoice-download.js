@@ -7,6 +7,7 @@ const { verifyEventSession } = require('../lib/session');
 const { getBlobStore } = require('../lib/blob-store');
 const enterprise = require('../lib/enterprise-store');
 const { createPdf } = require('../lib/simple-pdf');
+const { FALDON_FACTURA } = require('../lib/legal');
 const CORS = cabecerasCORS('GET, OPTIONS');
 const SYSTEM = { email: 'system@nutretium.local', role: 'system' };
 
@@ -51,7 +52,7 @@ exports.handler = async function (event) {
     tax.forEach(row => lines.push(`${row.label || row.rate + '%'}  Base ${euro(row.baseCents)}  Cuota ${euro(row.taxCents)}`));
     lines.push('', 'Productos');
     (order.items || []).forEach(item => lines.push(`${Number(item.qty || 0)} x ${item.name || item.code}  ${euro(Math.round(Number(item.totalLinea || 0) * 100))}`));
-    const pdf = createPdf({ title: 'NUTRETIUM - Factura', lines });
+    const pdf = createPdf({ title: 'NUTRETIUM - Factura', lines, footer: FALDON_FACTURA });
     return { statusCode: 200, isBase64Encoded: true, headers: { ...CORS, 'Cache-Control': 'private, no-store', 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="Nutretium-${order.order}.pdf"` }, body: pdf.toString('base64') };
   } catch (error) { return response(error.statusCode || 500, { error: error.message }); }
 };

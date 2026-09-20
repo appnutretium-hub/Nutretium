@@ -105,7 +105,7 @@ injectStaffBridge('admin.html','admin.js');
 injectStaffBridge('backoffice.html','backoffice.js');
 
 const slugify = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-const urls = new Set(['https://nutretium.com/','https://nutretium.com/ayuda','https://nutretium.com/aprende','https://nutretium.com/recomendador']);
+const urls = new Set(['https://nutretium.com/','https://nutretium.com/ayuda','https://nutretium.com/aprende','https://nutretium.com/recomendador','https://nutretium.com/privacidad']);
 NUTRETIUM_CATEGORIES.forEach(c => urls.add(`https://nutretium.com/categoria/${slugify(c)}`));
 NUTRETIUM_PRODUCTS.filter(p => p.active !== false).forEach(p => urls.add(`https://nutretium.com/producto/${slugify(p.name)}-${p.id}`));
 const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...urls].map((u,i)=>`  <url><loc>${u}</loc><changefreq>${i===0?'daily':'weekly'}</changefreq><priority>${i===0?'1.0':'0.7'}</priority></url>`).join('\n')}\n</urlset>\n`;

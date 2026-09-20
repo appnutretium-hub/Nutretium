@@ -1,7 +1,7 @@
 name: Nutretium Maximum Security Gate
 on:
   push:
-    branches: [main, 'security/**', 'hardening/**', 'hotfix/**']
+    branches: [main]
   pull_request:
     branches: [main]
   schedule:

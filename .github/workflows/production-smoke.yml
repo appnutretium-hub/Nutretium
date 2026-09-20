@@ -39,7 +39,16 @@ jobs:
           grep -qi '^x-content-type-options: *nosniff' /tmp/headers
           grep -qi '^strict-transport-security:' /tmp/headers
           grep -qi '^content-security-policy:' /tmp/headers
+          grep -qi '^cross-origin-resource-policy: *same-site' /tmp/headers
           grep -qi 'Nutretium' /tmp/home
+
+      - name: Verify responsible disclosure endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 6 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 30 -o /tmp/security-txt "https://nutretium.com/.well-known/security.txt"
+          grep -qi '^Contact: mailto:' /tmp/security-txt
+          grep -qi '^Canonical: https://nutretium.com/.well-known/security.txt' /tmp/security-txt
 
       - name: Verify storefront health and report commerce readiness
         shell: bash

@@ -1,0 +1,4 @@
+Contact: mailto:appnutretium@gmail.com
+Expires: 2027-09-20T23:59:59Z
+Preferred-Languages: es, en
+Canonical: https://nutretium.com/.well-known/security.txt

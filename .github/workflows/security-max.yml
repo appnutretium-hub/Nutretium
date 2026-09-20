@@ -40,13 +40,16 @@ jobs:
           retention-days: 3
       - name: Maximum security repository gate
         run: node scripts/security-max-gate.js
-      - name: Existing security regressions
-        run: |
-          npm run test:security
-          npm run test:admin-security
-          node scripts/test-zero-trust-security.js
-          node scripts/security-audit.js
-          node scripts/audit-workflow-pinning.js
+      - name: Security token regressions
+        run: npm run test:security
+      - name: Admin security regressions
+        run: npm run test:admin-security
+      - name: Zero Trust regressions
+        run: node scripts/test-zero-trust-security.js
+      - name: Security architecture audit
+        run: node scripts/security-audit.js
+      - name: Immutable workflow pinning audit
+        run: node scripts/audit-workflow-pinning.js
       - name: Critical syntax
         run: |
           node --check netlify/lib/totp.js

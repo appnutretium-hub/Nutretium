@@ -1,20 +1,34 @@
 'use strict';
-// Adaptador exclusivo de test: las pruebas históricas de admin fabricaban JWT
-// genéricos antes de que existiera separación client/staff. Conservamos toda su
-// cobertura de catálogo, pero hacemos que esos JWT representen staff-login real.
-// Este proceso simula explícitamente entorno local: los controles Zero Trust de
-// producción se prueban aparte en test-zero-trust-security.js.
+// Adaptador exclusivo de test. Las pruebas históricas pasan un campo `token`
+// al helper local; aquí ese token se transforma en la cookie interna de staff
+// ANTES de cargar admin.js. Así conservamos la cobertura del catálogo sin
+// reabrir una ruta Bearer en producción.
 process.env.CONTEXT='test';
 process.env.URL='http://localhost:8888';
 process.env.COMMERCE_LIVE='false';
 process.env.REQUIRE_STAFF_MFA='false';
-process.env.REQUIRE_STAFF_COOKIE='false';
+process.env.REQUIRE_STAFF_COOKIE='true';
 process.env.REQUIRE_STAFF_CSRF='false';
 process.env.REQUIRE_STAFF_STEP_UP='false';
 
 const jwt=require('../netlify/lib/jwt');
 const originalSign=jwt.signJWT;
-jwt.signJWT=(payload,secret)=>originalSign({...payload,kind:payload?.kind||'staff-login'},secret);
+jwt.signJWT=(payload,secret)=>originalSign({...payload,kind:payload?.kind||'staff'},secret);
+
+const session=require('../netlify/lib/session');
+const originalVerifyStaff=session.verifyStaffEventSession;
+session.verifyStaffEventSession=async(event,options={})=>{
+  const headers={...(event?.headers||{})};
+  const auth=String(headers.authorization||headers.Authorization||'');
+  const match=/^Bearer\s+(.+)$/i.exec(auth);
+  if(match){
+    const existing=String(headers.cookie||headers.Cookie||'').trim();
+    headers.cookie=(existing?existing+'; ':'')+`${session.STAFF_COOKIE}=${encodeURIComponent(match[1])}`;
+    delete headers.authorization;
+    delete headers.Authorization;
+  }
+  return originalVerifyStaff({...event,headers},{...options,allowBearer:false});
+};
 
 const root=globalThis.__NUTRETIUM_TEST_BLOBS__||(globalThis.__NUTRETIUM_TEST_BLOBS__=new Map());
 const users=root.get('users')||new Map();

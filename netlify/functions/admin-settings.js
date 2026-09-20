@@ -8,6 +8,7 @@ const audit=require('../lib/audit-log');
 const CORS=cabecerasCORS('GET, POST, OPTIONS');
 const json=(statusCode,payload)=>({statusCode,headers:{...CORS,'Cache-Control':'no-store'},body:JSON.stringify(payload)});
 function meta(s){return{bannerEnabled:s.content.bannerEnabled,navigationManaged:s.navigation.managed,navigationItems:s.navigation.items.filter(x=>x.enabled).length,couponsManaged:s.couponsManaged,couponCount:s.coupons.length,pointsEnabled:s.points.enabled,shippingManaged:s.shipping.managed,shippingEnabled:s.shipping.enabled,shippingRateCents:s.shipping.rateCents,shippingFreeFromCents:s.shipping.freeFromCents,shippingCountry:s.shipping.country,paymentManaged:s.payment.managed,paymentEnabled:s.payment.enabled,paymentEnvironment:s.payment.environment,paymentLive:s.payment.commerceLive}}
+function paymentPrivilegeIncrease(current,next){const a=current?.payment||{},b=next?.payment||{};return Boolean((b.environment==='production'&&a.environment!=='production')||(b.commerceLive===true&&a.commerceLive!==true)||(b.enabled===true&&a.enabled!==true&&b.environment==='production')||(b.managed===true&&a.managed!==true&&b.environment==='production'))}
 exports.handler=async function(event){
  if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
  const staff=await exigePermiso(event,'settings');if(!staff.ok)return json(staff.statusCode,{error:staff.error});
@@ -19,14 +20,15 @@ exports.handler=async function(event){
    try{await audit.append({event,actor:staff.email,action:'PAYMENT_SECRET_INTENT',resource:'payment-vault',outcome:'INTENT',metadata:{operation:body.action}})}catch{return json(503,{error:'No se puede registrar la auditoría; las credenciales no se han modificado.'})}
    try{
     const status=body.action==='clear-payment-secret'?(await vault.clearPayment(),await vault.paymentStatus()):await vault.writePayment({merchantCode:body.merchantCode,secretKey:body.secretKey});
-    await audit.append({event,actor:staff.email,action:'PAYMENT_SECRET_UPDATED',resource:'payment-vault',outcome:'SUCCESS',metadata:{operation:body.action,merchantCodeConfigured:status.merchantCodeConfigured,secretKeyConfigured:status.secretKeyConfigured}}).catch(()=>{});
+    await audit.append({event,actor:staff.email,action:'PAYMENT_SECRET_UPDATED',resource:'payment-vault',outcome:'SUCCESS',metadata:{operation:body.action,merchantCodeConfigured:status.merchantCodeConfigured,secretKeyConfigured:status.secretKeyConfigured,dedicatedKeyConfigured:status.dedicatedKeyConfigured}}).catch(()=>{});
     return json(200,{ok:true,paymentVault:status});
    }catch(e){console.error('[admin-settings payment secret]',e);return json(e?.code==='INVALID'?422:503,{error:e?.code==='INVALID'?'Indica el código de comercio y la clave secreta de Redsys.':'No se pudieron guardar las credenciales de pago de forma segura.'})}
   }
   if(body.action!=='save')return json(400,{error:'Acción no reconocida.'});
-  const next=settings.normalize(body.settings||{});
+  const current=await settings.read().catch(()=>settings.defaults),next=settings.normalize(body.settings||{});
+  if(staff.role!=='owner'&&paymentPrivilegeIncrease(current,next))return json(403,{error:'Solo el propietario puede activar Redsys en producción o habilitar cobros reales.'});
   if(next.shipping.managed&&next.shipping.enabled&&next.shipping.rateCents===null)return json(422,{error:'Indica una tarifa de envío válida antes de activar los envíos.'});
-  if(next.payment.managed&&next.payment.enabled&&next.payment.environment==='production'&&next.payment.commerceLive){const status=await vault.paymentStatus();if(!status.merchantCodeConfigured||!status.secretKeyConfigured)return json(422,{error:'Antes de activar pagos reales guarda las credenciales Redsys en la sección Pasarela de pago.'})}
+  if(next.payment.managed&&next.payment.enabled&&next.payment.environment==='production'&&next.payment.commerceLive){const status=await vault.paymentStatus();if(!status.dedicatedKeyConfigured)return json(422,{error:'Antes de activar pagos reales configura CONFIG_VAULT_KEY como clave independiente de la bóveda.'});if(!status.merchantCodeConfigured||!status.secretKeyConfigured)return json(422,{error:'Antes de activar pagos reales guarda las credenciales Redsys en la sección Pasarela de pago.'})}
   try{await audit.append({event,actor:staff.email,action:'COMMERCE_SETTINGS_INTENT',resource:'commerce-settings',outcome:'INTENT',metadata:meta(next)})}catch{return json(503,{error:'No se puede registrar la auditoría; los ajustes no se han modificado.'})}
   try{
    const saved=await settings.write(next,body.version||null);
@@ -40,3 +42,4 @@ exports.handler=async function(event){
  }
  return json(405,{error:'Method Not Allowed'});
 };
+exports._test={paymentPrivilegeIncrease};

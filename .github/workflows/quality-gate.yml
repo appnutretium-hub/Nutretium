@@ -1,7 +1,7 @@
 name: Nutretium Full Quality Gate
 on:
   push:
-    branches: [main, 'feature/**', 'hotfix/**', 'hardening/**', 'final-**']
+    branches: [main, 'feature/**', 'fix/**', 'hotfix/**', 'hardening/**', 'final-**']
   pull_request:
     branches: [main]
 concurrency:
@@ -37,6 +37,7 @@ jobs:
           npm run test:cuentas
           npm run test:passwords
           npm run test:contracts
+          npm run test:external-readiness
       - name: Syntax hardening
         run: |
           node --check product-pim.js
@@ -45,6 +46,7 @@ jobs:
           node --check wishlist-sync.js
           node --check staff-session-bridge.js
           node --check scripts/build-seo-pages.js
+          node --check scripts/test-external-readiness.js
           node --check runtime-content.js
           node --check runtime-performance.js
           node --check runtime-guard.js
@@ -58,6 +60,7 @@ jobs:
           node --check netlify/lib/settings.js
           node --check netlify/lib/audit-log.js
           node --check netlify/lib/enterprise-store.js
+          node --check netlify/lib/external-readiness.js
           node --check netlify/functions/auth.js
           node --check netlify/functions/staff-login.js
           node --check netlify/functions/account-security.js
@@ -74,6 +77,7 @@ jobs:
           node --check netlify/functions/admin-catalogo.js
           node --check netlify/functions/admin-settings.js
           node --check netlify/functions/admin-status.js
+          node --check netlify/functions/admin-external-readiness.js
           node --check netlify/functions/catalog-quality.js
           node --check netlify/functions/checkout.js
           node --check netlify/functions/system-health.js

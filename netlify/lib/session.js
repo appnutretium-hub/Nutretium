@@ -41,10 +41,8 @@ async function verifyCustomerEventSession(event,options={}){
  const bearer=bearerValue(headers),legacy=options.legacyToken||null,token=bearer||legacy;if(!token)throw new Error('Sesión de cliente ausente');
  const verified=await verifyUserToken(token,{requireUser:options.requireUser!==false});if(verified.claims.kind&&verified.claims.kind!=='customer')throw new Error('Sesión de cliente no válida');return{...verified,source:bearer?'bearer':'legacy'};
 }
-function staffMfaRequired(){return security.staffMfaRequired()}
 function validateStaffClaims(claims,kind){
  if(claims.kind!==kind)throw new Error('Sesión interna no válida');
- if(staffMfaRequired()&&claims.mfa!==true)throw new Error('MFA de personal requerido');
  if(security.productionLike()&&!claims.jti)throw new Error('Sesión sin identificador de seguridad');
  if(security.productionLike()&&kind==='staff'&&!claims.sid)throw new Error('Sesión interna sin identificador');
 }
@@ -59,4 +57,4 @@ async function verifyStaffEventSession(event,options={}){
  const bearer=bearerValue(event.headers||{});if(!bearer)throw new Error('Sesión interna ausente');
  const verified=await verifyUserToken(bearer,{requireUser:options.requireUser!==false});validateStaffClaims(verified.claims,'staff-login');defense.assertSessionBinding(event,verified.claims);return{...verified,source:'bearer'};
 }
-module.exports={verifyUserToken,verifyEventSession,verifyCustomerEventSession,verifyStaffEventSession,cookieValue,bearerValue,customerSessionCookie,clearCustomerSessionCookie,CUSTOMER_COOKIE,CUSTOMER_SESSION_TTL_SECONDS,STAFF_COOKIE,staffMfaRequired};
+module.exports={verifyUserToken,verifyEventSession,verifyCustomerEventSession,verifyStaffEventSession,cookieValue,bearerValue,customerSessionCookie,clearCustomerSessionCookie,CUSTOMER_COOKIE,CUSTOMER_SESSION_TTL_SECONDS,STAFF_COOKIE};

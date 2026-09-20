@@ -51,4 +51,8 @@ jobs:
           curl --fail --silent --show-error --location --connect-timeout 10 --max-time 30 "$STAGING_BASE_URL/" >/tmp/staging-home
           grep -qi 'Nutretium' /tmp/staging-home
           curl --fail --silent --show-error --location "$STAGING_BASE_URL/.netlify/functions/site-status" >/tmp/staging-status
-          node -e "const s=require('/tmp/staging-status'); if(typeof s.maintenance!=='boolean') process.exit(1)"
+          node - <<'NODE'
+          const fs=require('fs');
+          const s=JSON.parse(fs.readFileSync('/tmp/staging-status','utf8'));
+          if(typeof s.maintenance!=='boolean') throw new Error('site-status remoto no tiene el contrato esperado');
+          NODE

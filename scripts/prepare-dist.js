@@ -7,10 +7,12 @@ const DIST=path.join(ROOT,'dist');
 const PUBLIC_FILES=new Set(['_headers','_redirects','manifest.webmanifest','robots.txt','favicon.ico']);
 const PUBLIC_EXT=new Set(['.html','.js','.css','.svg','.png','.jpg','.jpeg','.webp','.avif','.gif','.ico','.xml','.webmanifest','.woff','.woff2']);
 const ROOT_DENY=new Set(['dist','node_modules','netlify','scripts','src','.git','.github','.netlify','.claude','.vscode','_backup_pre_actualizacion']);
+const ROOT_FILE_DENY=new Set(['commerce-core.js','commerce-core.css','enterprise-storefront.js','commerce-account-sync.js','customer-session-hardening.js','franchise-trust.js','tailwind.config.js']);
 const NEVER_PUBLIC_EXT=new Set(['.md','.txt','.csv','.xlsx','.xls','.pdf','.env','.toml','.lock','.map']);
 
 function allowedFile(full,relative){
  const base=path.basename(relative),ext=path.extname(base).toLowerCase();
+ if(!relative.includes(path.sep)&&ROOT_FILE_DENY.has(base))return false;
  if(PUBLIC_FILES.has(relative)||PUBLIC_FILES.has(base))return true;
  if(NEVER_PUBLIC_EXT.has(ext))return false;
  if(relative.startsWith('sources'+path.sep))return ['.svg','.png','.jpg','.jpeg','.webp','.avif','.gif','.ico'].includes(ext);
@@ -39,6 +41,7 @@ copyTree(ROOT,DIST);
 const required=['index.html','app.js','styles.css','products-data.js','_redirects'];
 const missing=required.filter(file=>!fs.existsSync(path.join(DIST,file)));
 if(missing.length)throw new Error(`Build dist incompleto. Faltan: ${missing.join(', ')}`);
+for(const sourceOnly of ROOT_FILE_DENY)if(fs.existsSync(path.join(DIST,sourceOnly)))throw new Error(`Build dist expone una capa fuente: ${sourceOnly}`);
 
 const forbidden=[];
 function audit(dir,relative=''){

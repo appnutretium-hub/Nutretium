@@ -31,12 +31,17 @@
     node --check backoffice.js &&
     node --check ops.js &&
     node --check enterprise.js &&
+    node --check ai-corporation.js &&
     node --check netlify/lib/email.js &&
     node --check netlify/lib/promotions.js &&
     node --check netlify/lib/staff.js &&
     node --check netlify/lib/session.js &&
     node --check netlify/lib/enterprise-store.js &&
     node --check netlify/lib/outbox.js &&
+    node --check netlify/lib/agent-governance.js &&
+    node --check netlify/lib/ai-truth-layer.js &&
+    node --check netlify/lib/ai-memory.js &&
+    node --check netlify/lib/ai-decision-engine.js &&
     node --check netlify/lib/ai-runtime.js &&
     node --check netlify/functions/ai-control-plane.js &&
     node --check netlify/functions/ai-worker.js &&
@@ -52,6 +57,7 @@
     node --check netlify/functions/production-sentinel.js &&
     node --check netlify/functions/admin-orders.js &&
     node --check netlify/functions/contact.js &&
+    node scripts/test-ai-control-plane.js &&
     node scripts/smoke-web.js &&
     node scripts/audit-architecture.js &&
     node scripts/prepare-dist.js
@@ -150,6 +156,11 @@
     X-Robots-Tag = "noindex, nofollow"
     Cache-Control = "no-store"
 [[headers]]
+  for = "/ai-corporation*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-store"
+[[headers]]
   for = "/cuenta.html"
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
@@ -181,6 +192,10 @@
 [[redirects]]
   from = "/enterprise"
   to = "/enterprise.html"
+  status = 200
+[[redirects]]
+  from = "/ai-corporation"
+  to = "/ai-corporation.html"
   status = 200
 [[redirects]]
   from = "/mi-cuenta"

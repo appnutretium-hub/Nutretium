@@ -3,7 +3,7 @@
 const usuarios = require('../lib/usuarios');
 const { hashPassword, verifyPassword: verifyPasswordRecord } = require('../lib/passwords');
 const { signJWT, secretConfigured } = require('../lib/jwt');
-const { roleFor } = require('../lib/staff');
+const { effectiveRoleFor } = require('../lib/staff');
 const { secretFor, verify: verifyTotp } = require('../lib/totp');
 const { cabecerasCORS } = require('../lib/cors');
 const { consume, reset } = require('../lib/rate-limit');
@@ -82,7 +82,7 @@ exports.handler = async event => {
   }
 
   const user = await usuarios.lee(email);
-  const role = roleFor(email);
+  const role = await effectiveRoleFor(email);
   const verification = user ? verifyPasswordRecord(password, user.passwordHash) : { ok:false, needsRehash:false };
   if (!user || role === 'client' || !verification.ok) {
     return response(401, { error: 'Credenciales incorrectas.' });

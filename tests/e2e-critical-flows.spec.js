@@ -49,10 +49,11 @@ test('admin center: login interno no persiste JWT en localStorage',async({page})
 
 test('home: controles con role=button responden a teclado',async({page})=>{
  await page.goto(BASE,{waitUntil:'domcontentloaded'});
- const trigger=page.locator('[role="button"][tabindex="0"]').first();
+ const trigger=page.locator('[role="button"][tabindex="0"]:visible').first();
  if(await trigger.count()){
-  await trigger.evaluate(el=>{window.__ntKeyboardClicks=0;el.addEventListener('click',()=>window.__ntKeyboardClicks++,{once:true})});
   await trigger.focus();
+  await expect(trigger).toBeFocused();
+  await trigger.evaluate(el=>{window.__ntKeyboardClicks=0;el.addEventListener('click',()=>window.__ntKeyboardClicks++,{once:true})});
   await page.keyboard.press('Enter');
   expect(await page.evaluate(()=>window.__ntKeyboardClicks)).toBe(1);
  }

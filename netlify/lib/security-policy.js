@@ -22,10 +22,7 @@ function productionLike(){
  return false;
 }
 
-function envSecurityFlag(name){
- if(process.env[name]!==undefined&&String(process.env[name]).trim()!=='')return boolEnv(name);
- return productionLike();
-}
+function envSecurityFlag(name){return productionLike()||boolEnv(name,false)}
 function staffMfaRequired(){return envSecurityFlag('REQUIRE_STAFF_MFA')}
 function staffCsrfRequired(){return envSecurityFlag('REQUIRE_STAFF_CSRF')}
 function staffCookieRequired(){return envSecurityFlag('REQUIRE_STAFF_COOKIE')}

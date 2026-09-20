@@ -44,6 +44,7 @@ function testOwnerEscalation(){
  assert.equal(paymentPrivilegeIncrease({payment:{managed:true,enabled:true,environment:'production',commerceLive:true}},{payment:{managed:true,enabled:true,environment:'test',commerceLive:false}}),false,'risk-reducing disable must remain possible');
 }
 
+function hasEnvWrite(source,name){const re=new RegExp(`process\\.env\\.${name}\\s*=(?!=)`);return re.test(source)}
 function testWiring(){
  const admin=fs.readFileSync('netlify/functions/admin-settings.js','utf8');
  const publicConfig=fs.readFileSync('netlify/functions/site-config.js','utf8');
@@ -62,7 +63,7 @@ function testWiring(){
  assert(!publicConfig.includes('merchantCode:'),'public config must never serialize merchantCode');
  assert(runtime.includes('ntManagedNavigation')&&runtime.includes('nutretium:site-config'),'storefront must consume managed config');
  assert(!shipping.includes('paymentConfig.applyRuntime'),'shipping must not mutate payment runtime state');
- assert(!paymentConfig.includes('process.env.REDSYS_ENV=')&&!paymentConfig.includes('process.env.REDSYS_SECRET_KEY='),'payment config must not mutate process.env');
+ assert(!hasEnvWrite(paymentConfig,'REDSYS_ENV')&&!hasEnvWrite(paymentConfig,'REDSYS_SECRET_KEY')&&!hasEnvWrite(paymentConfig,'REDSYS_MERCHANT_CODE'),'payment config must not mutate process.env');
  assert(!vault.includes('JWT_SECRET'),'payment vault must never reuse JWT_SECRET');
  assert(checkout.includes('paymentConfig.resolve()')&&!checkout.includes('process.env.REDSYS_SECRET_KEY'),'checkout must consume immutable payment config');
  assert(notify.includes('paymentConfig.resolve()')&&!notify.includes('paymentConfig.applyRuntime'),'Redsys callback must consume immutable config');

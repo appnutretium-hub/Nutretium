@@ -18,7 +18,7 @@ exports.handler=async function(event){
   const host=event.headers?.['x-forwarded-host']||event.headers?.host||'';
   if(!payment?.enabled||!payment?.credentialsConfigured)return response(503,{error:'La pasarela de pago no está configurada.'});
   if(payment.environment==='production'&&payment.dedicatedVaultKey!==true&&payment.managed)return response(503,{error:'La bóveda de pagos de producción no tiene una clave dedicada configurada.'});
-  if(publicProductionHost(host)&&(payment.environment!=='production'||payment.commerceLive!==true))return response(503,{error:'El pago online está temporalmente desactivado mientras se completa la configuración de producción.'});
+  if(publicProductionHost(host)&&payment.environment==='production'&&payment.commerceLive!==true)return response(503,{error:'Los cobros reales están bloqueados hasta autorizar COMMERCE_LIVE desde Administración.'});
  }
  return core.handler(event,{payment});
 };

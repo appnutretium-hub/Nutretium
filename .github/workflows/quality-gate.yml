@@ -1,7 +1,7 @@
 name: Nutretium Full Quality Gate
 on:
   push:
-    branches: [main, 'feature/**', 'fix/**', 'hotfix/**', 'hardening/**', 'final-**']
+    branches: [main, 'feature/**', 'fix/**', 'hotfix/**', 'hardening/**', 'final-**', 'release/**']
   pull_request:
     branches: [main]
 concurrency:
@@ -12,7 +12,7 @@ permissions:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 22
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -22,8 +22,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --omit=optional
-      - name: Build CSS
-        run: npm run build:css
+      - name: Build exact release artifact
+        run: node scripts/build-release.js
       - name: Core tests
         run: |
           npm test
@@ -39,76 +39,28 @@ jobs:
           npm run test:contracts
           npm run test:external-readiness
           npm run test:production-quality
-      - name: Syntax hardening
-        run: |
-          node --check product-pim.js
-          node --check product-variants.js
-          node --check producto.js
-          node --check wishlist-sync.js
-          node --check staff-session-bridge.js
-          node --check scripts/build-seo-pages.js
-          node --check scripts/test-external-readiness.js
-          node --check scripts/audit-workflow-pinning.js
-          node --check runtime-content.js
-          node --check runtime-performance.js
-          node --check runtime-guard.js
-          node --check cuenta.js
-          node --check pedido.js
-          node --check settings.js
-          node --check netlify/lib/usuarios.js
-          node --check netlify/lib/passwords.js
-          node --check netlify/lib/rate-limit.js
-          node --check netlify/lib/guest-access.js
-          node --check netlify/lib/settings.js
-          node --check netlify/lib/audit-log.js
-          node --check netlify/lib/enterprise-store.js
-          node --check netlify/lib/external-readiness.js
-          node --check netlify/functions/auth.js
-          node --check netlify/functions/staff-login.js
-          node --check netlify/functions/account-security.js
-          node --check netlify/functions/password-reset.js
-          node --check netlify/functions/customer-data.js
-          node --check netlify/functions/post-sale.js
-          node --check netlify/functions/guest-order.js
-          node --check netlify/functions/client-error.js
-          node --check netlify/functions/site-status.js
-          node --check netlify/functions/site-config.js
-          node --check netlify/functions/admin-session.js
-          node --check netlify/functions/admin-audit.js
-          node --check netlify/functions/admin-orders.js
-          node --check netlify/functions/admin-catalogo.js
-          node --check netlify/functions/admin-settings.js
-          node --check netlify/functions/admin-status.js
-          node --check netlify/functions/admin-external-readiness.js
-          node --check netlify/functions/catalog-quality.js
-          node --check netlify/functions/checkout.js
-          node --check netlify/functions/system-health.js
-          node --check netlify/functions/production-sentinel.js
-          node --check netlify/functions/platform-backup.js
-          node --check netlify/functions/platform-restore.js
+          npm run test:commerce-benefits
+          npm run test:merchant-feed
       - name: Architecture and security audits
         run: |
           node scripts/audit-architecture.js
           node scripts/security-audit.js
           node scripts/audit-workflow-pinning.js
+          node scripts/audit-csp.js
+          node scripts/audit-public-dist.js
       - name: Build final HTML trust audit
-        run: |
-          node scripts/trust-inject.js
-          node scripts/build-seo-pages.js
-          node scripts/build-trust-audit.js
+        run: node scripts/build-trust-audit.js
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Start and verify static storefront
+      - name: Start exact release artifact
         run: |
-          node scripts/dev-server.js > /tmp/nutretium-server.log 2>&1 &
+          SERVE_DIR=dist node scripts/dev-server.js > /tmp/nutretium-server.log 2>&1 &
           echo $! > /tmp/nutretium-server.pid
           for i in $(seq 1 30); do
-            if curl --fail --silent --show-error http://127.0.0.1:4173/ >/dev/null; then
-              exit 0
-            fi
+            if curl --fail --silent --show-error http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
             sleep 1
           done
           cat /tmp/nutretium-server.log
           exit 1
-      - name: Browser E2E
-        run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js --browser=chromium --workers=1
+      - name: Browser E2E + release layout
+        run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js tests/e2e-release.spec.js --browser=chromium --workers=1

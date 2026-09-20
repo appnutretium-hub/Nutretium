@@ -100,6 +100,7 @@ jobs:
           node --check netlify/lib/ai-memory.js
           node --check netlify/lib/agent-safe-memory.js
           node --check netlify/lib/agent-safe-memory-bridge.js
+          node --check netlify/lib/agent-checkpoint-backup.js
           node --check netlify/functions/auth.js
           node --check netlify/functions/staff-login.js
           node --check netlify/functions/account-security.js

@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const { getBlobStore } = require('../lib/blob-store');
 const inventory = require('../lib/inventory');
 const finalize = require('../lib/order-finalize');
+const paymentConfig = require('../lib/payment-config');
 const { sendEmail, buildStoreOrderEmail, buildCustomerOrderEmail } = require('../lib/email');
 
 const HEADERS = { 'Content-Type':'text/plain; charset=utf-8' };
@@ -31,6 +32,7 @@ function parseBody(event){const headers=event.headers||{},ct=(headers['content-t
 async function sendOrderEmails(record){const results={store:false,customer:false};if(record.missingOrderRecord)return results;try{const storeMail=buildStoreOrderEmail(record),r=await sendEmail({to:process.env.ORDER_NOTIFICATION_EMAIL,subject:storeMail.subject,html:storeMail.html,idempotencyKey:`nutretium-order-store/${record.order}`});results.store=Boolean(r?.ok)}catch(err){console.error('[Redsys-notify] Email tienda:',err)}if(record.email&&!record.amountMismatch&&!record.missingOrderRecord){try{const customerMail=buildCustomerOrderEmail(record),r=await sendEmail({to:record.email,subject:customerMail.subject,html:customerMail.html,idempotencyKey:`nutretium-order-customer/${record.order}`});results.customer=Boolean(r?.ok)}catch(err){console.error('[Redsys-notify] Email cliente:',err)}}return results}
 exports.handler=async function(event){
  if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:HEADERS,body:''};if(event.httpMethod!=='POST')return{statusCode:405,headers:HEADERS,body:'Method Not Allowed'};
+ await paymentConfig.applyRuntime().catch(()=>{});
  const secretKey=process.env.REDSYS_SECRET_KEY;if(!secretKey){console.error('[Redsys-notify] Falta REDSYS_SECRET_KEY');return{statusCode:500,headers:HEADERS,body:'Server misconfigured'}}
  let data;try{data=parseBody(event)}catch{return{statusCode:400,headers:HEADERS,body:'Bad body'}}const{Ds_MerchantParameters,Ds_Signature}=data;if(!Ds_MerchantParameters||!Ds_Signature)return{statusCode:400,headers:HEADERS,body:'Missing parameters'};
  let params;try{params=JSON.parse(Buffer.from(Ds_MerchantParameters,'base64').toString('utf8'))}catch{return{statusCode:400,headers:HEADERS,body:'Invalid parameters'}}const order=params.Ds_Order||params.DS_ORDER;if(!order)return{statusCode:400,headers:HEADERS,body:'Missing order'};
@@ -40,9 +42,6 @@ exports.handler=async function(event){
  const store=await getStore();if(!store){console.error('[Redsys-notify] Store redsys-orders no disponible',order);return{statusCode:503,headers:HEADERS,body:'Storage unavailable'}}
  let record;try{const previo=await store.get(order,{type:'json'}).catch(()=>null);if(!previo){record={...resultado,amount:bankAmount,currency:bankCurrency,missingOrderRecord:true,fulfilmentStatus:authorised?'REVIEW_REQUIRED':null};await store.setJSON(order,record);console.error('[Redsys-notify] PEDIDO PREVIO AUSENTE',order)}else{
    const esperadoCents=Math.round(Number(previo.amount)*100),cobradoCents=parseInt(params.Ds_Amount,10);
-   // El importe/currency del pedido los fija el servidor al crear el checkout y
-   // nunca se sustituyen por lo que llega del banco. La respuesta bancaria se
-   // conserva aparte para conciliación y auditoría.
    record={...previo,...resultado,amount:previo.amount,currency:previo.currency||bankCurrency,bankAmount,bankCurrency};
    if(!Number.isFinite(esperadoCents)||esperadoCents<=0){record.amountMismatch={esperado:null,cobrado:cobradoCents/100,motivo:'importe esperado no válido'};record.fulfilmentStatus='REVIEW_REQUIRED'}else if(esperadoCents!==cobradoCents){record.amountMismatch={esperado:esperadoCents/100,cobrado:cobradoCents/100};record.fulfilmentStatus='REVIEW_REQUIRED';console.error('[Redsys-notify] IMPORTE DISTINTO',order,esperadoCents,cobradoCents)}else{delete record.amountMismatch;if(authorised)record.fulfilmentStatus='PENDING_FULFILMENT'}await store.setJSON(order,record)}}catch(err){console.error('[Redsys-notify] No se pudo persistir',order,err);return{statusCode:503,headers:HEADERS,body:'Persistence failed'}}
  if(record.amountMismatch&&!record.missingOrderRecord){record.fulfilmentStatus='REVIEW_REQUIRED';record.inventoryReservation={...(record.inventoryReservation||{}),status:'HELD_REVIEW',reviewAt:new Date().toISOString(),error:null};record.paymentReview={reason:'AMOUNT_MISMATCH',held:true,at:new Date().toISOString()};try{await store.setJSON(order,record)}catch(err){console.error('[Redsys-notify] No se pudo guardar revisión por importe',order,err);return{statusCode:503,headers:HEADERS,body:'Persistence failed'}}console.error('[Redsys-notify] Pago firmado con importe discrepante; reserva retenida y fulfillment bloqueado',order);return{statusCode:200,headers:HEADERS,body:'OK'}}

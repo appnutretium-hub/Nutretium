@@ -1,6 +1,7 @@
 'use strict';
 const crypto=require('crypto');
 const {requireStaff}=require('../lib/staff');
+const {verifyStepUp}=require('../lib/security-step-up');
 const {getBlobStore}=require('../lib/blob-store');
 const enterprise=require('../lib/enterprise-store');
 const {withLock}=require('../lib/distributed-lock');
@@ -41,6 +42,7 @@ exports.handler=async event=>{
  if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
  if(event.httpMethod!=='POST')return resp(405,{error:'Method Not Allowed'});
  const auth=await requireStaff(event,'returns.manage');if(!auth.ok)return resp(auth.statusCode,{error:auth.error});
+ const elevated=await verifyStepUp(event,auth);if(!elevated.ok)return resp(elevated.statusCode,{error:elevated.error,code:elevated.code});
  let body;try{body=JSON.parse(event.body||'{}')}catch{return resp(400,{error:'JSON no válido.'})}
  const orderId=String(body.orderId||''),amountCents=Number(body.amountCents);if(!orderId||!Number.isInteger(amountCents)||amountCents<=0)return resp(400,{error:'Pedido e importe en céntimos son obligatorios.'});
  await paymentConfig.applyRuntime().catch(()=>{});

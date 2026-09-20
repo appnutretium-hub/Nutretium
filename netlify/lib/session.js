@@ -23,10 +23,15 @@ function cookieValue(headers={},name){
  for(const part of raw.split(';')){const i=part.indexOf('=');if(i<0)continue;if(part.slice(0,i).trim()===name)return decodeURIComponent(part.slice(i+1).trim())}
  return null;
 }
+function bearerValue(headers={}){
+ const value=tokenFromHeader(headers);
+ if(!value)return null;
+ const normalized=String(value).trim().toLowerCase();
+ return normalized==='undefined'||normalized==='null'||normalized==='none'?null:value;
+}
 async function verifyEventSession(event,options={}){
  const headers=event?.headers||{};
- const bearer=tokenFromHeader(headers);
- const token=bearer||cookieValue(headers,CUSTOMER_COOKIE);
+ const token=bearerValue(headers)||cookieValue(headers,CUSTOMER_COOKIE);
  if(!token)throw new Error('Token ausente');
  return verifyUserToken(token,options);
 }
@@ -43,7 +48,7 @@ async function verifyCustomerEventSession(event,options={}){
   return{...verified,source:'cookie'};
  }
  if(options.allowBearer===false)throw new Error('Sesión de cliente ausente');
- const bearer=tokenFromHeader(headers);
+ const bearer=bearerValue(headers);
  const legacy=options.legacyToken||null;
  const token=bearer||legacy;
  if(!token)throw new Error('Sesión de cliente ausente');
@@ -65,10 +70,10 @@ async function verifyStaffEventSession(event,options={}){
   return{...verified,source:'cookie'};
  }
  if(options.allowBearer===false||security.staffCookieRequired())throw new Error('Sesión interna ausente');
- const bearer=tokenFromHeader(event.headers||{});
+ const bearer=bearerValue(event.headers||{});
  if(!bearer)throw new Error('Sesión interna ausente');
  const verified=await verifyUserToken(bearer,{requireUser:options.requireUser!==false});
  validateStaffClaims(verified.claims,'staff-login');
  return{...verified,source:'bearer'};
 }
-module.exports={verifyUserToken,verifyEventSession,verifyCustomerEventSession,verifyStaffEventSession,cookieValue,customerSessionCookie,clearCustomerSessionCookie,CUSTOMER_COOKIE,CUSTOMER_SESSION_TTL_SECONDS,STAFF_COOKIE,staffMfaRequired};
+module.exports={verifyUserToken,verifyEventSession,verifyCustomerEventSession,verifyStaffEventSession,cookieValue,bearerValue,customerSessionCookie,clearCustomerSessionCookie,CUSTOMER_COOKIE,CUSTOMER_SESSION_TTL_SECONDS,STAFF_COOKIE,staffMfaRequired};

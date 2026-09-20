@@ -4,6 +4,7 @@ const {requireStaff}=require('../lib/staff');
 const {getBlobStore}=require('../lib/blob-store');
 const enterprise=require('../lib/enterprise-store');
 const {withLock}=require('../lib/distributed-lock');
+const paymentConfig=require('../lib/payment-config');
 const {cabecerasCORS}=require('../lib/cors');
 const CORS=cabecerasCORS('POST, OPTIONS'),URLS={test:'https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST',production:'https://sis.redsys.es/sis/rest/trataPeticionREST'},SYSTEM={email:'system@nutretium.local',role:'system'};
 const resp=(s,b)=>({statusCode:s,headers:{...CORS,'Cache-Control':'no-store'},body:JSON.stringify(b)});
@@ -42,6 +43,7 @@ exports.handler=async event=>{
  const auth=await requireStaff(event,'returns.manage');if(!auth.ok)return resp(auth.statusCode,{error:auth.error});
  let body;try{body=JSON.parse(event.body||'{}')}catch{return resp(400,{error:'JSON no válido.'})}
  const orderId=String(body.orderId||''),amountCents=Number(body.amountCents);if(!orderId||!Number.isInteger(amountCents)||amountCents<=0)return resp(400,{error:'Pedido e importe en céntimos son obligatorios.'});
+ await paymentConfig.applyRuntime().catch(()=>{});
  const secret=process.env.REDSYS_SECRET_KEY,merchant=process.env.REDSYS_MERCHANT_CODE,terminal=process.env.REDSYS_TERMINAL||'1',env=process.env.REDSYS_ENV||'test';if(!secret||!merchant)return resp(503,{error:'Redsys no está configurado.'});
  const orders=getBlobStore('redsys-orders');if(!orders)return resp(503,{error:'Pedidos no disponibles.'});
  try{return await withLock(`refund:${orderId}`,async()=>{

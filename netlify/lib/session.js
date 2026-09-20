@@ -18,25 +18,32 @@ async function verifyUserToken(token,options={}){
  }
  return{claims,user:user||null,email};
 }
-async function verifyEventSession(event,options={}){const token=tokenFromHeader(event.headers||{});if(!token)throw new Error('Token ausente');return verifyUserToken(token,options)}
 function cookieValue(headers={},name){
  const raw=String(headers.cookie||headers.Cookie||'');
  for(const part of raw.split(';')){const i=part.indexOf('=');if(i<0)continue;if(part.slice(0,i).trim()===name)return decodeURIComponent(part.slice(i+1).trim())}
  return null;
+}
+async function verifyEventSession(event,options={}){
+ const headers=event?.headers||{};
+ const bearer=tokenFromHeader(headers);
+ const token=bearer||cookieValue(headers,CUSTOMER_COOKIE);
+ if(!token)throw new Error('Token ausente');
+ return verifyUserToken(token,options);
 }
 function customerSessionCookie(token,maxAge=CUSTOMER_SESSION_TTL_SECONDS){
  return `${CUSTOMER_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${Math.max(0,Number(maxAge)||0)}`;
 }
 function clearCustomerSessionCookie(){return customerSessionCookie('',0)}
 async function verifyCustomerEventSession(event,options={}){
- const cookieToken=cookieValue(event?.headers||{},CUSTOMER_COOKIE);
+ const headers=event?.headers||{};
+ const cookieToken=cookieValue(headers,CUSTOMER_COOKIE);
  if(cookieToken){
   const verified=await verifyUserToken(cookieToken,{requireUser:options.requireUser!==false});
   if(verified.claims.kind!=='customer')throw new Error('Sesión de cliente no válida');
   return{...verified,source:'cookie'};
  }
  if(options.allowBearer===false)throw new Error('Sesión de cliente ausente');
- const bearer=tokenFromHeader(event?.headers||{});
+ const bearer=tokenFromHeader(headers);
  const legacy=options.legacyToken||null;
  const token=bearer||legacy;
  if(!token)throw new Error('Sesión de cliente ausente');
@@ -58,7 +65,9 @@ async function verifyStaffEventSession(event,options={}){
   return{...verified,source:'cookie'};
  }
  if(options.allowBearer===false||security.staffCookieRequired())throw new Error('Sesión interna ausente');
- const verified=await verifyEventSession(event,{requireUser:options.requireUser!==false});
+ const bearer=tokenFromHeader(event.headers||{});
+ if(!bearer)throw new Error('Sesión interna ausente');
+ const verified=await verifyUserToken(bearer,{requireUser:options.requireUser!==false});
  validateStaffClaims(verified.claims,'staff-login');
  return{...verified,source:'bearer'};
 }

@@ -7,7 +7,6 @@
 const crypto = require('crypto');
 const { getBlobStore } = require('../lib/blob-store');
 const inventory = require('../lib/inventory');
-const enterpriseEffects = require('../lib/order-effects');
 const finalize = require('../lib/order-finalize');
 const { sendEmail, buildStoreOrderEmail, buildCustomerOrderEmail } = require('../lib/email');
 
@@ -73,15 +72,6 @@ async function sendOrderEmails(record){
     } catch(err){ console.error('[Redsys-notify] Email cliente:',err); }
   }
   return results;
-}
-
-async function releaseForReview(record){
-  if(record.missingOrderRecord||!Array.isArray(record.items))return {ok:true};
-  if(isEnterpriseOrder(record)){
-    try{await enterpriseEffects.releaseReservations(record.order,record.reservations||[]);return{ok:true,type:'enterprise'}}
-    catch(err){return{ok:false,error:err.message,type:'enterprise'}}
-  }
-  return inventory.release(record.order,record.items);
 }
 
 exports.handler=async function(event){
@@ -161,11 +151,15 @@ exports.handler=async function(event){
   }
 
   if(record.amountMismatch&&!record.missingOrderRecord){
-    const released=await releaseForReview(record);
+    // Hay una notificación auténtica de cobro, pero el importe no coincide con
+    // el pedido almacenado. No consumir ni liberar la reserva: se mantiene en
+    // hold para evitar sobreventa y permitir conciliación manual sin perder el
+    // stock asociado a un cobro que sí existe.
     record.fulfilmentStatus='REVIEW_REQUIRED';
-    record.inventoryReservation={...(record.inventoryReservation||{}),status:released.ok?'RELEASED_REVIEW':'RELEASE_PENDING',releasedAt:released.ok?new Date().toISOString():null,error:released.ok?null:released.error};
+    record.inventoryReservation={...(record.inventoryReservation||{}),status:'HELD_REVIEW',reviewAt:new Date().toISOString(),error:null};
+    record.paymentReview={reason:'AMOUNT_MISMATCH',held:true,at:new Date().toISOString()};
     try{await store.setJSON(order,record)}catch(err){console.error('[Redsys-notify] No se pudo guardar revisión por importe',order,err);return{statusCode:503,headers:HEADERS,body:'Persistence failed'}}
-    console.error('[Redsys-notify] Pago firmado con importe discrepante; fulfillment bloqueado',order);
+    console.error('[Redsys-notify] Pago firmado con importe discrepante; reserva retenida y fulfillment bloqueado',order);
     return {statusCode:200,headers:HEADERS,body:'OK'};
   }
 
@@ -219,4 +213,4 @@ exports.handler=async function(event){
   return {statusCode:200,headers:HEADERS,body:'OK'};
 };
 
-exports._test={isEnterpriseOrder,releaseForReview};
+exports._test={isEnterpriseOrder};

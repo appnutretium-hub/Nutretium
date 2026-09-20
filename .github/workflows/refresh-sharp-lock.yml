@@ -1,0 +1,39 @@
+name: TEMP Refresh Sharp Lock
+on:
+  push:
+    branches: ['security/max-hardening-phase-2']
+permissions:
+  contents: write
+concurrency:
+  group: temp-refresh-sharp-lock
+  cancel-in-progress: true
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Regenerate lockfile for patched sharp
+        run: npm install --package-lock-only --ignore-scripts --save-optional sharp@0.35.4
+      - name: Verify lock and commit only if changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          npm ci --omit=optional
+          npm audit --omit=dev --audit-level=high
+          if git diff --quiet -- package.json package-lock.json; then
+            echo 'Lockfile already synchronized.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json package-lock.json
+          git commit -m 'Security: synchronize lockfile for sharp 0.35.4'
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:${GITHUB_REF_NAME}

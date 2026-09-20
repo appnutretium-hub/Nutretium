@@ -5,7 +5,9 @@ process.env.JWT_SECRET=process.env.JWT_SECRET||'test-only-jwt-secret-with-suffic
 
 const session=require('../netlify/lib/session');
 const enterprise=require('../netlify/lib/enterprise-store');
+const outbox=require('../netlify/lib/outbox');
 const auth=require('../netlify/functions/auth');
+const outboxWorker=require('../netlify/functions/outbox-worker');
 const {getBlobStore}=require('../netlify/lib/blob-store');
 
 async function testCustomerCookie(){
@@ -47,9 +49,23 @@ async function testEnterpriseOptimisticConcurrency(){
  assert.strictEqual(final.name,'Santander A','La actualización concurrente obsoleta no debe producir lost update.');
 }
 
+async function testDurableOutbox(){
+ const first=await outbox.enqueue('order.customer_email','order:TEST-1',{order:'TEST-1',email:'client-test@nutretium.invalid',amount:9.9,fulfillment:'shipping'});
+ const duplicate=await outbox.enqueue('order.customer_email','order:TEST-1',{order:'TEST-1',email:'client-test@nutretium.invalid',amount:9.9,fulfillment:'shipping'});
+ assert.strictEqual(first.id,duplicate.id,'La outbox debe ser idempotente por tipo+clave.');
+ const due=await outbox.due(20),candidate=due.find(x=>x.job.id===first.id);assert(candidate,'El job pendiente debe aparecer como ejecutable.');
+ const claimed=await outbox.claim(candidate.path);assert(claimed,'Un worker debe poder reclamar el job.');
+ const secondClaim=await outbox.claim(candidate.path);assert.strictEqual(secondClaim,null,'Un segundo worker no debe poder reclamar el mismo job simultáneamente.');
+ assert(await outbox.finish(claimed.path,claimed.claimId,{ok:true}),'El worker debe poder cerrar el job reclamado.');
+ const stats=await outbox.stats();assert(stats.completed>=1,'La outbox debe registrar jobs completados.');
+ const mail=outboxWorker._test.orderEmail({order:'TEST-1',email:'client-test@nutretium.invalid',amount:9.9,fulfillment:'shipping'});
+ assert.strictEqual(mail.idempotencyKey,'nutretium-enterprise-finalize/TEST-1','El email de pedido debe conservar una clave idempotente estable.');
+}
+
 (async()=>{
  await testCustomerCookie();
  await testLegacyUpgradeSetsCookie();
  await testEnterpriseOptimisticConcurrency();
+ await testDurableOutbox();
  console.log('Architecture hardening: OK');
 })().catch(err=>{console.error(err);process.exit(1)});

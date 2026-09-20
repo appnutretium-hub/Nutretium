@@ -1,9 +1,6 @@
 name: Nutretium AI Corporation Gate
 on:
-  push:
-    branches: [main, 'feature/ai-corporation-premium-v1']
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:

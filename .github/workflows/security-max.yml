@@ -26,7 +26,9 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --omit=optional
       - name: Production dependency audit
-        run: npm audit --omit=dev --audit-level=high
+        run: |
+          npm audit --omit=dev --json > /tmp/npm-audit.json || true
+          node scripts/report-npm-audit.js /tmp/npm-audit.json
       - name: Maximum security repository gate
         run: node scripts/security-max-gate.js
       - name: Existing security regressions
@@ -43,3 +45,4 @@ jobs:
           node --check netlify/lib/security-defense.js
           node --check netlify/functions/staff-login.js
           node --check netlify/functions/admin-step-up.js
+          node --check scripts/report-npm-audit.js

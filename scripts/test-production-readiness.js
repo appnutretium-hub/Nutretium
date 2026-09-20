@@ -34,10 +34,15 @@ assert.strictEqual(testBank.redsysProduction,false,'producción no puede declara
 const maintenance=sentinel.evaluateEnv({...base,MAINTENANCE_MODE:'true'});
 assert.strictEqual(maintenance.maintenanceOff,false,'mantenimiento bloquea readiness');
 
+const managedPayment=sentinel.paymentChecks({managed:true,environment:'production',commerceLive:true,merchantCode:'x',secretKey:'x',dedicatedVaultKey:true});
+assert.deepStrictEqual(sentinel.missingFrom(managedPayment),[],'Redsys gestionado requiere credenciales, producción, live y bóveda dedicada');
+const sharedKey=sentinel.paymentChecks({managed:true,environment:'production',commerceLive:true,merchantCode:'x',secretKey:'x',dedicatedVaultKey:false});
+assert.strictEqual(sharedKey.dedicatedVaultKey,false,'una bóveda gestionada de producción no puede reutilizar otra clave');
+
 assert.strictEqual(
  sentinel.signature({ready:false,missing:['b','a']}),
  sentinel.signature({ready:false,missing:['a','b']}),
  'la firma debe ser estable independientemente del orden'
 );
 
-console.log('[test-production-readiness] OK · MFA · aislamiento admin · Redsys producción · mantenimiento · firma estable');
+console.log('[test-production-readiness] OK · MFA · aislamiento admin · Redsys producción · bóveda dedicada · mantenimiento · firma estable');

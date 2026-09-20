@@ -46,13 +46,14 @@ jobs:
           npm run test:external-readiness
           npm run test:production-quality
           npm run test:enterprise
-      - name: AI, Nexus, workforce and zero-cost regressions
+      - name: AI, Nexus, workforce, federation and zero-cost regressions
         run: |
           node scripts/test-ai-control-plane.js
           node scripts/test-nexus-core.js
           node scripts/test-enterprise-workforce.js
           node scripts/test-enterprise-workforce-runtime.js
           node scripts/test-zero-cost-policy.js
+          node scripts/test-ai-federation.js
       - name: Syntax hardening
         run: |
           node --check product-pim.js
@@ -70,6 +71,7 @@ jobs:
           node --check scripts/test-enterprise-workforce.js
           node --check scripts/test-enterprise-workforce-runtime.js
           node --check scripts/test-zero-cost-policy.js
+          node --check scripts/test-ai-federation.js
           node --check runtime-content.js
           node --check runtime-performance.js
           node --check runtime-guard.js
@@ -92,6 +94,8 @@ jobs:
           node --check netlify/lib/enterprise-workforce.js
           node --check netlify/lib/enterprise-workforce-runtime.js
           node --check netlify/lib/zero-cost-policy.js
+          node --check netlify/lib/federated-ai-router.js
+          node --check netlify/lib/ai-memory.js
           node --check netlify/functions/auth.js
           node --check netlify/functions/staff-login.js
           node --check netlify/functions/account-security.js
@@ -122,6 +126,7 @@ jobs:
           node --check netlify/functions/workforce-status.js
           node --check netlify/functions/workforce-run.js
           node --check netlify/functions/workforce-worker.js
+          node --check netlify/functions/ai-federation.js
       - name: Architecture and maximum security audits
         run: |
           node scripts/audit-architecture.js

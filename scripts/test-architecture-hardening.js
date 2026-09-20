@@ -5,6 +5,7 @@ process.env.JWT_SECRET=process.env.JWT_SECRET||'test-only-jwt-secret-with-suffic
 
 const session=require('../netlify/lib/session');
 const enterprise=require('../netlify/lib/enterprise-store');
+const auth=require('../netlify/functions/auth');
 const {getBlobStore}=require('../netlify/lib/blob-store');
 
 async function testCustomerCookie(){
@@ -16,6 +17,17 @@ async function testCustomerCookie(){
  assert(cookie.includes('Path=/'),'La sesión cliente debe ser válida para toda la aplicación.');
  const cleared=session.clearCustomerSessionCookie();
  assert(cleared.includes('Max-Age=0'),'Logout debe expirar la cookie inmediatamente.');
+ assert.strictEqual(session.bearerValue({authorization:'Bearer undefined'}),null,'Bearer undefined no debe bloquear el fallback a cookie.');
+ assert.strictEqual(session.bearerValue({authorization:'Bearer null'}),null,'Bearer null no debe bloquear el fallback a cookie.');
+}
+
+async function testLegacyUpgradeSetsCookie(){
+ const user={id:'customer-test',name:'Test',surname:'Customer',email:'customer-test@nutretium.invalid',phone:'',direccion:{calle:'Calle Test 1',cp:'39000',localidad:'Santander',provincia:'Cantabria',pais:'España'},sessionVersion:0};
+ const response=auth._test.profileResponse(user,{source:'legacy',email:user.email});
+ assert(response.headers['Set-Cookie'],'Una sesión legacy validada debe ascender a cookie HttpOnly.');
+ assert(response.headers['Set-Cookie'].includes('HttpOnly'),'La cookie de migración debe ser HttpOnly.');
+ const cookieResponse=auth._test.profileResponse(user,{source:'cookie',email:user.email});
+ assert(!cookieResponse.headers['Set-Cookie'],'Una sesión ya basada en cookie no debe rotarse en cada lectura de perfil.');
 }
 
 async function testEnterpriseOptimisticConcurrency(){
@@ -37,6 +49,7 @@ async function testEnterpriseOptimisticConcurrency(){
 
 (async()=>{
  await testCustomerCookie();
+ await testLegacyUpgradeSetsCookie();
  await testEnterpriseOptimisticConcurrency();
  console.log('Architecture hardening: OK');
 })().catch(err=>{console.error(err);process.exit(1)});

@@ -6,7 +6,7 @@ const ROOT=process.cwd();
 const DIST=path.join(ROOT,'dist');
 const PUBLIC_FILES=new Set(['_headers','_redirects','manifest.webmanifest','robots.txt','favicon.ico']);
 const PUBLIC_EXT=new Set(['.html','.js','.css','.svg','.png','.jpg','.jpeg','.webp','.avif','.gif','.ico','.xml','.webmanifest','.woff','.woff2']);
-const ROOT_DENY=new Set(['dist','node_modules','netlify','scripts','src','.git','.github','.netlify','.claude','.vscode','_backup_pre_actualizacion']);
+const ROOT_DENY=new Set(['dist','node_modules','netlify','scripts','src','tests','.git','.github','.netlify','.claude','.vscode','_backup_pre_actualizacion']);
 const ROOT_FILE_DENY=new Set(['commerce-core.js','commerce-core.css','enterprise-storefront.js','commerce-account-sync.js','customer-session-hardening.js','franchise-trust.js','tailwind.config.js']);
 const NEVER_PUBLIC_EXT=new Set(['.md','.txt','.csv','.xlsx','.xls','.pdf','.env','.toml','.lock','.map']);
 
@@ -49,6 +49,7 @@ function audit(dir,relative=''){
   const rel=relative?path.join(relative,entry.name):entry.name;
   const full=path.join(dir,entry.name);
   if(entry.isDirectory())audit(full,rel);
+  else if(PUBLIC_FILES.has(rel)||PUBLIC_FILES.has(entry.name))continue;
   else if(NEVER_PUBLIC_EXT.has(path.extname(entry.name).toLowerCase())||/^\.env/i.test(entry.name)||/package(-lock)?\.json$/i.test(entry.name))forbidden.push(rel);
  }
 }

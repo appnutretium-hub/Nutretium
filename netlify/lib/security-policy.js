@@ -41,14 +41,22 @@ function assertStaffCsrf(event,claims){
 }
 
 function securityHeaders(extra={}){
- return{
+ const headers={
   'Cache-Control':'no-store',
   'Pragma':'no-cache',
   'X-Content-Type-Options':'nosniff',
   'X-Frame-Options':'DENY',
   'Referrer-Policy':'no-referrer',
+  'X-DNS-Prefetch-Control':'off',
+  'X-Permitted-Cross-Domain-Policies':'none',
+  'Cross-Origin-Opener-Policy':'same-origin',
+  'Cross-Origin-Resource-Policy':'same-site',
+  'Origin-Agent-Cluster':'?1',
+  'Permissions-Policy':'camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=()',
   ...extra,
  };
+ if(productionLike())headers['Strict-Transport-Security']='max-age=63072000; includeSubDomains';
+ return headers;
 }
 
 module.exports={

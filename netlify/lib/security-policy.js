@@ -23,9 +23,9 @@ function productionLike(){
 }
 
 function envSecurityFlag(name){return productionLike()||boolEnv(name,false)}
-function staffMfaRequired(){return envSecurityFlag('REQUIRE_STAFF_MFA')}
+function staffMfaRequired(){return boolEnv('REQUIRE_STAFF_MFA',false)}
 function staffCsrfRequired(){return envSecurityFlag('REQUIRE_STAFF_CSRF')}
-function staffCookieRequired(){return envSecurityFlag('REQUIRE_STAFF_COOKIE')}
+function staffCookieRequired(){return boolEnv('REQUIRE_STAFF_COOKIE',false)}
 function staffStepUpRequired(){return envSecurityFlag('REQUIRE_STAFF_STEP_UP')}
 
 function randomToken(bytes=32){return crypto.randomBytes(bytes).toString('base64url')}

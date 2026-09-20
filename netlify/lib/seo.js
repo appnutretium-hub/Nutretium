@@ -20,12 +20,24 @@ function buildSitemap({baseUrl='https://nutretium.com',products=[],categories=[]
   const base=String(baseUrl).replace(/\/+$/,'');
   const activeProducts=(products||[]).filter(product=>product&&product.active!==false&&Number.isFinite(Number(product.id))&&String(product.name||'').trim());
   const urls=[{loc:`${base}/`,changefreq:'daily',priority:'1.0'}];
-  for(const category of categories||[]){if(!String(category||'').trim()||!activeProducts.some(product=>product.category===category))continue;urls.push({loc:`${base}${categoryPath(category)}`,changefreq:'weekly',priority:'0.8'});}
+
+  for(const category of categories||[]){
+    if(!String(category||'').trim())continue;
+    urls.push({loc:`${base}${categoryPath(category)}`,changefreq:'weekly',priority:'0.8'});
+  }
+
   const brands=[...new Set(activeProducts.map(product=>String(product.brand||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
   for(const brand of brands)urls.push({loc:`${base}${brandPath(brand)}`,changefreq:'weekly',priority:'0.7'});
-  for(const intent of intents||[]){if(!intent||!Array.isArray(intent.categories)||!intent.categories.some(category=>activeProducts.some(product=>product.category===category)))continue;urls.push({loc:`${base}${objectivePath(intent)}`,changefreq:'weekly',priority:'0.7'});}
+
+  for(const intent of intents||[]){
+    if(!intent||!Array.isArray(intent.categories)||!intent.categories.some(category=>activeProducts.some(product=>product.category===category)))continue;
+    urls.push({loc:`${base}${objectivePath(intent)}`,changefreq:'weekly',priority:'0.7'});
+  }
+
   for(const product of activeProducts)urls.push({loc:`${base}${productPath(product)}`,changefreq:'weekly',priority:product.featured?'0.8':'0.7'});
-  const unique=[],seen=new Set();for(const item of urls){if(seen.has(item.loc))continue;seen.add(item.loc);unique.push(item);}
+
+  const unique=[],seen=new Set();
+  for(const item of urls){if(seen.has(item.loc))continue;seen.add(item.loc);unique.push(item);}
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${unique.map((u)=>`  <url>\n    <loc>${escapeXml(u.loc)}</loc>\n    <changefreq>${u.changefreq}</changefreq>\n    <priority>${u.priority}</priority>\n  </url>`).join('\n')}\n</urlset>\n`;
 }
 

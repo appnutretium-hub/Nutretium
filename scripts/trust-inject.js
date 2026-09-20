@@ -10,10 +10,13 @@ const marker = '  <script src="animations.js"></script>';
 if (!html.includes(marker)) throw new Error('No se encontró el punto seguro de inyección en index.html');
 
 const scripts = [
-  'trust-fixes.js','commerce-pro.js','wishlist-sync.js','final-hardening.js','commerce-suite.js','commercial-finish.js','compare-suite.js','pro-qa-fixes.js','production-finish.js','mobile-commerce-pro.js','runtime-content.js','runtime-performance.js','runtime-guard.js',
+  'trust-fixes.js','commerce-pro.js','wishlist-sync.js','final-hardening.js','commerce-suite.js','commercial-finish.js','compare-suite.js','smart-store-engine.js','smart-store.js','pro-qa-fixes.js','production-finish.js','mobile-commerce-pro.js','runtime-content.js','runtime-performance.js','runtime-guard.js',
 ];
 for (const src of scripts) if (!html.includes(`src="${src}"`)) html = html.replace(marker, `  <script src="${src}"></script>\n${marker}`);
 if (!html.includes('href="runtime-guard.css"')) html = html.replace('</head>', '  <link rel="stylesheet" href="runtime-guard.css">\n</head>');
+if (!html.includes('href="smart-store.css"')) html = html.replace('</head>', '  <link rel="stylesheet" href="smart-store.css">\n</head>');
+if (!html.includes('rel="manifest"')) html = html.replace('</head>', '  <link rel="manifest" href="/manifest.webmanifest">\n  <meta name="theme-color" content="#0a0a0a">\n</head>');
+if (!html.includes('type="application/ld+json" href="/.netlify/functions/catalog-json"')) html = html.replace('</head>', '  <link rel="alternate" type="application/ld+json" href="/.netlify/functions/catalog-json" title="Catálogo Nutretium JSON-LD">\n</head>');
 
 html = html
   .replaceAll('Lun – Sáb 09:00 – 21:00', 'Lun – Sáb 09:30 – 22:00')
@@ -107,4 +110,4 @@ NUTRETIUM_CATEGORIES.forEach(c => urls.add(`https://nutretium.com/categoria/${sl
 NUTRETIUM_PRODUCTS.filter(p => p.active !== false).forEach(p => urls.add(`https://nutretium.com/producto/${slugify(p.name)}-${p.id}`));
 const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...urls].map((u,i)=>`  <url><loc>${u}</loc><changefreq>${i===0?'daily':'weekly'}</changefreq><priority>${i===0?'1.0':'0.7'}</priority></url>`).join('\n')}\n</urlset>\n`;
 fs.writeFileSync(path.join(process.cwd(),'sitemap.xml'), xml, 'utf8');
-console.log(`[trust-inject] comercio + sesión interna HttpOnly + favoritos + accesibilidad + SEO · sitemap ${urls.size} URLs`);
+console.log(`[trust-inject] comercio + Smart Store + sesión interna HttpOnly + favoritos + accesibilidad + SEO · sitemap ${urls.size} URLs`);

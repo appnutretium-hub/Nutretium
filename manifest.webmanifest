@@ -1,0 +1,15 @@
+{
+  "name": "Nutretium · Nutrición & Rendimiento",
+  "short_name": "Nutretium",
+  "description": "Catálogo y experiencia Smart Store de Nutretium en Santander.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#080808",
+  "theme_color": "#0a0a0a",
+  "lang": "es",
+  "categories": ["shopping", "health", "lifestyle"],
+  "icons": [
+    {"src":"/pwa-icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}

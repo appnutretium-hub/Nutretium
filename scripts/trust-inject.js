@@ -10,7 +10,7 @@ const marker = '  <script src="animations.js"></script>';
 if (!html.includes(marker)) throw new Error('No se encontró el punto seguro de inyección en index.html');
 
 const scripts = [
-  'trust-fixes.js','commerce-pro.js','wishlist-sync.js','final-hardening.js','commerce-suite.js','commercial-finish.js','compare-suite.js','smart-store-engine.js','smart-store.js','pro-qa-fixes.js','production-finish.js','mobile-commerce-pro.js','runtime-content.js','runtime-performance.js','runtime-guard.js',
+  'trust-fixes.js','commerce-pro.js','wishlist-sync.js','final-hardening.js','commerce-suite.js','commercial-finish.js','compare-suite.js','smart-store-engine.js','smart-store.js','pro-qa-fixes.js','production-finish.js','mobile-commerce-pro.js','runtime-content.js','runtime-performance.js','site-config-runtime.js','runtime-guard.js',
 ];
 for (const src of scripts) if (!html.includes(`src="${src}"`)) html = html.replace(marker, `  <script src="${src}"></script>\n${marker}`);
 if (!html.includes('href="runtime-guard.css"')) html = html.replace('</head>', '  <link rel="stylesheet" href="runtime-guard.css">\n</head>');

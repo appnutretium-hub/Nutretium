@@ -1,15 +1,15 @@
-name: Nutretium AI Control Plane Gate
+name: Nutretium AI Corporation Gate
 on:
   push:
-    branches: [main, 'feature/ai-control-plane-v1']
+    branches: [main, 'feature/ai-corporation-premium-v1']
   pull_request:
     branches: [main]
 permissions:
   contents: read
 jobs:
-  ai-control-plane:
+  ai-corporation:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -20,14 +20,20 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci --omit=optional
-      - name: AI syntax
+      - name: AI Corporation syntax
         run: |
           node --check netlify/lib/agent-governance.js
+          node --check netlify/lib/ai-truth-layer.js
+          node --check netlify/lib/ai-memory.js
+          node --check netlify/lib/ai-decision-engine.js
           node --check netlify/lib/ai-runtime.js
           node --check netlify/functions/ai-control-plane.js
           node --check netlify/functions/ai-worker.js
+          node --check ai-corporation.js
           node --check scripts/test-ai-control-plane.js
-      - name: AI governance regressions
+      - name: AI Corporation governance regressions
         run: node scripts/test-ai-control-plane.js
       - name: Maximum security repository gate
         run: node scripts/security-max-gate.js
+      - name: Security regressions
+        run: npm run test:security

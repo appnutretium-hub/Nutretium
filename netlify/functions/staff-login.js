@@ -7,13 +7,14 @@ const { effectiveRoleFor } = require('../lib/staff');
 const { secretFor, verify: verifyTotp } = require('../lib/totp');
 const { cabecerasCORS } = require('../lib/cors');
 const { consume, reset } = require('../lib/rate-limit');
+const security=require('../lib/security-policy');
 
 const CORS = cabecerasCORS('POST, OPTIONS');
 const MAX_INTENTOS = 5;
 const VENTANA_MS = 15 * 60 * 1000;
 const response = (statusCode, body, headers = {}) => ({
   statusCode,
-  headers: { ...CORS, 'Cache-Control': 'no-store', ...headers },
+  headers: { ...CORS, ...security.securityHeaders(headers) },
   body: JSON.stringify(body),
 });
 
@@ -49,9 +50,7 @@ async function clearAttempts(event, email) {
   await reset({ scope: 'staff-login', event, extra: email }).catch(() => false);
 }
 
-function staffMfaRequired() {
-  return String(process.env.REQUIRE_STAFF_MFA || 'false').toLowerCase() === 'true';
-}
+function staffMfaRequired(){return security.staffMfaRequired()}
 
 exports.handler = async event => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
@@ -123,7 +122,7 @@ exports.handler = async event => {
     kind: 'staff-login',
     mfa: mfaVerified,
     sv: Number(user.sessionVersion || 0),
-    exp: Math.floor(Date.now() / 1000) + 8 * 3600,
+    exp: Math.floor(Date.now() / 1000) + security.STAFF_LOGIN_TTL_SECONDS,
   });
 
   return response(200, {
@@ -136,6 +135,7 @@ exports.handler = async event => {
       role,
       token,
       mfa: mfaVerified,
+      expiresIn:security.STAFF_LOGIN_TTL_SECONDS,
     },
   });
 };

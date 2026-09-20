@@ -1,7 +1,7 @@
 name: Nutretium Build & Enterprise Gate
 on:
   push:
-    branches: [main, 'feature/**', 'hotfix/**', 'hardening/**', 'final-**']
+    branches: [main, 'feature/**', 'fix/**', 'hotfix/**', 'hardening/**', 'final-**']
   pull_request:
     branches: [main]
 concurrency:
@@ -39,6 +39,8 @@ jobs:
         run: npm run test:cuentas
       - name: Commerce tests
         run: npm run test:commerce
+      - name: External readiness tests
+        run: npm run test:external-readiness
       - name: Enterprise platform tests
         run: npm run test:enterprise
   deploy-build:
@@ -93,6 +95,8 @@ jobs:
           node --check netlify/lib/email.js
           node --check netlify/lib/promotions.js
           node --check netlify/lib/staff.js
+          node --check netlify/lib/external-readiness.js
+          node --check netlify/functions/admin-external-readiness.js
           node --check netlify/functions/redsys-notify.js
           node --check netlify/functions/checkout.js
           node --check netlify/functions/commerce.js

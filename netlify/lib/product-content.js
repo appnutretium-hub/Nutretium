@@ -14,7 +14,7 @@ function validate(code,raw={}){
  for(const field of FIELDS)data[field]=cleanText(raw[field],MAX[field]);
  data.flavors=cleanArray(raw.flavors,50,100);data.gallery=cleanArray(raw.gallery,12,500);data.relatedCodes=cleanArray(raw.relatedCodes,20,80).map(cleanCode);data.upsellCodes=cleanArray(raw.upsellCodes,20,80).map(cleanCode);data.crossSellCodes=cleanArray(raw.crossSellCodes,20,80).map(cleanCode);
  if(data.ean&&!/^\d{8,14}$/.test(data.ean))return{ok:false,error:'EAN/GTIN debe tener entre 8 y 14 dígitos.'};
- if(data.video){try{const u=new URL(data.video);if(!['https:'].includes(u.protocol))return{ok:false,error:'El vídeo debe usar HTTPS.'}}catch{return{ok:false,error:'La URL de vídeo no es válida.'}};
+ if(data.video){try{const u=new URL(data.video);if(u.protocol!=='https:')return{ok:false,error:'El vídeo debe usar HTTPS.'}}catch{return{ok:false,error:'La URL de vídeo no es válida.'}}}
  for(const url of data.gallery){if(url.startsWith('/'))continue;try{const u=new URL(url);if(u.protocol!=='https:')return{ok:false,error:'Las imágenes externas de galería deben usar HTTPS.'}}catch{return{ok:false,error:'Hay una URL de galería no válida.'}}}
  data.updatedAt=new Date().toISOString();return{ok:true,data};
 }

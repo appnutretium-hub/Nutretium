@@ -16,10 +16,12 @@ exports.handler=async function(event){
  const payment=await paymentConfig.resolve().catch(()=>null);
  if(body.action==='pay'){
   const host=event.headers?.['x-forwarded-host']||event.headers?.host||'';
-  if(!payment?.enabled||!payment?.credentialsConfigured)return response(503,{error:'La pasarela de pago no está configurada.'});
+  const gate=paymentHostAllowed(host,payment);
+  if(!gate.ok&&gate.reason==='unconfigured')return response(503,{error:'La pasarela de pago no está configurada.'});
+  if(!gate.ok&&gate.reason==='live-not-authorized')return response(503,{error:'Los cobros reales están bloqueados hasta autorizar COMMERCE_LIVE desde Administración.'});
   if(payment.environment==='production'&&payment.dedicatedVaultKey!==true&&payment.managed)return response(503,{error:'La bóveda de pagos de producción no tiene una clave dedicada configurada.'});
-  if(publicProductionHost(host)&&(payment.environment!=='production'||payment.commerceLive!==true))return response(503,{error:'El pago online está temporalmente desactivado mientras se completa la configuración de producción.'});
  }
  return core.handler(event,{payment});
 };
-exports._test={publicProductionHost};
+function paymentHostAllowed(host,payment){if(!payment?.enabled||!payment?.credentialsConfigured)return{ok:false,reason:'unconfigured'};if(payment.environment==='production'&&payment.commerceLive!==true)return{ok:false,reason:'live-not-authorized'};return{ok:true,mode:payment.environment==='production'?'live':'test'};}
+exports._test={publicProductionHost,paymentHostAllowed};

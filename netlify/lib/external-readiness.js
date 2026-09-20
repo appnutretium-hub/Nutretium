@@ -23,10 +23,13 @@ function paymentsState(env={}){
 }
 function tpvState(env={}){
  const mode=clean(env.TPVSOL_SYNC_MODE).toLowerCase();
- const validated=asBool(env.TPVSOL_SYNC_VALIDATED);
- const supported=new Set(['api','file-export']);
- const ready=validated&&supported.has(mode);
- return{ready,mode:mode||null,validated,reason:ready?'validated-transport':!validated?'transport-not-validated':'unsupported-transport'};
+ const endpoint=clean(env.TPVSOL_SYNC_ENDPOINT),token=Boolean(clean(env.TPVSOL_SYNC_TOKEN));
+ const validated=asBool(env.TPVSOL_CONNECTION_VALIDATED);
+ let endpointConfigured=false;try{endpointConfigured=Boolean(endpoint&&new URL(endpoint).protocol==='https:')}catch{}
+ const supported=new Set(['api','middleware']);
+ const ready=validated&&supported.has(mode)&&endpointConfigured&&token;
+ const reason=ready?'validated-transport':!supported.has(mode)?'unsupported-transport':!endpointConfigured?'missing-https-endpoint':!token?'missing-token':!validated?'transport-not-validated':'not-ready';
+ return{ready,mode:mode||null,validated,endpointConfigured,tokenConfigured:token,reason};
 }
 async function fetchJson(url,{headers={},timeoutMs=5000}={},fetchImpl=global.fetch){
  if(typeof fetchImpl!=='function')throw new Error('fetch unavailable');

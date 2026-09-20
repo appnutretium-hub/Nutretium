@@ -28,7 +28,16 @@ jobs:
       - name: Production dependency audit
         run: |
           npm audit --omit=dev --json > /tmp/npm-audit.json || true
+          cp /tmp/npm-audit.json npm-audit.json
           node scripts/report-npm-audit.js /tmp/npm-audit.json
+      - name: Preserve dependency audit report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: npm-audit-production
+          path: npm-audit.json
+          if-no-files-found: error
+          retention-days: 3
       - name: Maximum security repository gate
         run: node scripts/security-max-gate.js
       - name: Existing security regressions

@@ -44,7 +44,8 @@
     "test:customer": "node scripts/test-customer-postsale.js",
     "test:security": "node scripts/test-security-tokens.js && node scripts/test-security-regressions.js && node scripts/audit-direct-jwt.js && node scripts/audit-rate-limit-failopen.js",
     "test:admin-security": "node scripts/test-admin-security.js",
-    "test:redsys-mode-gate": "node scripts/test-redsys-mode-gate.js"
+    "test:redsys-mode-gate": "node scripts/test-redsys-mode-gate.js",
+    "test:mfa-enrollment": "node scripts/test-mfa-enrollment.js && node --check netlify/functions/staff-mfa-enroll.js && node --check admin-center.js"
   },
   "engines": {
     "node": ">=22"

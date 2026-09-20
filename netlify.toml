@@ -6,10 +6,7 @@
     node scripts/staff-login-inject.js &&
     cat human-touch.css >> styles.css &&
     cat commerce-core.css >> styles.css &&
-    cat franchise-trust.js >> app.js &&
-    cat commerce-core.js >> app.js &&
-    cat enterprise-storefront.js >> app.js &&
-    cat commerce-account-sync.js >> app.js &&
+    node scripts/compose-app.js &&
     node --check app.js &&
     node --check trust-fixes.js &&
     node --check commerce-pro.js &&

@@ -43,8 +43,15 @@
     node --check netlify/lib/ai-memory.js &&
     node --check netlify/lib/ai-decision-engine.js &&
     node --check netlify/lib/ai-runtime.js &&
+    node --check netlify/lib/enterprise-workforce.js &&
+    node --check netlify/lib/enterprise-workforce-runtime.js &&
     node --check netlify/functions/ai-control-plane.js &&
     node --check netlify/functions/ai-worker.js &&
+    node --check netlify/functions/workforce-status.js &&
+    node --check netlify/functions/workforce-run.js &&
+    node --check netlify/functions/workforce-worker.js &&
+    node scripts/test-enterprise-workforce.js &&
+    node scripts/test-enterprise-workforce-runtime.js &&
     node --check netlify/functions/auth.js &&
     node --check netlify/functions/outbox-worker.js &&
     node --check netlify/functions/redsys-notify.js &&
@@ -80,6 +87,8 @@
   schedule = "0 7 * * *"
 [functions."ai-worker"]
   schedule = "30 5 * * *"
+[functions."workforce-worker"]
+  schedule = "0 * * * *"
 [functions."notification-worker"]
   schedule = "*/30 * * * *"
 [functions."outbox-worker"]
@@ -258,10 +267,10 @@
   to = "/index.html"
   status = 200
 [[redirects]]
-  from = "/pago-ko"
+  from = "/pago-error"
   to = "/index.html"
   status = 200
 [[redirects]]
-  from = "/*.pdf"
+  from = "/pedido-ok"
   to = "/index.html"
-  status = 404
+  status = 200

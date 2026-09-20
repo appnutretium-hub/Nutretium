@@ -1,0 +1,46 @@
+name: Nutretium Live Security Audit
+
+on:
+  push:
+    branches:
+      - 'security/live-adversarial-audit-*'
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-security-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  authorized-live-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      TARGET_URL: https://nutretium.com
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Node 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --omit=optional --ignore-scripts
+
+      - name: Validate audit harness
+        run: |
+          node --check scripts/live-security-audit.js
+          grep -F "ALLOWED_HOSTS" scripts/live-security-audit.js >/dev/null
+          grep -F "nutretium.com" scripts/live-security-audit.js >/dev/null
+
+      - name: Authorized non-destructive production security audit
+        run: npm run test:live-security

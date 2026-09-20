@@ -6,7 +6,8 @@ const crypto=require('crypto');
 const ROOT=process.cwd();
 const DIST=path.join(ROOT,'dist');
 const ART=path.join(ROOT,'.release-artifacts');
-const rootExt=new Set(['.html','.css','.js','.json','.xml','.txt','.ico','.png','.jpg','.jpeg','.webp','.svg','.webmanifest']);
+const rootExt=new Set(['.html','.css','.js','.ico','.png','.jpg','.jpeg','.webp','.svg','.webmanifest']);
+const namedPublic=new Set(['robots.txt','sitemap.xml','manifest.json','site.webmanifest','browserconfig.xml']);
 const publicDirs=['producto','categoria','marca','objetivo'];
 const imageExt=new Set(['.png','.jpg','.jpeg','.webp','.gif','.svg','.avif']);
 
@@ -18,11 +19,9 @@ function sha256(file){return crypto.createHash('sha256').update(fs.readFileSync(
 
 reset(DIST);reset(ART);
 for(const ent of fs.readdirSync(ROOT,{withFileTypes:true})){
- if(!ent.isFile())continue;
+ if(!ent.isFile()||ent.name.startsWith('.'))continue;
  const ext=path.extname(ent.name).toLowerCase();
- if(!rootExt.has(ext))continue;
- if(['package.json','package-lock.json'].includes(ent.name))continue;
- if(ent.name.startsWith('.'))continue;
+ if(!rootExt.has(ext)&&!namedPublic.has(ent.name))continue;
  copyFile(path.join(ROOT,ent.name),path.join(DIST,ent.name));
 }
 for(const dir of publicDirs)copyTree(path.join(ROOT,dir),path.join(DIST,dir),(f)=>path.extname(f).toLowerCase()==='.html');

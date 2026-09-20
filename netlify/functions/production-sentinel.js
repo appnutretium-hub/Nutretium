@@ -3,6 +3,7 @@ const { getBlobStore, blobStoreReady } = require('../lib/blob-store');
 const shipping = require('../lib/shipping');
 const enterprise = require('../lib/enterprise-store');
 const { sendEmail } = require('../lib/email');
+const observability = require('../lib/observability');
 
 const SYSTEM = { email:'system@nutretium.local', role:'system' };
 const STATE_STORE = 'production-sentinel-v1';
@@ -17,7 +18,7 @@ function evaluateEnv(env=process.env){
   const publicEmails = new Set([...emails(env,'CONTACT_EMAIL'), ...emails(env,'ORDER_NOTIFICATION_EMAIL')]);
   const adminIsolation = admins.length > 0 && admins.every(email => !publicEmails.has(email));
   const sender = text(env,'ORDER_EMAIL_FROM').toLowerCase();
-  const checks = {
+  return {
     jwt: Boolean(text(env,'JWT_SECRET')),
     admin: admins.length > 0,
     adminIsolation,
@@ -34,7 +35,6 @@ function evaluateEnv(env=process.env){
     emailDomain: sender.includes('@nutretium.com'),
     maintenanceOff: !yes(env,'MAINTENANCE_MODE'),
   };
-  return checks;
 }
 
 function missingFrom(checks){ return Object.entries(checks).filter(([,ok])=>!ok).map(([key])=>key).sort(); }
@@ -56,30 +56,24 @@ async function saveIncident(state){
 
 async function notifyTransition(state,previous){
   if(signature(state) === signature(previous || {})) return { skipped:true };
+  await observability.record('production-readiness-transition',{severity:state.ready?'info':'critical',source:'production-sentinel',message:state.ready?'Producción vuelve a estar preparada.':`Producción no preparada: ${state.missing.join(', ')}`,tags:{ready:String(state.ready)}}).catch(()=>{});
+  await observability.alert({severity:state.ready?'info':'critical',title:state.ready?'Producción verificada':'Producción no preparada',message:state.ready?'Todos los controles críticos han pasado.':`Controles pendientes: ${state.missing.join(', ') || 'desconocidos'}.`,dedupeKey:`production-readiness:${signature(state)}`}).catch(()=>{});
   const to = String(process.env.ORDER_NOTIFICATION_EMAIL || '').trim();
   if(!to) return { skipped:true, reason:'missing-recipient' };
   const subject = state.ready ? '[NUTRETIUM] Producción verificada' : '[NUTRETIUM] ALERTA: producción no preparada';
   const detail = state.ready ? 'Todos los controles críticos han pasado.' : `Controles pendientes: ${state.missing.join(', ') || 'desconocidos'}.`;
-  return sendEmail({
-    to,
-    subject,
-    idempotencyKey:`production-sentinel:${signature(state)}`,
-    html:`<p><strong>${subject}</strong></p><p>${detail}</p><p>Comprobación: ${new Date().toISOString()}</p>`,
-  });
+  return sendEmail({to,subject,idempotencyKey:`production-sentinel:${signature(state)}`,html:`<p><strong>${subject}</strong></p><p>${detail}</p><p>Comprobación: ${new Date().toISOString()}</p>`});
 }
 
 async function run(){
   const envChecks = evaluateEnv(process.env);
-  const [blobs,shippingReady] = await Promise.all([
-    blobStoreReady('production-sentinel-probe'),
-    shipping.configured().catch(()=>false),
-  ]);
+  const [blobs,shippingReady] = await Promise.all([blobStoreReady('production-sentinel-probe'),shipping.configured().catch(()=>false)]);
   const checks = { ...envChecks, blobs, shipping:shippingReady };
   const missing = missingFrom(checks);
   const state = { ready:missing.length===0, checks, missing, checkedAt:new Date().toISOString() };
-
   const store = getBlobStore(STATE_STORE);
   const previous = store ? await store.get(STATE_KEY,{type:'json',consistency:'strong'}).catch(()=>null) : null;
+  await observability.healthSnapshot(state).catch(()=>{});
   await saveIncident(state);
   await notifyTransition(state,previous);
   if(store) await store.setJSON(STATE_KEY,state).catch(()=>{});
@@ -87,7 +81,7 @@ async function run(){
 }
 
 exports.handler = async function(){
-  const state = await run().catch(err=>({ready:false,error:String(err&&err.message||err).slice(0,240),checkedAt:new Date().toISOString()}));
+  const state = await run().catch(async err=>{await observability.record('production-sentinel-error',{severity:'critical',source:'production-sentinel',message:String(err&&err.message||err)}).catch(()=>{});return{ready:false,error:String(err&&err.message||err).slice(0,240),checkedAt:new Date().toISOString()}});
   if(state.error) console.error('[production-sentinel]',state.error);
   return { statusCode:200, headers:{'Content-Type':'application/json','Cache-Control':'no-store'}, body:JSON.stringify({ok:!state.error,ready:Boolean(state.ready)}) };
 };

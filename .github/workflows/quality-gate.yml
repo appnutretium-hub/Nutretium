@@ -2,7 +2,6 @@ name: Nutretium Full Quality Gate
 on:
   push:
     # Solo main: alimenta el workflow_run del que depende production-smoke.
-    # Las ramas de trabajo ya se validan al abrir el pull request.
     branches: [main]
   pull_request:
     branches: [main]
@@ -14,7 +13,7 @@ permissions:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -30,7 +29,7 @@ jobs:
           node scripts/staff-login-inject.js
           node scripts/compose-app.js
           node --check app.js
-      - name: Core tests
+      - name: Core and enterprise tests
         run: |
           npm test
           NUTRETIUM_TEST_MEMORY_BLOBS=true npm run test:redsys
@@ -46,6 +45,13 @@ jobs:
           npm run test:contracts
           npm run test:external-readiness
           npm run test:production-quality
+          npm run test:enterprise
+      - name: AI, Nexus and workforce regressions
+        run: |
+          node scripts/test-ai-control-plane.js
+          node scripts/test-nexus-core.js
+          node scripts/test-enterprise-workforce.js
+          node scripts/test-enterprise-workforce-runtime.js
       - name: Syntax hardening
         run: |
           node --check product-pim.js
@@ -59,6 +65,9 @@ jobs:
           node --check scripts/test-zero-trust-security.js
           node --check scripts/test-defense-in-depth.js
           node --check scripts/audit-workflow-pinning.js
+          node --check scripts/test-nexus-core.js
+          node --check scripts/test-enterprise-workforce.js
+          node --check scripts/test-enterprise-workforce-runtime.js
           node --check runtime-content.js
           node --check runtime-performance.js
           node --check runtime-guard.js
@@ -77,6 +86,9 @@ jobs:
           node --check netlify/lib/security-defense.js
           node --check netlify/lib/mfa-replay.js
           node --check netlify/lib/security-step-up.js
+          node --check netlify/lib/nexus-core.js
+          node --check netlify/lib/enterprise-workforce.js
+          node --check netlify/lib/enterprise-workforce-runtime.js
           node --check netlify/functions/auth.js
           node --check netlify/functions/staff-login.js
           node --check netlify/functions/account-security.js
@@ -103,10 +115,15 @@ jobs:
           node --check netlify/functions/production-sentinel.js
           node --check netlify/functions/platform-backup.js
           node --check netlify/functions/platform-restore.js
-      - name: Architecture and security audits
+          node --check netlify/functions/nexus-status.js
+          node --check netlify/functions/workforce-status.js
+          node --check netlify/functions/workforce-run.js
+          node --check netlify/functions/workforce-worker.js
+      - name: Architecture and maximum security audits
         run: |
           node scripts/audit-architecture.js
           node scripts/security-audit.js
+          node scripts/security-max-gate.js
           node scripts/audit-workflow-pinning.js
       - name: Build final HTML trust audit
         run: |

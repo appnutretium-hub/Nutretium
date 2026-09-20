@@ -92,7 +92,17 @@ jobs:
         run: npm install --no-save --no-package-lock @playwright/test@1.55.0
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Start static storefront
-        run: node scripts/dev-server.js > /tmp/nutretium-server.log 2>&1 &
+      - name: Start and verify static storefront
+        run: |
+          node scripts/dev-server.js > /tmp/nutretium-server.log 2>&1 &
+          echo $! > /tmp/nutretium-server.pid
+          for i in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:4173/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/nutretium-server.log
+          exit 1
       - name: Browser E2E
         run: npx playwright test tests/e2e-storefront.spec.js --browser=chromium --workers=1

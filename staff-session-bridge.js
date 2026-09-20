@@ -16,7 +16,15 @@
   Storage.prototype.getItem=function(key){if(this===window.localStorage&&key===KEY)return localLogout?null:MARKER;return nativeGet.call(this,key)};
   Storage.prototype.setItem=function(key,value){if(this===window.localStorage&&key===KEY)return;return nativeSet.call(this,key,value)};
   Storage.prototype.removeItem=function(key){
-    if(this===window.localStorage&&key===KEY){localLogout=true;csrfToken=null;nativeFetch(SESSION_ENDPOINT,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout'}),keepalive:true}).catch(()=>{});nativeFetch(STEP_UP_ENDPOINT,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'clear'}),keepalive:true}).catch(()=>{});return}
+    if(this===window.localStorage&&key===KEY){
+      localLogout=true;
+      const csrf=csrfToken;
+      const stepHeaders={'Content-Type':'application/json'};if(csrf)stepHeaders['X-Nutretium-CSRF']=csrf;
+      nativeFetch(STEP_UP_ENDPOINT,{method:'POST',credentials:'same-origin',headers:stepHeaders,body:JSON.stringify({action:'clear'}),keepalive:true}).catch(()=>{});
+      nativeFetch(SESSION_ENDPOINT,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout'}),keepalive:true}).catch(()=>{});
+      csrfToken=null;
+      return;
+    }
     return nativeRemove.call(this,key);
   };
   async function exchangeStaffToken(token){

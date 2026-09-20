@@ -33,7 +33,7 @@
     "test:all": "npm test && npm run test:redsys && npm run test:catalogo && npm run test:pim && npm run test:customer && npm run test:security && npm run test:admin-security && npm run test:admin && npm run test:cuentas && npm run test:commerce && npm run test:passwords && npm run test:enterprise",
     "test:pim": "node scripts/test-pim-seo.js",
     "test:customer": "node scripts/test-customer-postsale.js",
-    "test:security": "node scripts/test-security-tokens.js && node scripts/test-security-regressions.js && node scripts/audit-direct-jwt.js",
+    "test:security": "node scripts/test-security-tokens.js && node scripts/test-security-regressions.js && node scripts/audit-direct-jwt.js && node scripts/audit-rate-limit-failopen.js",
     "test:admin-security": "node scripts/test-admin-security.js"
   },
   "engines": {

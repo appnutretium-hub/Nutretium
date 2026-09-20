@@ -2,6 +2,7 @@
   publish = "dist"
   functions = "netlify/functions"
   command = "node scripts/build-release.js"
+  # build-release.js ejecuta: node scripts/audit-architecture.js
 
 [build.environment]
   NODE_VERSION = "22"

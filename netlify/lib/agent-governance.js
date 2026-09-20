@@ -48,28 +48,31 @@ const NEVER_AUTONOMOUS=new Set([
  'marketplace-publish','promotion-publish','publish','product-publish','product-unpublish','price-change','discount','customer-message',
  ...workforce.FORBIDDEN_AUTONOMY
 ]);
-const VETO_AGENTS=new Set(['audit','compliance','enterprise_risk','security','finance','procurement_control',...workforce.VETO_ROLES]);
+const VETO_AGENTS=new Set(['audit','compliance','enterprise_risk','security','finance','procurement_control']);
 const safe=v=>String(v||'').trim().toLowerCase();
+const WORKFORCE_PREFIX='workforce__';
+function workforceAgentId(roleId){const id=safe(roleId);return AGENTS[id]?`${WORKFORCE_PREFIX}${id}`:id;}
+function resolveWorkforceId(agent){const id=safe(agent);if(id.startsWith(WORKFORCE_PREFIX))return id.slice(WORKFORCE_PREFIX.length);return AGENTS[id]?null:id;}
 
 function profile(agent){
  const name=safe(agent),legacy=AGENTS[name];
  if(legacy)return{agent:name,label:legacy.label,title:legacy.label,department:legacy.department,family:null,level:null,reportsTo:null,mission:null,responsibilities:[],kpis:[],scopes:[...legacy.scopes],autonomous:[...legacy.autonomous],sensitive:[...legacy.sensitive],vetoAgent:VETO_AGENTS.has(name),source:'legacy'};
- const r=workforce.getRole(name);
+ const roleId=resolveWorkforceId(name),r=roleId&&workforce.getRole(roleId);
  if(!r)return null;
- return{agent:name,label:r.title,title:r.title,department:r.department,family:r.family,level:r.level,reportsTo:r.reportsTo,mission:r.mission,responsibilities:[...r.responsibilities],kpis:[...r.kpis],scopes:[...r.scopes],autonomous:[...r.autonomous],sensitive:[...r.sensitive],vetoAgent:workforce.VETO_ROLES.has(name),source:'enterprise-workforce'};
+ return{agent:name,roleId,label:r.title,title:r.title,department:r.department,family:r.family,level:r.level,reportsTo:r.reportsTo?workforceAgentId(r.reportsTo):null,mission:r.mission,responsibilities:[...r.responsibilities],kpis:[...r.kpis],scopes:[...r.scopes],autonomous:[...r.autonomous],sensitive:[...r.sensitive],vetoAgent:workforce.VETO_ROLES.has(roleId),source:'enterprise-workforce'};
 }
 function policy(agent,action){
  const name=safe(agent),a=safe(action),def=AGENTS[name];
  if(!a)return{allowed:false,error:'Acción de agente no indicada.'};
- if(!def){
-  const wp=workforce.rolePolicy(name,a);
-  if(!wp.allowed)return{allowed:false,error:wp.error};
-  const r=workforce.getRole(name);
-  return{allowed:true,agent:name,action:a,label:r.title,department:r.department,scopes:[...r.scopes],sensitive:wp.requiresApproval,autonomous:wp.autonomous,requiresApproval:wp.requiresApproval,vetoAgent:wp.vetoRole,riskTier:wp.risk,source:'enterprise-workforce'};
+ if(def){
+  const sensitive=def.sensitive.includes(a)||NEVER_AUTONOMOUS.has(a);
+  const autonomous=def.autonomous.includes(a)&&!sensitive;
+  return{allowed:true,agent:name,action:a,label:def.label,department:def.department,scopes:def.scopes,sensitive,autonomous,requiresApproval:!autonomous,vetoAgent:VETO_AGENTS.has(name),source:'legacy'};
  }
- const sensitive=def.sensitive.includes(a)||NEVER_AUTONOMOUS.has(a);
- const autonomous=def.autonomous.includes(a)&&!sensitive;
- return{allowed:true,agent:name,action:a,label:def.label,department:def.department,scopes:def.scopes,sensitive,autonomous,requiresApproval:!autonomous,vetoAgent:VETO_AGENTS.has(name),source:'legacy'};
+ const roleId=resolveWorkforceId(name),wp=roleId&&workforce.rolePolicy(roleId,a);
+ if(!wp||!wp.allowed)return{allowed:false,error:wp?.error||'Agente no reconocido.'};
+ const r=workforce.getRole(roleId);
+ return{allowed:true,agent:name,roleId,action:a,label:r.title,department:r.department,scopes:[...r.scopes],sensitive:wp.requiresApproval,autonomous:wp.autonomous,requiresApproval:wp.requiresApproval,vetoAgent:wp.vetoRole,riskTier:wp.risk,source:'enterprise-workforce'};
 }
 function canApprove(proposal,auth){
  if(!proposal||!auth)return false;
@@ -78,9 +81,15 @@ function canApprove(proposal,auth){
 }
 function publicRegistry(){
  const legacy=Object.fromEntries(Object.entries(AGENTS).map(([key,value])=>[key,{label:value.label,title:value.label,department:value.department,scopes:value.scopes,autonomous:value.autonomous,sensitive:value.sensitive,vetoAgent:VETO_AGENTS.has(key),source:'legacy'}]));
- const enterprise=Object.fromEntries(Object.entries(workforce.publicRegistry()).map(([key,value])=>[key,{...value,label:value.title,scopes:workforce.ROLES[key].scopes,source:'enterprise-workforce'}]));
+ const enterprise=Object.fromEntries(Object.entries(workforce.publicRegistry()).map(([roleId,value])=>{
+  const key=workforceAgentId(roleId);
+  return[key,{...value,label:value.title,roleId,agentId:key,reportsTo:value.reportsTo?workforceAgentId(value.reportsTo):null,scopes:workforce.ROLES[roleId].scopes,source:'enterprise-workforce'}];
+ }));
  return{...legacy,...enterprise};
 }
 function departments(){const out={};for(const [key,value] of Object.entries(publicRegistry())){(out[value.department]??=[]).push(key)}return out}
-function workforceSummary(){const validation=workforce.validate();return{...validation,legacyAgents:Object.keys(AGENTS).length,totalRegistered:Object.keys(publicRegistry()).length,families:Object.fromEntries(Object.entries(workforce.families()).map(([k,v])=>[k,v.length]))};}
-module.exports={AGENTS,NEVER_AUTONOMOUS,VETO_AGENTS,policy,profile,canApprove,publicRegistry,departments,workforce,workforceSummary};
+function workforceSummary(){
+ const validation=workforce.validate(),registry=publicRegistry();
+ return{...validation,legacyAgents:Object.keys(AGENTS).length,totalRegistered:Object.keys(registry).length,collisionSafe:true,families:Object.fromEntries(Object.entries(workforce.families()).map(([k,v])=>[k,v.length]))};
+}
+module.exports={AGENTS,NEVER_AUTONOMOUS,VETO_AGENTS,WORKFORCE_PREFIX,workforceAgentId,resolveWorkforceId,policy,profile,canApprove,publicRegistry,departments,workforce,workforceSummary};

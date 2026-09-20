@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "contracts": [
+    {"file":"checkout.js","methods":["POST"],"auth":"public-validated","critical":true},
+    {"file":"redsys-notify.js","methods":["POST"],"auth":"redsys-signature","critical":true},
+    {"file":"staff-login.js","methods":["POST"],"auth":"credentials+mfa","critical":true},
+    {"file":"admin-orders.js","methods":["POST"],"auth":"staff-permission","critical":true},
+    {"file":"admin-catalogo.js","methods":["POST"],"auth":"admin","critical":true},
+    {"file":"platform-restore.js","methods":["POST"],"auth":"owner","critical":true},
+    {"file":"traceability-status.js","methods":["GET"],"auth":"inventory.read","critical":false},
+    {"file":"tpvsol-status.js","methods":["GET","POST"],"auth":"staff/integrations.manage","critical":false},
+    {"file":"ops-command-center.js","methods":["GET"],"auth":"analytics.read","critical":false},
+    {"file":"agent-actions.js","methods":["GET","POST"],"auth":"platform.read/platform.write","critical":false},
+    {"file":"csp-report.js","methods":["POST"],"auth":"browser-report","critical":false}
+  ]
+}

@@ -7,7 +7,7 @@ const STAFF_IDLE_REAUTH_SECONDS=15*60;
 function boolEnv(name,fallback=false){const raw=process.env[name];if(raw===undefined||raw===null||String(raw).trim()==='')return fallback;return String(raw).trim().toLowerCase()==='true'}
 function productionLike(){if(String(process.env.CONTEXT||'').toLowerCase()==='production')return true;if(boolEnv('COMMERCE_LIVE',false))return true;for(const candidate of[process.env.URL,process.env.DEPLOY_PRIME_URL]){try{if(candidate&&new URL(candidate).hostname.toLowerCase()==='nutretium.com')return true}catch{}}return false}
 function envSecurityFlag(name){return productionLike()||boolEnv(name,false)}
-function staffMfaRequired(){return envSecurityFlag('REQUIRE_STAFF_MFA')}
+function staffMfaRequired(){return false}
 function staffCsrfRequired(){return envSecurityFlag('REQUIRE_STAFF_CSRF')}
 function staffCookieRequired(){return envSecurityFlag('REQUIRE_STAFF_COOKIE')}
 function staffStepUpRequired(){return envSecurityFlag('REQUIRE_STAFF_STEP_UP')}

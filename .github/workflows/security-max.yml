@@ -38,6 +38,19 @@ jobs:
           path: npm-audit.json
           if-no-files-found: error
           retention-days: 3
+      - name: Generate sharp 0.35.4 patch candidate
+        if: always()
+        run: npm install --package-lock-only --ignore-scripts --save-optional sharp@0.35.4
+      - name: Preserve patched manifests
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sharp-0.35.4-manifests
+          path: |
+            package.json
+            package-lock.json
+          if-no-files-found: error
+          retention-days: 3
       - name: Maximum security repository gate
         run: node scripts/security-max-gate.js
       - name: Existing security regressions

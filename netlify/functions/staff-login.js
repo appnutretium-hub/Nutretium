@@ -8,6 +8,8 @@ const { secretFor, verify: verifyTotp } = require('../lib/totp');
 const { cabecerasCORS } = require('../lib/cors');
 const { consume, reset } = require('../lib/rate-limit');
 const security=require('../lib/security-policy');
+const defense=require('../lib/security-defense');
+const mfaReplay=require('../lib/mfa-replay');
 
 const CORS = cabecerasCORS('POST, OPTIONS');
 const MAX_INTENTOS = 5;
@@ -34,6 +36,7 @@ function staffMfaRequired(){return security.staffMfaRequired()}
 exports.handler = async event => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
   if (event.httpMethod !== 'POST') return response(405, { error: 'Method Not Allowed' });
+  try { defense.assertBrowserBoundary(event); } catch (e) { return response(403, { error: e.message, code: e.code || 'REQUEST_BLOCKED' }); }
   if (!secretConfigured()) return response(503, { error: 'Sesiones no disponibles.' });
   let body;try { body = JSON.parse(event.body || '{}'); } catch { return response(400, { error: 'JSON no válido.' }); }
   const email = String(body.email || '').trim().toLowerCase(),password = String(body.password || ''),mfaCode = String(body.mfaCode || '').replace(/\s/g, '');
@@ -46,10 +49,13 @@ exports.handler = async event => {
     if (!secret) return response(503, {error: 'MFA está activado para el personal, pero esta cuenta aún no tiene TOTP configurado.',mfaSetupRequired: true});
     if (!mfaCode) return response(401, {error: 'Introduce el código de 6 dígitos de tu aplicación de autenticación.',mfaRequired: true});
     if (!verifyTotp(secret, mfaCode)) return response(401, { error: 'Código MFA incorrecto.', mfaRequired: true });
+    const once=await mfaReplay.consume(email,mfaCode);
+    if(!once.ok)return response(once.code==='MFA_REPLAY_GUARD_UNAVAILABLE'?503:409,{error:once.error,code:once.code,mfaRequired:true});
     mfaVerified = true;
   }
   await upgradeHashIfNeeded(email, password, user, verification);await clearAttempts(event, email);
-  const token = signJWT({sub: user.id,email,role,kind: 'staff-login',mfa: mfaVerified,sv: Number(user.sessionVersion || 0),exp: Math.floor(Date.now() / 1000) + security.STAFF_LOGIN_TTL_SECONDS});
+  const binding=defense.newSessionBinding(event);
+  const token = signJWT({sub: user.id,email,role,kind: 'staff-login',mfa: mfaVerified,sv: Number(user.sessionVersion || 0),fp:binding.fp,jti:binding.jti,exp: Math.floor(Date.now() / 1000) + security.STAFF_LOGIN_TTL_SECONDS});
   return response(200, {user: {id: user.id,name: user.name,surname: user.surname,email: user.email,phone: user.phone,role,token,mfa: mfaVerified,expiresIn:security.STAFF_LOGIN_TTL_SECONDS}});
 };
 exports._test = { verifyPassword, upgradeHashIfNeeded, checkThrottle, staffMfaRequired };

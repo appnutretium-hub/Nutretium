@@ -18,10 +18,16 @@ const path = require('path');
 
 const RAIZ = path.join(__dirname, '..');
 
-// El entorno se prepara ANTES de cargar nada: las funciones leen process.env al
-// atenderse, pero cors.js fija su origen al cargarse.
+// Entorno local explícito: la política Zero Trust de producción se valida en
+// test-zero-trust-security.js y no debe convertir estos JWT históricos en cookies.
 process.env.JWT_SECRET = 'secreto-de-pruebas-con-mas-de-32-caracteres-de-sobra';
-process.env.URL = 'https://nutretium.com';
+process.env.CONTEXT = 'test';
+process.env.URL = 'http://localhost:8888';
+process.env.COMMERCE_LIVE = 'false';
+process.env.REQUIRE_STAFF_MFA = 'false';
+process.env.REQUIRE_STAFF_COOKIE = 'false';
+process.env.REQUIRE_STAFF_CSRF = 'false';
+process.env.REQUIRE_STAFF_STEP_UP = 'false';
 process.env.GITHUB_REPO = 'appnutretium-hub/Nutretium';
 process.env.GITHUB_BRANCH = 'main';
 process.env.NUTRETIUM_TEST_MEMORY_BLOBS = 'true';

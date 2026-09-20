@@ -1,7 +1,7 @@
 name: Nutretium Build & Enterprise Gate
 on:
   push:
-    branches: [main, 'feature/**', 'fix/**', 'hotfix/**', 'hardening/**', 'final-**']
+    branches: [main, 'feature/**', 'fix/**', 'hotfix/**', 'hardening/**', 'security/**', 'final-**']
   pull_request:
     branches: [main]
 concurrency:
@@ -39,6 +39,8 @@ jobs:
         run: npm run test:cuentas
       - name: Commerce tests
         run: npm run test:commerce
+      - name: Zero Trust security tests
+        run: node scripts/test-zero-trust-security.js
       - name: External readiness tests
         run: npm run test:external-readiness
       - name: Enterprise platform tests
@@ -89,10 +91,13 @@ jobs:
           node --check backoffice.js
           node --check ops.js
           node --check enterprise.js
+          node --check staff-session-bridge.js
           node --check netlify/lib/email.js
           node --check netlify/lib/promotions.js
           node --check netlify/lib/staff.js
           node --check netlify/lib/external-readiness.js
+          node --check netlify/lib/security-policy.js
+          node --check netlify/lib/security-step-up.js
           node --check netlify/functions/admin-external-readiness.js
           node --check netlify/functions/redsys-notify.js
           node --check netlify/functions/checkout.js
@@ -100,10 +105,17 @@ jobs:
           node --check netlify/functions/saved-cart.js
           node --check netlify/functions/analytics-event.js
           node --check netlify/functions/admin-analytics.js
+          node --check netlify/functions/admin-session.js
+          node --check netlify/functions/admin-step-up.js
+          node --check netlify/functions/admin-settings.js
+          node --check netlify/functions/admin-governance.js
+          node --check netlify/functions/platform-restore.js
+          node --check netlify/functions/refund-redsys.js
           node --check netlify/functions/system-health.js
           node --check netlify/functions/production-sentinel.js
           node --check netlify/functions/admin-orders.js
           node --check netlify/functions/contact.js
+          node scripts/test-zero-trust-security.js
           node scripts/smoke-web.js
           node scripts/audit-architecture.js
           node scripts/security-audit.js

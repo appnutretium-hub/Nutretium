@@ -1,6 +1,7 @@
 'use strict';
 const { verifyJWT, tokenFromHeader, secretConfigured } = require('./jwt');
 const usuarios = require('./usuarios');
+const security=require('./security-policy');
 const STAFF_COOKIE='nt_staff_session';
 
 async function verifyUserToken(token,options={}){
@@ -21,15 +22,20 @@ function cookieValue(headers={},name){
  for(const part of raw.split(';')){const i=part.indexOf('=');if(i<0)continue;if(part.slice(0,i).trim()===name)return decodeURIComponent(part.slice(i+1).trim())}
  return null;
 }
-function staffMfaRequired(){return String(process.env.REQUIRE_STAFF_MFA||'false').toLowerCase()==='true'}
+function staffMfaRequired(){return security.staffMfaRequired()}
 function validateStaffClaims(claims,kind){
  if(claims.kind!==kind)throw new Error('Sesión interna no válida');
  if(staffMfaRequired()&&claims.mfa!==true)throw new Error('MFA de personal requerido');
 }
 async function verifyStaffEventSession(event,options={}){
  const cookieToken=cookieValue(event.headers||{},STAFF_COOKIE);
- if(cookieToken){const verified=await verifyUserToken(cookieToken,{requireUser:true});validateStaffClaims(verified.claims,'staff');return{...verified,source:'cookie'}}
- if(options.allowBearer===false)throw new Error('Sesión interna ausente');
+ if(cookieToken){
+  const verified=await verifyUserToken(cookieToken,{requireUser:true});
+  validateStaffClaims(verified.claims,'staff');
+  if(options.skipCsrf!==true)security.assertStaffCsrf(event,verified.claims);
+  return{...verified,source:'cookie'};
+ }
+ if(options.allowBearer===false||security.staffCookieRequired())throw new Error('Sesión interna ausente');
  const verified=await verifyEventSession(event,{requireUser:options.requireUser!==false});
  validateStaffClaims(verified.claims,'staff-login');
  return{...verified,source:'bearer'};

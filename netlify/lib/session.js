@@ -3,6 +3,8 @@ const { verifyJWT, tokenFromHeader, secretConfigured } = require('./jwt');
 const usuarios = require('./usuarios');
 const security=require('./security-policy');
 const STAFF_COOKIE='nt_staff_session';
+const CUSTOMER_COOKIE='nt_customer_session';
+const CUSTOMER_SESSION_TTL_SECONDS=60*60*24*30;
 
 async function verifyUserToken(token,options={}){
  if(!secretConfigured())throw new Error('Sesiones no configuradas');
@@ -22,6 +24,26 @@ function cookieValue(headers={},name){
  for(const part of raw.split(';')){const i=part.indexOf('=');if(i<0)continue;if(part.slice(0,i).trim()===name)return decodeURIComponent(part.slice(i+1).trim())}
  return null;
 }
+function customerSessionCookie(token,maxAge=CUSTOMER_SESSION_TTL_SECONDS){
+ return `${CUSTOMER_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${Math.max(0,Number(maxAge)||0)}`;
+}
+function clearCustomerSessionCookie(){return customerSessionCookie('',0)}
+async function verifyCustomerEventSession(event,options={}){
+ const cookieToken=cookieValue(event?.headers||{},CUSTOMER_COOKIE);
+ if(cookieToken){
+  const verified=await verifyUserToken(cookieToken,{requireUser:options.requireUser!==false});
+  if(verified.claims.kind!=='customer')throw new Error('Sesión de cliente no válida');
+  return{...verified,source:'cookie'};
+ }
+ if(options.allowBearer===false)throw new Error('Sesión de cliente ausente');
+ const bearer=tokenFromHeader(event?.headers||{});
+ const legacy=options.legacyToken||null;
+ const token=bearer||legacy;
+ if(!token)throw new Error('Sesión de cliente ausente');
+ const verified=await verifyUserToken(token,{requireUser:options.requireUser!==false});
+ if(verified.claims.kind&&verified.claims.kind!=='customer')throw new Error('Sesión de cliente no válida');
+ return{...verified,source:bearer?'bearer':'legacy'};
+}
 function staffMfaRequired(){return security.staffMfaRequired()}
 function validateStaffClaims(claims,kind){
  if(claims.kind!==kind)throw new Error('Sesión interna no válida');
@@ -40,4 +62,4 @@ async function verifyStaffEventSession(event,options={}){
  validateStaffClaims(verified.claims,'staff-login');
  return{...verified,source:'bearer'};
 }
-module.exports={verifyUserToken,verifyEventSession,verifyStaffEventSession,cookieValue,STAFF_COOKIE,staffMfaRequired};
+module.exports={verifyUserToken,verifyEventSession,verifyCustomerEventSession,verifyStaffEventSession,cookieValue,customerSessionCookie,clearCustomerSessionCookie,CUSTOMER_COOKIE,CUSTOMER_SESSION_TTL_SECONDS,STAFF_COOKIE,staffMfaRequired};

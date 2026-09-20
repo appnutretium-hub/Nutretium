@@ -14,6 +14,7 @@ function meta(s){return{bannerEnabled:s.content.bannerEnabled,navigationManaged:
 function paymentPrivilegeIncrease(current,next){const a=current?.payment||{},b=next?.payment||{};return Boolean((b.environment==='production'&&a.environment!=='production')||(b.commerceLive===true&&a.commerceLive!==true)||(b.enabled===true&&a.enabled!==true&&b.environment==='production')||(b.managed===true&&a.managed!==true&&b.environment==='production'))}
 async function requireStep(event,staff){const gate=await verifyStepUp(event,staff);return gate.ok?null:json(gate.statusCode,{error:gate.error,code:gate.code})}
 async function requireNonce(event,staff,scope){const gate=await defense.consumeMutationNonce({event,actor:staff.email,scope});return gate.ok?null:json(gate.statusCode,{error:gate.error,code:gate.code})}
+async function requireAudit(){const gate=await defense.verifyAuditIntegrity();return gate.ok?null:json(gate.statusCode,{error:gate.error,code:gate.code})}
 exports.handler=async function(event){
  if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
  const staff=await exigePermiso(event,'settings');if(!staff.ok)return json(staff.statusCode,{error:staff.error});
@@ -23,6 +24,7 @@ exports.handler=async function(event){
   if(body.action==='save-payment-secret'||body.action==='clear-payment-secret'){
    if(staff.role!=='owner')return json(403,{error:'Solo el propietario puede modificar las credenciales de la pasarela de pago.'});
    const step=await requireStep(event,staff);if(step)return step;
+   const integrity=await requireAudit();if(integrity)return integrity;
    const nonce=await requireNonce(event,staff,`payment-secret:${body.action}`);if(nonce)return nonce;
    try{await audit.append({event,actor:staff.email,action:'PAYMENT_SECRET_INTENT',resource:'payment-vault',outcome:'INTENT',metadata:{operation:body.action}})}catch{return json(503,{error:'No se puede registrar la auditoría; las credenciales no se han modificado.'})}
    try{
@@ -35,7 +37,7 @@ exports.handler=async function(event){
   const current=await settings.read().catch(()=>settings.defaults),next=settings.normalize(body.settings||{});
   const privilegeIncrease=paymentPrivilegeIncrease(current,next);
   if(staff.role!=='owner'&&privilegeIncrease)return json(403,{error:'Solo el propietario puede activar Redsys en producción o habilitar cobros reales.'});
-  if(privilegeIncrease){const step=await requireStep(event,staff);if(step)return step;const nonce=await requireNonce(event,staff,'payment-privilege-increase');if(nonce)return nonce}
+  if(privilegeIncrease){const step=await requireStep(event,staff);if(step)return step;const integrity=await requireAudit();if(integrity)return integrity;const nonce=await requireNonce(event,staff,'payment-privilege-increase');if(nonce)return nonce}
   if(next.shipping.managed&&next.shipping.enabled&&next.shipping.rateCents===null)return json(422,{error:'Indica una tarifa de envío válida antes de activar los envíos.'});
   if(next.payment.managed&&next.payment.enabled&&next.payment.environment==='production'&&next.payment.commerceLive){const status=await vault.paymentStatus();if(!status.dedicatedKeyConfigured)return json(422,{error:'Antes de activar pagos reales configura CONFIG_VAULT_KEY como clave independiente de la bóveda.'});if(!status.merchantCodeConfigured||!status.secretKeyConfigured)return json(422,{error:'Antes de activar pagos reales guarda las credenciales Redsys en la sección Pasarela de pago.'})}
   try{await audit.append({event,actor:staff.email,action:'COMMERCE_SETTINGS_INTENT',resource:'commerce-settings',outcome:'INTENT',metadata:meta(next)})}catch{return json(503,{error:'No se puede registrar la auditoría; los ajustes no se han modificado.'})}

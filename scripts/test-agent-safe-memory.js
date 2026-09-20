@@ -4,6 +4,7 @@ process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
 const assert=require('assert');
 const safeMemory=require('../netlify/lib/agent-safe-memory');
 const bridge=require('../netlify/lib/agent-safe-memory-bridge');
+const backup=require('../netlify/lib/agent-checkpoint-backup');
 
 (async()=>{
   const agent='workforce__bi_analyst';
@@ -50,9 +51,14 @@ const bridge=require('../netlify/lib/agent-safe-memory-bridge');
   const eligible={id:'run-valid-1',agent,action:'kpi-brief',status:'completed',output:{result:{status:'COMPLETED',validation:'VALIDADO',requiresHumanDecision:false,sourceGate:{required:['analytics']},facts:[]}}};
   const bridgeResult=await bridge.promoteValidatedRun(eligible,{requestedBy:'test'});
   assert.strictEqual(bridgeResult.promoted,true,'Una ejecución validada debe actualizar memoria segura.');
+  assert.strictEqual(bridgeResult.postPromotionIntegrity?.ok,true,'Debe verificar integridad tras promover.');
+  assert.strictEqual(bridgeResult.backupIntegrity?.ok,true,'Debe verificar la copia de seguridad independiente.');
+  const latestBackup=await backup.readBackup({agent});
+  assert(latestBackup&&latestBackup.id===bridgeResult.checkpointId,'El backup debe apuntar al checkpoint promovido más reciente.');
+
   const notEligible={id:'run-invalid-1',agent,action:'kpi-brief',status:'completed',output:{result:{status:'NO_VALIDADO',validation:'NO_VALIDADO',requiresHumanDecision:false}}};
   const skip=await bridge.promoteValidatedRun(notEligible,{requestedBy:'test'});
   assert.strictEqual(skip.promoted,false,'NO_VALIDADO no puede promover memoria estable.');
 
-  console.log(JSON.stringify({ok:true,agent,genesis:genesis.id,promoted:promoted.id,rollback:rollback.id,bridge:bridgeResult},null,2));
+  console.log(JSON.stringify({ok:true,agent,genesis:genesis.id,promoted:promoted.id,rollback:rollback.id,bridge:bridgeResult,backup:latestBackup.id},null,2));
 })().catch(error=>{console.error(error);process.exit(1);});

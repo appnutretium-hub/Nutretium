@@ -1,5 +1,5 @@
 [build]
-  publish = "."
+  publish = "dist"
   functions = "netlify/functions"
   command = """
     npm run build:css &&
@@ -34,6 +34,9 @@
     node --check netlify/lib/email.js &&
     node --check netlify/lib/promotions.js &&
     node --check netlify/lib/staff.js &&
+    node --check netlify/lib/session.js &&
+    node --check netlify/lib/enterprise-store.js &&
+    node --check netlify/functions/auth.js &&
     node --check netlify/functions/redsys-notify.js &&
     node --check netlify/functions/checkout.js &&
     node --check netlify/functions/commerce.js &&
@@ -46,41 +49,7 @@
     node --check netlify/functions/contact.js &&
     node scripts/smoke-web.js &&
     node scripts/audit-architecture.js &&
-    rm -rf \\
-      'Listado de stock disponible.pdf' \\
-      'CATALOGO_NUTRETIUM.xlsx' \\
-      'AUDITORIA_CATALOGO.md' \\
-      'DESPLIEGUE.md' \\
-      'PRUEBAS_REDSYS.md' \\
-      'TODO.md' \\
-      'CLAUDE.md' \\
-      'GUIA_ARQUITECTURA_NETLIFY.md' \\
-      'PROMPT_SISTEMA_CLAUDE.md.md' \\
-      '.env.example' \\
-      'Nuevo Documento de texto.txt' \\
-      '_backup_pre_actualizacion' \\
-      'scripts' \\
-      '.vscode' \\
-      '.claude' \\
-      'commerce-core.css' \\
-      'commerce-core.js' \\
-      'enterprise-storefront.js' \\
-      'commerce-account-sync.js' \\
-      'sources/01_PNG_MAX_CALIDAD_CON_PVP' \\
-      'sources/00_CONTROL_CALIDAD.csv' \\
-      'sources/00_RELACION_IMAGENES_PVP.csv' \\
-      'sources/LEEME.txt' \\
-      'sources/PROTEINA 100% WHEY.png' \\
-      'sources/PROTEINA ISO WHEY.png' \\
-      'sources/productos/LEEME.md' \\
-      'sources/productos/NOMBRES_ESPERADOS.csv' \\
-      'sources/productos/FOTOS_PENDIENTES.md' \\
-      'sources/_nuevas' \\
-      'sources/_stock' \\
-      'sources/_catalogo' \\
-      'sources/amix_fotos_categoria_nombre_pvp_FINAL_WEB' \\
-      'src' \\
-      'tailwind.config.js'
+    node scripts/prepare-dist.js
   """
 
 [build.environment]
@@ -116,7 +85,7 @@
     Cross-Origin-Opener-Policy = "same-origin"
     X-Permitted-Cross-Domain-Policies = "none"
     Origin-Agent-Cluster = "?1"
-    Content-Security-Policy = "default-src 'self'; object-src 'none'; upgrade-insecure-requests; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' https:; connect-src 'self' https:; frame-src https://www.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://sis.redsys.es https://sis-t.redsys.es https://sis-t.redsys.es:25443"
+    Content-Security-Policy = "default-src 'self'; object-src 'none'; upgrade-insecure-requests; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' https:; connect-src 'self' https:; frame-src https://www.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://sis.redsys.es https://sis-t.redsys.es https://sis-t.redsys.es:25443; worker-src 'self'; manifest-src 'self'"
 
 [[headers]]
   for = "/admin.html"

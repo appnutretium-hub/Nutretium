@@ -1,8 +1,8 @@
 'use strict';
-// Adaptador exclusivo de test: las pruebas de admin ejercitan ahora el mismo
-// contrato que producción: sesión interna de staff en cookie HttpOnly. El
-// bootstrap Bearer queda cubierto por sus pruebas específicas y no autoriza
-// directamente endpoints administrativos.
+// Adaptador exclusivo de test. Las pruebas históricas pasan un campo `token`
+// al helper local; aquí ese token se transforma en la cookie interna de staff
+// ANTES de cargar admin.js. Así conservamos la cobertura del catálogo sin
+// reabrir una ruta Bearer en producción.
 process.env.CONTEXT='test';
 process.env.URL='http://localhost:8888';
 process.env.COMMERCE_LIVE='false';
@@ -14,6 +14,21 @@ process.env.REQUIRE_STAFF_STEP_UP='false';
 const jwt=require('../netlify/lib/jwt');
 const originalSign=jwt.signJWT;
 jwt.signJWT=(payload,secret)=>originalSign({...payload,kind:payload?.kind||'staff'},secret);
+
+const session=require('../netlify/lib/session');
+const originalVerifyStaff=session.verifyStaffEventSession;
+session.verifyStaffEventSession=async(event,options={})=>{
+  const headers={...(event?.headers||{})};
+  const auth=String(headers.authorization||headers.Authorization||'');
+  const match=/^Bearer\s+(.+)$/i.exec(auth);
+  if(match){
+    const existing=String(headers.cookie||headers.Cookie||'').trim();
+    headers.cookie=(existing?existing+'; ':'')+`${session.STAFF_COOKIE}=${encodeURIComponent(match[1])}`;
+    delete headers.authorization;
+    delete headers.Authorization;
+  }
+  return originalVerifyStaff({...event,headers},{...options,allowBearer:false});
+};
 
 const root=globalThis.__NUTRETIUM_TEST_BLOBS__||(globalThis.__NUTRETIUM_TEST_BLOBS__=new Map());
 const users=root.get('users')||new Map();

@@ -1,39 +1,9 @@
-// Servidor estático mínimo para previsualizar la tienda en local.
-// Uso: node scripts/dev-server.js  →  http://localhost:4173
+// Servidor estático mínimo para previsualizar y probar la tienda.
+// Uso normal: node scripts/dev-server.js
+// Release: SERVE_DIR=dist node scripts/dev-server.js
 'use strict';
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
-
-const ROOT = path.join(__dirname, '..');
-const PORT = process.env.PORT || 4173;
-const TYPES = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.md': 'text/markdown; charset=utf-8',
-  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
-  '.webp': 'image/webp', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
-  '.pdf': 'application/pdf',
-};
-
-http.createServer((req, res) => {
-  const urlPath = decodeURIComponent(req.url.split('?')[0]);
-  const rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '');
-  const file = path.join(ROOT, rel);
-
-  // Nunca servir fuera de la raíz del proyecto.
-  if (!file.startsWith(ROOT)) {
-    res.writeHead(403).end('Forbidden');
-    return;
-  }
-  fs.readFile(file, (err, data) => {
-    if (err) {
-      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('No encontrado: ' + rel);
-      return;
-    }
-    res.writeHead(200, { 'Content-Type': TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream' });
-    res.end(data);
-  });
-}).listen(PORT, () => console.log('Nutretium en http://localhost:' + PORT));
+const http=require('http');const fs=require('fs');const path=require('path');
+const ROOT=path.resolve(process.env.SERVE_DIR||path.join(__dirname,'..'));const PORT=Number(process.env.PORT||4173);
+const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon','.xml':'application/xml; charset=utf-8','.txt':'text/plain; charset=utf-8','.webmanifest':'application/manifest+json; charset=utf-8'};
+function resolveRequest(raw){let pathname;try{pathname=decodeURIComponent(String(raw||'/').split('?')[0])}catch{return null}const rel=pathname==='/'?'index.html':pathname.replace(/^\/+/, '');const file=path.resolve(ROOT,rel);if(file!==ROOT&&!file.startsWith(ROOT+path.sep))return null;return file}
+http.createServer((req,res)=>{let file=resolveRequest(req.url);if(!file){res.writeHead(400,{'Content-Type':'text/plain; charset=utf-8'});return res.end('Bad request')}try{if(fs.existsSync(file)&&fs.statSync(file).isDirectory())file=path.join(file,'index.html');if(!fs.existsSync(file)){res.writeHead(404,{'Content-Type':'text/plain; charset=utf-8'});return res.end('No encontrado')}res.writeHead(200,{'Content-Type':TYPES[path.extname(file).toLowerCase()]||'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});fs.createReadStream(file).pipe(res)}catch{res.writeHead(500,{'Content-Type':'text/plain; charset=utf-8'});res.end('Internal error')}}).listen(PORT,'127.0.0.1',()=>console.log(`[dev-server] ${ROOT} → http://127.0.0.1:${PORT}`));

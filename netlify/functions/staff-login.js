@@ -120,6 +120,7 @@ exports.handler = async event => {
     sub: user.id,
     email,
     role,
+    kind: 'staff-login',
     mfa: mfaVerified,
     sv: Number(user.sessionVersion || 0),
     exp: Math.floor(Date.now() / 1000) + 8 * 3600,

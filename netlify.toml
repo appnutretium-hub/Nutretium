@@ -267,10 +267,10 @@
   to = "/index.html"
   status = 200
 [[redirects]]
-  from = "/pago-error"
+  from = "/pago-ko"
   to = "/index.html"
   status = 200
 [[redirects]]
-  from = "/pedido-ok"
+  from = "/*.pdf"
   to = "/index.html"
-  status = 200
+  status = 404

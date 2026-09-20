@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { NUTRETIUM_PRODUCTS = [], NUTRETIUM_CATEGORIES = [] } = require('../products-data.js');
 const pim = require('../product-pim.js');
+const seo = require('../netlify/lib/seo.js');
 
 const root = process.cwd();
 const active = NUTRETIUM_PRODUCTS.filter(p => p && p.active !== false);
@@ -29,6 +30,7 @@ assert(productHtml.includes(`<h1 class="title">${first.name.replace(/&/g,'&amp;'
 assert(productHtml.includes('rel="canonical"'), 'La ficha estática debe tener canonical');
 assert(productHtml.includes('"@type":"Product"'), 'La ficha estática debe tener Product schema');
 assert(productHtml.includes('"@type":"BreadcrumbList"'), 'La ficha estática debe tener BreadcrumbList');
+assert(productHtml.includes('/product-media.js'), 'La ficha debe cargar el módulo multimedia');
 
 const category = NUTRETIUM_CATEGORIES.find(c => active.some(p => p.category === c));
 assert(category, 'Debe existir una categoría activa');
@@ -44,12 +46,23 @@ if (brands.length) assert(fs.existsSync(path.join(root,'marca',pim.slugify(brand
 const sitemap = fs.readFileSync(path.join(root,'sitemap.xml'),'utf8');
 assert(sitemap.includes(`/producto/${pim.slugify(first.name)}-${first.id}`), 'Sitemap debe incluir productos');
 assert(sitemap.includes(`/categoria/${pim.slugify(category)}`), 'Sitemap debe incluir categorías');
+if (brands.length) assert(sitemap.includes(`/marca/${pim.slugify(brands[0])}`), 'Sitemap estático debe incluir marcas');
+const staticIntent = pim.SEO_INTENTS.find(intent => intent.categories.some(c => active.some(p => p.category === c)));
+if (staticIntent) assert(sitemap.includes(`/objetivo/${staticIntent.slug}`), 'Sitemap estático debe incluir objetivos');
+
+const dynamicSitemap = seo.buildSitemap({baseUrl:'https://nutretium.com',products:active,categories:NUTRETIUM_CATEGORIES});
+assert(dynamicSitemap.includes(`/producto/${pim.slugify(first.name)}-${first.id}`), 'Sitemap dinámico debe incluir productos');
+assert(dynamicSitemap.includes(`/categoria/${pim.slugify(category)}`), 'Sitemap dinámico debe incluir categorías');
+if (brands.length) assert(dynamicSitemap.includes(`/marca/${pim.slugify(brands[0])}`), 'Sitemap dinámico debe incluir marcas');
+const dynamicIntent = seo.SEO_INTENTS.find(intent => intent.categories.some(c => active.some(p => p.category === c)));
+if (dynamicIntent) assert(dynamicSitemap.includes(`/objetivo/${dynamicIntent.slug}`), 'Sitemap dinámico debe incluir objetivos');
+
 const robots = fs.readFileSync(path.join(root,'robots.txt'),'utf8');
 assert(robots.includes('Sitemap: https://nutretium.com/sitemap.xml'), 'robots.txt debe declarar sitemap');
 
 const netlify = fs.readFileSync(path.join(root,'netlify.toml'),'utf8');
-assert(!/from = "\/categoria\/\*"\\s+to = "\/index\.html"/.test(netlify), 'No debe reescribirse categoría a la home');
-assert(!/from = "\/producto\/\*"\\s+to = "\/index\.html"/.test(netlify), 'No debe reescribirse producto al shell genérico');
+assert(!/from = "\/categoria\/\*"\s+to = "\/index\.html"/.test(netlify), 'No debe reescribirse categoría a la home');
+assert(!/from = "\/producto\/\*"\s+to = "\/index\.html"/.test(netlify), 'No debe reescribirse producto al shell genérico');
 
 const audit = pim.audit(active);
 assert.strictEqual(audit.active, active.length, 'Auditoría PIM debe cubrir todo el catálogo activo');

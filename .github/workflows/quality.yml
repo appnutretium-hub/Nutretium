@@ -83,8 +83,13 @@ jobs:
           node --check checkout.js
           node --check cuenta.js
           node --check smart-shop.js
+          node --check admin-shell.js
+          node --check staff-login-ui.js
+          node --check settings.js
           node --check control.js
           node --check backoffice.js
+          node --check ops.js
+          node --check enterprise.js
           node --check netlify/lib/email.js
           node --check netlify/lib/promotions.js
           node --check netlify/lib/staff.js

@@ -16,7 +16,7 @@ exports.handler=async function(event){
   if(verified.claims.kind!=='staff-login')return json(401,{error:'La credencial no procede del acceso de personal.'});
   if(staffMfaRequired()&&verified.claims.mfa!==true)return json(401,{error:'El acceso de personal requiere MFA.'});
   const permisos=permisosDe(verified.email);if(!permisos.size)return json(403,{error:'Esta cuenta no tiene permisos internos.'});
-  const now=Math.floor(Date.now()/1000),token=signJWT({sub:verified.user.id,email:verified.email,kind:'staff',mfa:verified.claims.mfa===true,exp:now+MAX_AGE});
+  const now=Math.floor(Date.now()/1000),token=signJWT({sub:verified.user.id,email:verified.email,kind:'staff',mfa:verified.claims.mfa===true,sv:Number(verified.user.sessionVersion||0),exp:now+MAX_AGE});
   return json(200,{ok:true,email:verified.email,permisos:[...permisos],expiresIn:MAX_AGE},{'Set-Cookie':cookie(token,MAX_AGE)});
  }
  if(body.action==='status'){

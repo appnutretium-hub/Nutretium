@@ -31,7 +31,7 @@ test('mi cuenta: historial de consentimientos se renderiza y controles quedan fu
  await expect(page.locator('#consentAnalytics')).toBeChecked();
 });
 
-test('admin center: admin exento de MFA usa sesión HttpOnly + CSRF y no persiste sesión en localStorage',async({page})=>{
+test('admin center: admin exento de MFA usa sesión HttpOnly + CSRF y no persiste JWT en localStorage',async({page})=>{
  let exchanged=false;
  let csrfObserved=false;
  const csrf='e2e-zero-trust-csrf';
@@ -65,7 +65,10 @@ test('admin center: admin exento de MFA usa sesión HttpOnly + CSRF y no persist
  await page.locator('#loginForm button').click();
  await expect(page.locator('#app')).toBeVisible();
  expect(csrfObserved).toBe(true);
- expect(await page.evaluate(()=>localStorage.getItem('nutretium_user'))).toBeNull();
+ const storage=await page.evaluate(()=>({keys:Array.from({length:localStorage.length},(_,i)=>localStorage.key(i)),marker:localStorage.getItem('nutretium_user')}));
+ expect(storage.keys).not.toContain('nutretium_user');
+ expect(storage.marker).toBe(JSON.stringify({token:'http-only-cookie'}));
+ expect(storage.marker).not.toContain('secret-jwt');
 });
 
 test('home: controles con role=button responden a teclado',async({page})=>{

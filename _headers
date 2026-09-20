@@ -1,0 +1,27 @@
+/admin-center*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+/product-editor*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+/catalog-management*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+/financial-dashboard*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+/customer-center*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+/administracion*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+/clientes-admin*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+/finanzas-admin*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+/catalogo-admin*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store

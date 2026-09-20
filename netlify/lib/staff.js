@@ -2,6 +2,7 @@
 const { secretConfigured } = require('./jwt');
 const { verifyStaffEventSession } = require('./session');
 const { esAdmin, listaAdmins } = require('./admin');
+const directory = require('./staff-directory');
 
 const ROLE_ORDER = ['owner','admin','compliance','manager','operator','support','custom','client'];
 const ROLE_ENV = Object.freeze({
@@ -53,6 +54,17 @@ function roleFor(email) {
   return 'client';
 }
 
+async function effectiveMember(email){
+  const normalized=String(email||'').trim().toLowerCase();
+  const envRole=roleFor(normalized);
+  if(['owner','admin'].includes(envRole))return{email:normalized,role:envRole,permissions:[],active:true,source:'environment'};
+  const member=await directory.read(normalized).catch(()=>null);
+  if(member?.active!==false&&member?.role)return{...member,email:normalized,source:'directory'};
+  return{email:normalized,role:envRole,permissions:[],active:envRole!=='client',source:'environment'};
+}
+
+async function effectiveRoleFor(email){return (await effectiveMember(email)).role||'client'}
+
 function hasPermission(role, permission) {
   const list = PERMISSIONS[role] || [];
   if (list.includes('*') || list.includes(String(permission))) return true;
@@ -68,6 +80,13 @@ function permisosDe(email) {
   const custom = rolesConfig()[normalized];
   if (Array.isArray(custom)) custom.map(String).forEach((permission) => permissions.add(permission));
   return permissions;
+}
+
+async function effectivePermissions(email){
+  const member=await effectiveMember(email),permissions=new Set(PERMISSIONS[member.role]||[]);
+  const envCustom=rolesConfig()[member.email];if(Array.isArray(envCustom))envCustom.map(String).forEach(p=>permissions.add(p));
+  if(Array.isArray(member.permissions))member.permissions.map(String).forEach(p=>permissions.add(p));
+  return{member,permissions};
 }
 
 function staffConfigured() {
@@ -90,10 +109,11 @@ async function requireStaff(event, permission = 'platform.read') {
     return { ok: false, statusCode: 401, error: 'La sesión ha caducado. Vuelve a entrar.' };
   }
   const email = String(verified.email || '').trim().toLowerCase();
-  const role = roleFor(email);
-  const permissions = permisosDe(email);
+  const {member,permissions}=await effectivePermissions(email);
+  const role=member.role||'client';
+  if(role==='client'||member.active===false)return{ok:false,statusCode:403,error:'Esta cuenta no tiene acceso interno.'};
   if (!permissionSetAllows(permissions, permission)) return { ok: false, statusCode: 403, error: 'Esta cuenta no tiene permiso para esta operación.' };
-  return { ok: true, email, role, claims: verified.claims, permissions: [...permissions], sessionSource: verified.source };
+  return { ok: true, email, role, claims: verified.claims, permissions: [...permissions], sessionSource: verified.source, staffSource:member.source };
 }
 
 async function exigePermiso(event, permiso) {
@@ -111,6 +131,7 @@ function staffConfig() {
     operators: parseList(ROLE_ENV.operator).length,
     support: parseList(ROLE_ENV.support).length,
     custom: Object.keys(rolesConfig()).length,
+    dynamic: true,
   };
 }
 
@@ -120,6 +141,9 @@ module.exports = {
   PERMISSIONS,
   rolesConfig,
   roleFor,
+  effectiveRoleFor,
+  effectiveMember,
+  effectivePermissions,
   hasPermission,
   permisosDe,
   staffConfigured,

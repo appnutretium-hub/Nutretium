@@ -2,7 +2,7 @@
 const crypto=require('crypto');
 const {cabecerasCORS}=require('../lib/cors');
 const {signJWT,secretConfigured}=require('../lib/jwt');
-const {verifyUserToken}=require('../lib/session');
+const session=require('../lib/session');
 const {rolDe}=require('../lib/admin');
 const {hashPassword,verifyPassword}=require('../lib/passwords');
 const usuarios=require('../lib/usuarios');
@@ -15,7 +15,11 @@ const MAX_INTENTOS=5,VENTANA_MS=15*60*1000;
 function revisaFicha({name,surname,phone}){if(!name)return'El nombre es obligatorio.';if(name.length>MAX_NOMBRE)return'El nombre no puede pasar de '+MAX_NOMBRE+' caracteres.';if(surname.length>MAX_NOMBRE)return'Los apellidos no pueden pasar de '+MAX_NOMBRE+' caracteres.';if(phone.length>MAX_TELEFONO)return'El teléfono no puede pasar de '+MAX_TELEFONO+' caracteres.';if(phone&&!TELEFONO_VALIDO.test(phone))return'El teléfono solo puede llevar números, espacios y los signos + ( ) . -';if([name,surname,phone].some(c=>/[<>]/.test(c)))return'Ni el nombre ni los apellidos ni el teléfono pueden llevar «<» ni «>».';return null}
 function fichaPublica(user,extra){return Object.assign({id:user.id,name:user.name,surname:user.surname,email:user.email,phone:user.phone,direccion:direccion.normaliza(user.direccion),direccionCompleta:direccion.completa(user.direccion),role:rolDe(user.email)},extra||{})}
 function response(statusCode,payload,headers=CORS){return{statusCode,headers,body:JSON.stringify(payload)}}
-function customerToken(user,email){return signJWT({sub:user.id,email,kind:'customer',sv:Number(user.sessionVersion||0),exp:Math.floor(Date.now()/1000)+60*60*24*30})}
+function customerToken(user,email){return signJWT({sub:user.id,email,kind:'customer',sv:Number(user.sessionVersion||0),exp:Math.floor(Date.now()/1000)+session.CUSTOMER_SESSION_TTL_SECONDS})}
+function authenticatedResponse(statusCode,user,email){
+ const token=customerToken(user,email);
+ return response(statusCode,{user:fichaPublica(user,{token}),sessionTransport:'cookie',legacyToken:true},{...CORS,'Set-Cookie':session.customerSessionCookie(token),'Cache-Control':'no-store'});
+}
 async function upgradeHashIfNeeded(email,password,user,verification){
  if(!verification.needsRehash)return;
  const upgraded=hashPassword(password),at=new Date().toISOString();
@@ -33,7 +37,7 @@ exports.handler=async function(event){
   const emailLower=email.toLowerCase().trim(),id=crypto.randomUUID(),user={id,name:ficha.name,surname:ficha.surname,email:emailLower,phone:ficha.phone,direccion:dir,passwordHash:hashPassword(password),sessionVersion:0,createdAt:new Date().toISOString()};
   let created;try{created=await usuarios.crea(emailLower,user)}catch{return response(503,{error:'No se ha podido crear la cuenta en este momento.'})}
   if(!created)return response(409,{error:'Ya existe una cuenta con ese email.'});
-  const token=customerToken(user,emailLower);return response(201,{user:fichaPublica(user,{token})});
+  return authenticatedResponse(201,user,emailLower);
  }
  if(body.action==='login'){
   const{email,password}=body;if(!email||!password)return response(400,{error:'Email y contraseña son obligatorios.'});const emailLower=email.toLowerCase().trim();
@@ -42,19 +46,20 @@ exports.handler=async function(event){
   const user=await readUser(emailLower),verification=user?verifyPassword(password,user.passwordHash):{ok:false,needsRehash:false};if(!user||!verification.ok)return response(401,{error:'Email o contraseña incorrectos.'});
   await upgradeHashIfNeeded(emailLower,password,user,verification);
   await reset({scope:'login',event,extra:emailLower});
-  const token=customerToken(user,emailLower);return response(200,{user:fichaPublica(user,{token})});
+  return authenticatedResponse(200,user,emailLower);
  }
+ if(body.action==='logout')return response(200,{ok:true},{...CORS,'Set-Cookie':session.clearCustomerSessionCookie(),'Cache-Control':'no-store'});
  if(body.action==='profile'){
-  if(!body.token)return response(401,{error:'Token requerido.'});let verified;try{verified=await verifyUserToken(body.token,{requireUser:false})}catch{return response(401,{error:'Token inválido, revocado o expirado.'})}if(!verified.user)return response(404,{error:'Usuario no encontrado.'});return response(200,{user:fichaPublica(verified.user)});
+  let verified;try{verified=await session.verifyCustomerEventSession(event,{legacyToken:body.token,requireUser:false})}catch{return response(401,{error:'Sesión inválida, revocada o expirada.'})}if(!verified.user)return response(404,{error:'Usuario no encontrado.'});return response(200,{user:fichaPublica(verified.user),sessionTransport:verified.source});
  }
  if(body.action==='update'){
-  if(!body.token)return response(401,{error:'Token requerido.'});let verified;try{verified=await verifyUserToken(body.token,{requireUser:false})}catch{return response(401,{error:'Token inválido, revocado o expirado.'})}if(!verified.user)return response(404,{error:'Usuario no encontrado.'});
+  let verified;try{verified=await session.verifyCustomerEventSession(event,{legacyToken:body.token,requireUser:false})}catch{return response(401,{error:'Sesión inválida, revocada o expirada.'})}if(!verified.user)return response(404,{error:'Usuario no encontrado.'});
   const ficha={name:String(body.name||'').trim(),surname:String(body.surname||'').trim(),phone:String(body.phone||'').trim()},problema=revisaFicha(ficha);if(problema)return response(400,{error:problema});
   let requestedDir=null;if(body.direccion!==undefined){requestedDir=direccion.normaliza(body.direccion);const problemaDir=direccion.revisa(requestedDir);if(problemaDir)return response(400,{error:problemaDir})}
   let actualizado;try{actualizado=await usuarios.muta(verified.email,current=>({...current,name:ficha.name,surname:ficha.surname,phone:ficha.phone,direccion:requestedDir||direccion.normaliza(current.direccion),updatedAt:new Date().toISOString()}))}catch{return response(409,{error:'Tu perfil cambió al mismo tiempo desde otra sesión. Inténtalo de nuevo.'})}
-  if(!actualizado)return response(404,{error:'Usuario no encontrado.'});return response(200,{user:fichaPublica(actualizado)});
+  if(!actualizado)return response(404,{error:'Usuario no encontrado.'});return response(200,{user:fichaPublica(actualizado),sessionTransport:verified.source},{...CORS,'Cache-Control':'no-store'});
  }
  return response(400,{error:'Acción no reconocida.'});
 };
 
-exports._test={upgradeHashIfNeeded,customerToken};
+exports._test={upgradeHashIfNeeded,customerToken,authenticatedResponse};

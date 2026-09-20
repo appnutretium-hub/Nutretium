@@ -2,13 +2,15 @@
 const crypto=require('crypto');
 const {requireStaff}=require('../lib/staff');
 const {verifyStepUp}=require('../lib/security-step-up');
+const defense=require('../lib/security-defense');
+const security=require('../lib/security-policy');
 const {getBlobStore}=require('../lib/blob-store');
 const enterprise=require('../lib/enterprise-store');
 const {withLock}=require('../lib/distributed-lock');
 const paymentConfig=require('../lib/payment-config');
 const {cabecerasCORS}=require('../lib/cors');
 const CORS=cabecerasCORS('POST, OPTIONS'),URLS={test:'https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST',production:'https://sis.redsys.es/sis/rest/trataPeticionREST'},SYSTEM={email:'system@nutretium.local',role:'system'};
-const resp=(s,b)=>({statusCode:s,headers:{...CORS,'Cache-Control':'no-store'},body:JSON.stringify(b)});
+const resp=(s,b)=>({statusCode:s,headers:{...CORS,...security.securityHeaders()},body:JSON.stringify(b)});
 function signingKey(secret,order){const key=Buffer.from(secret,'base64'),iv=Buffer.alloc(8,0),cipher=crypto.createCipheriv('des-ede3-cbc',key,iv);cipher.setAutoPadding(false);const buf=Buffer.alloc(Math.ceil(order.length/8)*8,0);buf.write(order,'utf8');return Buffer.concat([cipher.update(buf),cipher.final()]);}
 function sign(params,secret,order){return crypto.createHmac('sha256',signingKey(secret,order)).update(params).digest('base64');}
 function decodeParameters(v){try{return JSON.parse(Buffer.from(v,'base64').toString('utf8'))}catch{return null}}
@@ -51,6 +53,7 @@ exports.handler=async event=>{
  try{return await withLock(`refund:${orderId}`,async()=>{
   const order=await orders.get(orderId,{type:'json',consistency:'strong'}).catch(()=>null);if(!order||order.status!=='PAID'||order.amountMismatch)return resp(409,{error:'El pedido no es reembolsable automáticamente.'});
   const paid=Math.round(Number(order.amount||0)*100),refunded=Number(order.refundedCents||0);if(amountCents>paid-refunded)return resp(409,{error:'El reembolso supera el saldo reembolsable.'});
+  const replay=await defense.consumeMutationNonce({event,actor:auth.email,scope:`refund:${orderId}:${amountCents}`});if(!replay.ok)return resp(replay.statusCode,{error:replay.error,code:replay.code});
   const mp={DS_MERCHANT_AMOUNT:String(amountCents),DS_MERCHANT_ORDER:orderId,DS_MERCHANT_MERCHANTCODE:merchant,DS_MERCHANT_CURRENCY:'978',DS_MERCHANT_TRANSACTIONTYPE:'3',DS_MERCHANT_TERMINAL:terminal},params=Buffer.from(JSON.stringify(mp)).toString('base64'),payload={Ds_SignatureVersion:'HMAC_SHA256_V1',Ds_MerchantParameters:params,Ds_Signature:sign(params,secret,orderId)};
   let r,data;try{r=await fetch(URLS[env]||URLS.test,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});data=await r.json().catch(()=>({}))}catch(err){await incident(orderId,amountCents,{error:'network',details:String(err.message||err).slice(0,240)});return resp(502,{error:'No se pudo conectar con Redsys.'})}
   const checked=verifyRefundResponse(data,{secret,orderId,amountCents,merchant,terminal});

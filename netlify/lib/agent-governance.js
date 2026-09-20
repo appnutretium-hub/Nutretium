@@ -1,5 +1,6 @@
 'use strict';
 
+const workforce=require('./enterprise-workforce');
 const A=(label,department,scopes,autonomous,sensitive=[])=>({label,department,scopes,autonomous,sensitive});
 const AGENTS=Object.freeze({
  executive_brain:A('Cerebro Ejecutivo IA','Dirección',['platform.read','analytics.read','operations.propose'],['executive-brief','cross-functional-scan','growth-priorities'],['policy-change','automation-enable','integration-enable']),
@@ -44,18 +45,31 @@ const NEVER_AUTONOMOUS=new Set([
  'purchase-order-approve','purchase-order-send','product-approve','product-block','claim-approve','lot-release','lot-recall',
  'staff-change','permission-change','employment-decision','integration-enable','integration-disable','automation-enable','account-change',
  'capital-allocation','market-entry-approve','contract-commit','legal-approval','risk-acceptance','supplier-create','supplier-block',
- 'marketplace-publish','promotion-publish','publish','product-publish','product-unpublish','price-change','discount','customer-message'
+ 'marketplace-publish','promotion-publish','publish','product-publish','product-unpublish','price-change','discount','customer-message',
+ ...workforce.FORBIDDEN_AUTONOMY
 ]);
-const VETO_AGENTS=new Set(['audit','compliance','enterprise_risk','security','finance','procurement_control']);
+const VETO_AGENTS=new Set(['audit','compliance','enterprise_risk','security','finance','procurement_control',...workforce.VETO_ROLES]);
 const safe=v=>String(v||'').trim().toLowerCase();
 
+function profile(agent){
+ const name=safe(agent),legacy=AGENTS[name];
+ if(legacy)return{agent:name,label:legacy.label,title:legacy.label,department:legacy.department,family:null,level:null,reportsTo:null,mission:null,responsibilities:[],kpis:[],scopes:[...legacy.scopes],autonomous:[...legacy.autonomous],sensitive:[...legacy.sensitive],vetoAgent:VETO_AGENTS.has(name),source:'legacy'};
+ const r=workforce.getRole(name);
+ if(!r)return null;
+ return{agent:name,label:r.title,title:r.title,department:r.department,family:r.family,level:r.level,reportsTo:r.reportsTo,mission:r.mission,responsibilities:[...r.responsibilities],kpis:[...r.kpis],scopes:[...r.scopes],autonomous:[...r.autonomous],sensitive:[...r.sensitive],vetoAgent:workforce.VETO_ROLES.has(name),source:'enterprise-workforce'};
+}
 function policy(agent,action){
  const name=safe(agent),a=safe(action),def=AGENTS[name];
- if(!def)return{allowed:false,error:'Agente no reconocido.'};
  if(!a)return{allowed:false,error:'Acción de agente no indicada.'};
+ if(!def){
+  const wp=workforce.rolePolicy(name,a);
+  if(!wp.allowed)return{allowed:false,error:wp.error};
+  const r=workforce.getRole(name);
+  return{allowed:true,agent:name,action:a,label:r.title,department:r.department,scopes:[...r.scopes],sensitive:wp.requiresApproval,autonomous:wp.autonomous,requiresApproval:wp.requiresApproval,vetoAgent:wp.vetoRole,riskTier:wp.risk,source:'enterprise-workforce'};
+ }
  const sensitive=def.sensitive.includes(a)||NEVER_AUTONOMOUS.has(a);
  const autonomous=def.autonomous.includes(a)&&!sensitive;
- return{allowed:true,agent:name,action:a,label:def.label,department:def.department,scopes:def.scopes,sensitive,autonomous,requiresApproval:!autonomous,vetoAgent:VETO_AGENTS.has(name)};
+ return{allowed:true,agent:name,action:a,label:def.label,department:def.department,scopes:def.scopes,sensitive,autonomous,requiresApproval:!autonomous,vetoAgent:VETO_AGENTS.has(name),source:'legacy'};
 }
 function canApprove(proposal,auth){
  if(!proposal||!auth)return false;
@@ -63,7 +77,10 @@ function canApprove(proposal,auth){
  return['owner','admin'].includes(String(auth.role||''));
 }
 function publicRegistry(){
- return Object.fromEntries(Object.entries(AGENTS).map(([key,value])=>[key,{label:value.label,department:value.department,scopes:value.scopes,autonomous:value.autonomous,sensitive:value.sensitive,vetoAgent:VETO_AGENTS.has(key)}]));
+ const legacy=Object.fromEntries(Object.entries(AGENTS).map(([key,value])=>[key,{label:value.label,title:value.label,department:value.department,scopes:value.scopes,autonomous:value.autonomous,sensitive:value.sensitive,vetoAgent:VETO_AGENTS.has(key),source:'legacy'}]));
+ const enterprise=Object.fromEntries(Object.entries(workforce.publicRegistry()).map(([key,value])=>[key,{...value,label:value.title,scopes:workforce.ROLES[key].scopes,source:'enterprise-workforce'}]));
+ return{...legacy,...enterprise};
 }
-function departments(){const out={};for(const [key,value] of Object.entries(AGENTS)){(out[value.department]??=[]).push(key)}return out}
-module.exports={AGENTS,NEVER_AUTONOMOUS,VETO_AGENTS,policy,canApprove,publicRegistry,departments};
+function departments(){const out={};for(const [key,value] of Object.entries(publicRegistry())){(out[value.department]??=[]).push(key)}return out}
+function workforceSummary(){const validation=workforce.validate();return{...validation,legacyAgents:Object.keys(AGENTS).length,totalRegistered:Object.keys(publicRegistry()).length,families:Object.fromEntries(Object.entries(workforce.families()).map(([k,v])=>[k,v.length]))};}
+module.exports={AGENTS,NEVER_AUTONOMOUS,VETO_AGENTS,policy,profile,canApprove,publicRegistry,departments,workforce,workforceSummary};

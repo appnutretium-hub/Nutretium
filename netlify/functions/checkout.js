@@ -9,7 +9,9 @@ const direccion = require('../lib/direccion');
 const promotions = require('../lib/promotions');
 const shipping = require('../lib/shipping');
 const inventory = require('../lib/inventory');
-const paymentConfig = require('../lib/payment-config');
+const paymentConfig = require('../lib/payment-orchestrator');
+const flags = require('../lib/feature-flags');
+const trace = require('../lib/trace-context');
 const settings = require('../lib/settings');
 const { consume } = require('../lib/rate-limit');
 const compliance = require('../lib/compliance-gate');
@@ -35,6 +37,8 @@ function summary(pedido,promo,shipment,totalCents){return{subtotal:pedido.totalC
 exports.handler=async function(event){
   if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
   if(event.httpMethod!=='POST')return json(405,{error:'Method Not Allowed'});
+  const traceId=trace.fromEvent(event);
+  try{flags.requireEnabled('payments');flags.requireEnabled('shipping');flags.requireEnabled('factusol');}catch(error){return json(503,{error:error.message,code:error.code},{...trace.headers(traceId),'Retry-After':'300'});}
   const managedSettings=await settings.read().catch(()=>null);if(Boolean(managedSettings?.maintenance?.enabled)||String(process.env.MAINTENANCE_MODE||'').toLowerCase()==='true')return json(503,{error:'La tienda online está temporalmente en mantenimiento. No se iniciará ningún cobro.'},{'Retry-After':'300'});
   const rate=await consume({scope:'checkout',event,limit:8,windowMs:10*60*1000}).catch(()=>({allowed:false,degraded:true,retryAfter:60}));
   if(!rate.allowed)return json(429,{error:rate.degraded?'El control de seguridad del checkout no está disponible. Reintenta en un minuto.':'Demasiados intentos de checkout seguidos. Espera unos minutos antes de volver a intentarlo.'},{'Retry-After':String(rate.retryAfter||60)});
@@ -75,7 +79,7 @@ exports.handler=async function(event){
   let payment;try{payment=redsysPayload({order,totalCents,merchant,terminal,notify,ok,ko,secret,env})}catch(e){await inventory.release(order,pedido.lineas);console.error('[checkout] firma',e);return json(500,{error:'No se pudo preparar el pago.'})}
   if(previous)return json(200,{...payment,summary:summary(pedido,promo,shipment,totalCents),idempotent:true,reservationExpiresAt:reservation.expiresAt});
 
-  const record={order,email:identidad.email,envio:identidad.envio,cliente:[identidad.comprador.name,identidad.comprador.surname].filter(Boolean).join(' '),telefono:identidad.comprador.phone||'',guest:Boolean(identidad.guest),items:pedido.lineas,subtotal:pedido.totalCents/100,discount:promo.ok?promo.discountCents/100:0,promotion:promo.ok?{code:promo.code,label:promo.label}:null,shipping:{amount:shipment.shippingCents/100,label:shipment.label,country:shipment.country,free:shipment.free},amount:totalCents/100,currency:'978',status:'PENDING',legalAcceptance:{termsVersion:'2026-09-20',acceptedAt:new Date().toISOString()},complianceCheckedAt:new Date().toISOString(),factusolValidated:factusol.bypassed!==true,factusolValidatedAt:factusol.bypassed===true?null:new Date().toISOString(),checkoutFingerprint:fp,checkoutRequestId:reqId||null,inventoryReservation:{status:'RESERVED',expiresAt:reservation.expiresAt,productIds:reservation.reservedProductIds},createdAt:new Date().toISOString()};
+  const record={order,email:identidad.email,envio:identidad.envio,cliente:[identidad.comprador.name,identidad.comprador.surname].filter(Boolean).join(' '),telefono:identidad.comprador.phone||'',guest:Boolean(identidad.guest),items:pedido.lineas,subtotal:pedido.totalCents/100,discount:promo.ok?promo.discountCents/100:0,promotion:promo.ok?{code:promo.code,label:promo.label}:null,shipping:{amount:shipment.shippingCents/100,label:shipment.label,country:shipment.country,free:shipment.free},amount:totalCents/100,currency:'978',status:'PENDING',legalAcceptance:{termsVersion:'2026-09-20',acceptedAt:new Date().toISOString()},complianceCheckedAt:new Date().toISOString(),factusolValidated:factusol.bypassed!==true,factusolValidatedAt:factusol.bypassed===true?null:new Date().toISOString(),checkoutFingerprint:fp,checkoutRequestId:reqId||null,traceId,inventoryReservation:{status:'RESERVED',expiresAt:reservation.expiresAt,productIds:reservation.reservedProductIds},createdAt:new Date().toISOString()};
   try{await store.setJSON(order,record);const verify=await store.get(order,{type:'json'}).catch(()=>null);if(!verify||verify.order!==order||verify.checkoutFingerprint!==fp||Math.round(Number(verify.amount)*100)!==totalCents)throw new Error('pedido no verificable tras persistencia');if(!identidad.guest){const idx=getBlobStore('user-orders');if(idx){const prev=(await idx.get(identidad.email,{type:'json'}).catch(()=>null))||[];await idx.setJSON(identidad.email,[order,...prev.filter(x=>x!==order)].slice(0,100));}}}catch(e){await inventory.release(order,pedido.lineas);console.error('[checkout] persistencia obligatoria',order,e);return json(503,{error:'No se ha podido guardar el pedido de forma segura. No se iniciará ningún cobro. Inténtalo de nuevo.'})}
-  return json(200,{...payment,summary:summary(pedido,promo,shipment,totalCents),reservationExpiresAt:reservation.expiresAt});
+  return json(200,{...payment,summary:summary(pedido,promo,shipment,totalCents),reservationExpiresAt:reservation.expiresAt},trace.headers(traceId));
 };

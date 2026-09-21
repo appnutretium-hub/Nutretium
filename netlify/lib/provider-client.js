@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const resilience = require('./provider-resilience');
 
 function env(prefix, key) {
   return process.env[`${prefix}_${key}`] || '';
@@ -42,17 +43,15 @@ async function request(prefix, path, payload, options = {}) {
   if (options.idempotencyKey) headers['Idempotency-Key'] = String(options.idempotencyKey).slice(0, 200);
   const target = new URL(String(path || '').replace(/^\/+/, ''), cfg.url.href.endsWith('/') ? cfg.url : `${cfg.url.href}/`);
   if (target.origin !== cfg.url.origin) throw Object.assign(new Error('Ruta de proveedor no permitida.'), { statusCode: 400 });
-  let response;
-  try {
-    response = await fetch(target, { method: options.method || 'POST', headers, body, signal: AbortSignal.timeout(Number(options.timeoutMs || 12000)) });
-  } catch (error) {
-    throw Object.assign(new Error('No se pudo conectar con el proveedor.'), { code: 'PROVIDER_UNAVAILABLE', statusCode: 502, cause: error });
-  }
-  const text = await response.text();
-  let data = {};
-  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text.slice(0, 1000) }; }
-  if (!response.ok) throw Object.assign(new Error(data.error || data.message || `Proveedor respondió ${response.status}.`), { code: 'PROVIDER_REJECTED', statusCode: 502, providerStatus: response.status });
-  return data;
+  return resilience.execute(prefix, async () => {
+    let response;
+    try { response = await fetch(target, { method: options.method || 'POST', headers, body, signal: AbortSignal.timeout(Number(options.timeoutMs || 12000)) }); }
+    catch (error) { throw Object.assign(new Error('No se pudo conectar con el proveedor.'), { code: 'PROVIDER_UNAVAILABLE', statusCode: 502, cause: error }); }
+    const text = await response.text(); let data = {};
+    try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text.slice(0, 1000) }; }
+    if (!response.ok) throw Object.assign(new Error(data.error || data.message || `Proveedor respondió ${response.status}.`), { code: 'PROVIDER_REJECTED', statusCode: 502, providerStatus: response.status });
+    return data;
+  }, options.resilience);
 }
 
 function verifyWebhook(prefix, rawBody, headers = {}) {

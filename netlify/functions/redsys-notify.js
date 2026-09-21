@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const { getBlobStore } = require('../lib/blob-store');
 const inventory = require('../lib/inventory');
 const finalize = require('../lib/order-finalize');
-const paymentConfig = require('../lib/payment-config');
+const paymentConfig = require('../lib/payment-orchestrator');
 const { sendEmail, buildStoreOrderEmail, buildCustomerOrderEmail } = require('../lib/email');
 
 const HEADERS = { 'Content-Type':'text/plain; charset=utf-8' };

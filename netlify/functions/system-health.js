@@ -3,6 +3,8 @@ const { cabecerasCORS }=require('../lib/cors');
 const { exigePermiso }=require('../lib/staff');
 const { blobStoreReady }=require('../lib/blob-store');
 const shipping=require('../lib/shipping');
+const flags=require('../lib/feature-flags');
+const resilience=require('../lib/provider-resilience');
 const { NUTRETIUM_PRODUCTS=[] }=require('../../products-data.js');
 const CORS=cabecerasCORS('GET, OPTIONS');
 function value(name){return String(process.env[name]||'').trim()}
@@ -29,5 +31,5 @@ exports.handler=async function(event){
  const ready=platformReady&&paymentsReady&&emailReady;
  const critical=[...platformCritical,...paymentCritical,...emailCritical];
  const missing=critical.filter(k=>!checks[k]);
- return{statusCode:200,headers:{...CORS,'Cache-Control':'no-store'},body:JSON.stringify({ready,platformReady,paymentsReady,emailReady,maintenance:checks.maintenance,environment:value('REDSYS_ENV')||'test',checks,missing,catalog:catalogAudit()})};
+ return{statusCode:200,headers:{...CORS,'Cache-Control':'no-store'},body:JSON.stringify({ready,platformReady,paymentsReady,emailReady,maintenance:checks.maintenance,environment:value('REDSYS_ENV')||'test',checks,missing,catalog:catalogAudit(),featureFlags:flags.status(),providerCircuits:resilience.status()})};
 };

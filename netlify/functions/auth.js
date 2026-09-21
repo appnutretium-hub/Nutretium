@@ -46,12 +46,15 @@ exports.handler=async function(event){
  }
  if(body.action==='login'){
   const{email,password}=body;if(!email||!password)return response(400,{error:'Email y contraseña son obligatorios.'});const emailLower=email.toLowerCase().trim();
+  const user=await readUser(emailLower),verification=user?verifyPassword(password,user.passwordHash):{ok:false,needsRehash:false};
+  if(user&&verification.ok){
+   await upgradeHashIfNeeded(emailLower,password,user,verification);
+   await reset({scope:'login',event,extra:emailLower});
+   return authenticatedResponse(200,user,emailLower);
+  }
   const gate=await consume({scope:'login',event,extra:emailLower,limit:MAX_INTENTOS,windowMs:VENTANA_MS});
-  if(!gate.allowed){const seconds=Math.max(1,Number(gate.retryAfter)||60);return response(429,{error:`Demasiados intentos. Prueba otra vez dentro de ${Math.max(1,Math.ceil(seconds/60))} minutos.`},{...CORS,'Retry-After':String(seconds)})}
-  const user=await readUser(emailLower),verification=user?verifyPassword(password,user.passwordHash):{ok:false,needsRehash:false};if(!user||!verification.ok)return response(401,{error:'Email o contraseña incorrectos.'});
-  await upgradeHashIfNeeded(emailLower,password,user,verification);
-  await reset({scope:'login',event,extra:emailLower});
-  return authenticatedResponse(200,user,emailLower);
+  if(!gate.allowed){const seconds=Math.max(1,Number(gate.retryAfter)||60);return response(429,{error:`Demasiados intentos incorrectos. Prueba otra vez dentro de ${Math.max(1,Math.ceil(seconds/60))} minutos.`},{...CORS,'Retry-After':String(seconds)})}
+  return response(401,{error:'Email o contraseña incorrectos.'});
  }
  if(body.action==='logout')return response(200,{ok:true},{...CORS,'Set-Cookie':session.clearCustomerSessionCookie(),'Cache-Control':'no-store'});
  if(body.action==='profile'){

@@ -26,6 +26,7 @@ const parse=r=>JSON.parse(r.body||'{}');
  const second=await staffLogin.handler(event({email,password}));assert.strictEqual(second.statusCode,401);assert.strictEqual(parse(second).mfa.setupSecret,setup.mfa.setupSecret,'Reintentar no debe regenerar la clave pendiente');
  const code=totp.code(setup.mfa.setupSecret);const confirmed=await staffLogin.handler(event({email,password,mfaCode:code}));assert.strictEqual(confirmed.statusCode,200,'Un código válido debe completar enrolamiento y permitir acceso');assert.strictEqual(parse(confirmed).user.mfa,true);
  const after=await usuarios.lee(email);assert(after.mfaConfiguredAt);assert(!after.mfaEnrollmentPendingAt);
- const wrongIp='127.0.0.77';for(let i=0;i<5;i++){const bad=await staffLogin.handler(event({email,password:'incorrecta-'+i},wrongIp));assert.strictEqual(bad.statusCode,401)}const validAfterBad=await staffLogin.handler(event({email,password,mfaCode:totp.code(setup.mfa.setupSecret)},wrongIp));assert.strictEqual(validAfterBad.statusCode,200,'Cinco errores de contraseña no deben encerrar inmediatamente una credencial válida');
+ const wrongIp='127.0.0.77';for(let i=0;i<5;i++){const bad=await staffLogin.handler(event({email,password:'incorrecta-'+i},wrongIp));assert.strictEqual(bad.statusCode,401)}
+ const nextWindowCode=totp.code(setup.mfa.setupSecret,Date.now()+30000);const validAfterBad=await staffLogin.handler(event({email,password,mfaCode:nextWindowCode},wrongIp));assert.strictEqual(validAfterBad.statusCode,200,'Cinco errores de contraseña no deben encerrar inmediatamente una credencial válida');
  console.log('[test-staff-access-recovery] OK · enrolamiento MFA recuperable · clave estable · acceso válido tras errores previos');
 })().catch(err=>{console.error(err);process.exit(1)});

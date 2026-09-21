@@ -54,13 +54,14 @@ exports.handler = async event => {
   const email = String(body.email || '').trim().toLowerCase(),password = String(body.password || ''),mfaCode = String(body.mfaCode || '').replace(/\s/g, '');
   if(!email||!password)return response(400,{error:'Email y contraseña son obligatorios.'});
 
-  const passwordGate=await checkThrottle(event,email,'password');
-  if(!passwordGate.ok)return response(429,{error:`Demasiados intentos de contraseña. Prueba otra vez dentro de ${Math.max(1,Math.ceil(passwordGate.retryAfter/60))} minutos.`},{'Retry-After':String(passwordGate.retryAfter)});
-
   const user = await usuarios.lee(email);
   const role = await effectiveRoleFor(email);
   const verification = user ? verifyPasswordRecord(password, user.passwordHash) : { ok:false, needsRehash:false };
-  if (!user || role === 'client' || !verification.ok) return response(401, { error: 'Credenciales incorrectas.' });
+  if (!user || role === 'client' || !verification.ok) {
+    const passwordGate=await checkThrottle(event,email,'password');
+    if(!passwordGate.ok)return response(401,{error:'Credenciales incorrectas.'});
+    return response(401, { error: 'Credenciales incorrectas.' });
+  }
   await clearAttempts(event,email,'password');
 
   const requireMfa = mfaRequiredFor(role,user);
@@ -70,7 +71,7 @@ exports.handler = async event => {
     if(!secret)return response(503,{error:'MFA no está configurado para esta cuenta. Contacta con el propietario.'});
     if (!mfaCode) return response(401, {error: 'Introduce el código de 6 dígitos de tu aplicación de autenticación.',mfaRequired: true});
     const mfaGate=await checkThrottle(event,email,'mfa');
-    if(!mfaGate.ok)return response(429,{error:'Demasiados códigos MFA incorrectos. Espera un momento antes de volver a intentarlo.',mfaRequired:true},{'Retry-After':String(mfaGate.retryAfter)});
+    if(!mfaGate.ok)return response(401,{error:'Código MFA incorrecto.',mfaRequired:true});
     if (!verifyTotp(secret, mfaCode)) return response(401, { error: 'Código MFA incorrecto.', mfaRequired: true });
     const once=await mfaReplay.consume(email,mfaCode);
     if(!once.ok)return response(once.code==='MFA_REPLAY_GUARD_UNAVAILABLE'?503:409,{error:once.error,code:once.code,mfaRequired:true});
@@ -82,6 +83,6 @@ exports.handler = async event => {
   await clearAttempts(event,email);
   const binding=defense.newSessionBinding(event);
   const token = signJWT({sub: user.id,email,role,kind: 'staff-login',mfa: mfaVerified,sv: Number(user.sessionVersion || 0),fp:binding.fp,jti:binding.jti,exp: Math.floor(Date.now() / 1000) + security.STAFF_LOGIN_TTL_SECONDS});
-  return response(200, {user: {id: user.id,name: user.name,surname: user.surname,email: user.email,phone: user.phone,role,token,mfa: mfaVerified,mfaRequired:requireMfa,rateLimitFallback:Boolean(passwordGate.fallback),expiresIn:security.STAFF_LOGIN_TTL_SECONDS}});
+  return response(200, {user: {id: user.id,name: user.name,surname: user.surname,email: user.email,phone: user.phone,role,token,mfa: mfaVerified,mfaRequired:requireMfa,expiresIn:security.STAFF_LOGIN_TTL_SECONDS}});
 };
 exports._test = { verifyPassword, upgradeHashIfNeeded, checkThrottle, clearAttempts, privilegedMfaExempt, mfaRequiredFor };

@@ -38,6 +38,7 @@ jobs:
           npm run test:customer
           npm run test:security
           npm run test:admin-security
+          node scripts/test-staff-access-recovery.js
           node scripts/test-zero-trust-security.js
           npm run test:admin
           npm run test:cuentas
@@ -64,6 +65,8 @@ jobs:
           node --check producto.js
           node --check wishlist-sync.js
           node --check staff-session-bridge.js
+          node --check staff-login-ui.js
+          node --check scripts/test-staff-access-recovery.js
           node --check scripts/build-seo-pages.js
           node --check scripts/compose-app.js
           node --check scripts/test-external-readiness.js

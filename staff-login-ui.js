@@ -2,6 +2,32 @@
 (function () {
   'use strict';
 
+  function setupBox(form) {
+    let box=form.querySelector('[data-mfa-setup-box]');
+    if(box)return box;
+    box=document.createElement('div');
+    box.dataset.mfaSetupBox='1';
+    box.hidden=true;
+    box.style.cssText='margin:12px 0;padding:12px;border:1px solid #4b3f14;border-radius:10px;background:#171407;color:#e7d38b;overflow-wrap:anywhere';
+    box.innerHTML='<strong>Configura MFA para continuar</strong><p data-mfa-help style="margin:7px 0"></p><div data-mfa-secret style="font-family:ui-monospace,monospace;font-size:15px;letter-spacing:.06em;word-break:break-all"></div><button type="button" data-copy-mfa style="margin-top:8px">Copiar clave MFA</button>';
+    const error=form.querySelector('.error')||document.getElementById('errorAcceso')||document.getElementById('loginError');
+    if(error)error.insertAdjacentElement('beforebegin',box);else form.appendChild(box);
+    box.querySelector('[data-copy-mfa]').addEventListener('click',async()=>{const secret=box.querySelector('[data-mfa-secret]').textContent;try{await navigator.clipboard.writeText(secret);box.querySelector('[data-copy-mfa]').textContent='Clave copiada';setTimeout(()=>box.querySelector('[data-copy-mfa]').textContent='Copiar clave MFA',1200)}catch{}});
+    return box;
+  }
+
+  function showSetup(form,data,mfa,mfaLabel){
+    const box=setupBox(form),secret=data?.mfa?.setupSecret||'';
+    if(secret){
+      box.hidden=false;
+      box.querySelector('[data-mfa-help]').textContent='Añade esta clave en Google Authenticator, Microsoft Authenticator, 1Password u otra app TOTP. Después introduce abajo el código de 6 dígitos.';
+      box.querySelector('[data-mfa-secret]').textContent=secret;
+    }
+    if(mfaLabel)mfaLabel.hidden=false;
+    mfa.required=true;
+    mfa.focus();
+  }
+
   function setup() {
     const forms = [document.getElementById('formAcceso'), document.getElementById('loginForm')].filter(Boolean);
 
@@ -14,7 +40,7 @@
       if (!email || !password) continue;
 
       let mfa = form.querySelector('#mfaCode,[data-staff-mfa]');
-      let mfaLabel = mfa ? mfa.closest('label') : null;
+      let mfaLabel = mfa ? mfa.closest('label,.field') : null;
 
       if (!mfa) {
         mfaLabel = document.createElement('label');
@@ -36,6 +62,7 @@
 
       if (mfaLabel) mfaLabel.hidden = true;
       mfa.required = false;
+      setupBox(form);
 
       if (!form.querySelector('[data-password-recovery]')) {
         const recovery = document.createElement('button');
@@ -57,10 +84,7 @@
           event.preventDefault();
           event.stopImmediatePropagation();
 
-          const error =
-            form.querySelector('.error') ||
-            document.getElementById('errorAcceso') ||
-            document.getElementById('loginError');
+          const error = form.querySelector('.error') || document.getElementById('errorAcceso') || document.getElementById('loginError');
           const button = form.querySelector('button[type="submit"],button:not([type])');
 
           if (error) error.textContent = '';
@@ -70,29 +94,16 @@
             const response = await fetch('/.netlify/functions/staff-login', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                email: email.value.trim(),
-                password: password.value,
-                mfaCode: mfa.value.trim(),
-              }),
+              body: JSON.stringify({ email: email.value.trim(), password: password.value, mfaCode: mfa.value.trim() }),
             });
-
             const data = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-              if (data.mfaRequired) {
-                if (mfaLabel) mfaLabel.hidden = false;
-                mfa.required = true;
-                mfa.focus();
-              } else if (data.mfaSetupRequired) {
-                if (mfaLabel) mfaLabel.hidden = true;
-                mfa.required = false;
-              }
+              if (data.mfaSetupRequired) showSetup(form,data,mfa,mfaLabel);
+              else if (data.mfaRequired) { if (mfaLabel) mfaLabel.hidden = false; mfa.required = true; mfa.focus(); }
               throw new Error(data.error || 'No se pudo entrar.');
             }
 
-            // El puente de seguridad ya ha canjeado el token efímero por una cookie HttpOnly.
-            // No persistimos credenciales ni datos de sesión interna en Web Storage.
             location.reload();
           } catch (err) {
             if (error) error.textContent = err.message;

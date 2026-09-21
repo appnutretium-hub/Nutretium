@@ -1,12 +1,25 @@
 name: Nutretium AI Corporation Gate
 on:
   workflow_dispatch:
+  push:
+    branches: [main, 'feature/**', 'security/**', 'hardening/**', 'hotfix/**']
+    paths:
+      - 'netlify/lib/ai-*.js'
+      - 'netlify/lib/ollama-queue.js'
+      - 'netlify/functions/ai-*.js'
+      - 'scripts/ollama-runner.js'
+      - 'scripts/test-ai-*.js'
+      - 'products-data.js'
+      - '.github/workflows/ai-control-plane.yml'
+      - '.env.example'
+  pull_request:
+    branches: [main]
 permissions:
   contents: read
 jobs:
   ai-corporation:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -20,16 +33,23 @@ jobs:
       - name: AI Corporation syntax
         run: |
           node --check netlify/lib/agent-governance.js
+          node --check netlify/lib/ai-live-sources.js
           node --check netlify/lib/ai-truth-layer.js
           node --check netlify/lib/ai-memory.js
           node --check netlify/lib/ai-decision-engine.js
           node --check netlify/lib/ai-runtime.js
+          node --check netlify/lib/ollama-queue.js
+          node --check netlify/lib/ai-ollama-orchestrator.js
           node --check netlify/functions/ai-control-plane.js
           node --check netlify/functions/ai-worker.js
-          node --check ai-corporation.js
+          node --check netlify/functions/ai-ollama-runner.js
+          node --check scripts/ollama-runner.js
           node --check scripts/test-ai-control-plane.js
+          node --check scripts/test-ai-live-ollama.js
       - name: AI Corporation governance regressions
         run: node scripts/test-ai-control-plane.js
+      - name: Live sources and Ollama queue regressions
+        run: node scripts/test-ai-live-ollama.js
       - name: Maximum security repository gate
         run: node scripts/security-max-gate.js
       - name: Security regressions

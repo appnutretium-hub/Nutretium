@@ -1,9 +1,6 @@
 name: Nutretium Nexus Architecture Gate
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: ['feat/nutretium-nexus-40']
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -24,10 +21,21 @@ jobs:
         run: |
           node --check netlify/lib/nexus-core.js
           node --check netlify/functions/nexus-status.js
+          node --check netlify/lib/enterprise-workforce.js
+          node --check netlify/lib/enterprise-workforce-runtime.js
+          node --check netlify/functions/workforce-status.js
+          node --check netlify/functions/workforce-run.js
+          node --check netlify/functions/workforce-worker.js
           node --check scripts/test-nexus-core.js
+          node --check scripts/test-enterprise-workforce.js
+          node --check scripts/test-enterprise-workforce-runtime.js
           node --check scripts/normalize-storefront-contract.js
       - name: Nexus architecture regressions
         run: node scripts/test-nexus-core.js
+      - name: Enterprise workforce structure regressions
+        run: node scripts/test-enterprise-workforce.js
+      - name: Enterprise workforce runtime regressions
+        run: node scripts/test-enterprise-workforce-runtime.js
       - name: Existing AI governance regressions
         run: node scripts/test-ai-control-plane.js
       - name: Maximum security repository gate

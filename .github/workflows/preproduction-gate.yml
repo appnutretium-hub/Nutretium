@@ -1,12 +1,10 @@
 name: Nutretium Preproduction Gate
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: preproduction-${{ github.event.pull_request.number || github.ref }}
+  group: preproduction-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   preproduction:

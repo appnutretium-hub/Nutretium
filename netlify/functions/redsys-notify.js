@@ -14,7 +14,7 @@ const { sendEmail, buildStoreOrderEmail, buildCustomerOrderEmail } = require('..
 const HEADERS = { 'Content-Type':'text/plain; charset=utf-8' };
 
 async function getStore(){ return getBlobStore('redsys-orders'); }
-function isEnterpriseOrder(record){return Array.isArray(record?.reservations)||Boolean(record?.complianceCheckedAt)}
+function isEnterpriseOrder(record){return Array.isArray(record?.reservations)}
 
 function deriveSigningKey(secretKeyBase64, orderNumber){
   const keyBuffer = Buffer.from(secretKeyBase64,'base64');

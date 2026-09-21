@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('fs');
 const required=[
-  'index.html','commerce-pro.js','commerce-suite.js','commercial-finish.js','commercial-finish.css','compare-suite.js','pro-qa-fixes.js','production-finish.js','mobile-commerce-pro.js','mobile-commerce-pro.css','comparar.html','comparar.js','producto.html','producto.js','product-education.js','aprende.html','checkout.html','checkout.js','cuenta.html','cuenta.js','smart-shop.html','smart-shop.js','backoffice.html','backoffice.js','control.html','control.js','ayuda.html','.env.example','TODO.md',
+  'index.html','commerce-pro.js','commerce-suite.js','commercial-finish.js','commercial-finish.css','compare-suite.js','pro-qa-fixes.js','production-finish.js','mobile-commerce-pro.js','mobile-commerce-pro.css','comparar.html','comparar.js','producto.html','producto.js','product-pim.js','product-education.js','aprende.html','checkout.html','checkout.js','condiciones.html','cuenta.html','cuenta.js','smart-shop.html','smart-shop.js','backoffice.html','backoffice.js','control.html','control.js','ayuda.html','.env.example','TODO.md',
   'netlify/functions/checkout.js','netlify/functions/commerce.js','netlify/functions/orders.js','netlify/functions/admin-orders.js','netlify/functions/saved-cart.js','netlify/functions/analytics-event.js','netlify/functions/admin-analytics.js','netlify/functions/system-health.js','netlify/functions/reviews.js','netlify/functions/redsys-notify.js','netlify/functions/contact.js','netlify/functions/account-security.js','netlify/functions/guest-order.js','netlify/lib/guest-access.js','netlify/lib/promotions.js','netlify/lib/staff.js','netlify/lib/email.js'
 ];
 const missing=required.filter(f=>!fs.existsSync(f));
@@ -62,7 +62,8 @@ has('franchise-trust.js','card.dataset.productId');
 has('ayuda.html','href="/mi-nutretium"');
 has('netlify.toml','/mi-nutretium');
 has('netlify.toml','/comparar');
-has('netlify.toml','node scripts/audit-architecture.js');
+has('netlify.toml','command = "npm run build"');
+has('package.json','node scripts/audit-architecture.js');
 has('aprende.html','Entiende lo que compras');
 has('product-education.js','NUTRETIUM APRENDE');
 has('comparar.html','Compara sin adivinar');

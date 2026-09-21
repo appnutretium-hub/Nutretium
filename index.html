@@ -4,7 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nutretium | Nutrición deportiva y alimentación saludable en Santander</title>
-  <meta name="description" content="Nutretium en Santander: suplementación deportiva, açaí, smoothies y alimentación saludable. Compra online y atención desde nuestra tienda física." />
+  <meta name="description" content="Nutretium en Santander: suplementación deportiva, açaí, smoothies y alimentación saludable. Explora el catálogo online y consulta al equipo si necesitas ayuda para elegir.">
+  <link rel="canonical" href="https://nutretium.com/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Nutretium" />
+  <meta property="og:title" content="Nutretium | Nutrición y rendimiento en Santander" />
+  <meta property="og:description" content="Suplementación deportiva, alimentación saludable, açaí y smoothies en Santander." />
+  <meta property="og:url" content="https://nutretium.com/" />
+  <meta name="twitter:card" content="summary" />
   <!-- Tailwind compilado en el build (npm run build:css). Antes se cargaba
        desde cdn.tailwindcss.com, que compila el CSS en el navegador y el
        propio Tailwind desaconseja en producción. Config: tailwind.config.js -->
@@ -350,8 +357,12 @@
       color: #e8e8e8;
     }
   </style>
-
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"SportingGoodsStore","name":"Nutretium","url":"https://nutretium.com/","address":{"@type":"PostalAddress","streetAddress":"Calle La Albericia 1","addressLocality":"Santander","addressRegion":"Cantabria","postalCode":"39012","addressCountry":"ES"},"telephone":"+34633753517"}</script>
+  <link rel="stylesheet" href="runtime-guard.css">
+  <link rel="stylesheet" href="smart-store.css">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="alternate" type="application/ld+json" href="/.netlify/functions/catalog-json" title="Catálogo Nutretium JSON-LD">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"SportingGoodsStore","name":"Nutretium","url":"https://nutretium.com/","telephone":"+34633753517","address":{"@type":"PostalAddress","streetAddress":"Calle La Albericia 1","addressLocality":"Santander","addressRegion":"Cantabria","addressCountry":"ES"},"openingHoursSpecification":[{"@type":"OpeningHoursSpecification","dayOfWeek":["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],"opens":"09:30","closes":"22:00"}]}</script>
 </head>
 <body class="font-sans antialiased">
 
@@ -399,7 +410,7 @@
         </svg>
         <span id="redsysBtnText">Pagar con Redsys</span>
       </button>
-      <p class="text-xs text-brand-muted text-center">Pago 100% seguro · Cifrado SSL · Redsys</p>
+      <p class="text-xs text-brand-muted text-center">Pago con tarjeta mediante Redsys</p>
     </div>
   </aside>
 
@@ -416,7 +427,11 @@
   <div class="bg-gradient-to-r from-brand-golddark via-brand-gold to-brand-golddark text-black">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-center gap-2 text-center">
       <p class="text-xs sm:text-sm font-bold tracking-wide">
-        Compra online y atención desde Santander <span class="hidden xs:inline mx-2 opacity-50">|</span> <span class="block xs:inline">Crea tu cuenta para guardar pedidos y favoritos</span>
+        Compra online con gastos calculados antes del pago
+        <span class="hidden xs:inline mx-2 opacity-50">|</span>
+        <br class="xs:hidden"/>
+        Crea tu cuenta para guardar pedidos y favoritos
+        <button onclick="openModal('registerModal')" class="underline font-black hover:text-white transition-colors">¡Regístrate ahora!</button>
       </p>
     </div>
   </div>
@@ -427,7 +442,7 @@
   <div class="bg-brand-card border-b border-brand-border hidden sm:block">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-9 flex items-center justify-between">
       <!-- Left: small tagline -->
-      <p class="text-xs text-brand-muted">Santander · Tienda física + online</p>
+      <p class="text-xs text-brand-muted">Tienda física en Santander · Atención personalizada</p>
       <!-- Right: hours + phone -->
       <div class="flex items-center gap-5 text-xs text-brand-muted">
         <span class="flex items-center gap-1.5">
@@ -790,7 +805,7 @@
     </div>
   </nav>
 
-  <main id="main-content">
+  <main id="mainContent">
 
   <!-- ══════════════════════════════════════════
        HERO
@@ -826,10 +841,22 @@
   ══════════════════════════════════════════ -->
   <div class="bg-brand-card border-y border-brand-border">
     <div id="statsBar" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 stats-grid grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-      <div class="py-1"><p class="text-xl sm:text-2xl font-black text-brand-gold">Santander</p><p class="text-xs text-brand-muted uppercase tracking-wider mt-1">Tienda física · La Albericia</p></div>
-      <div class="py-1"><p class="text-xl sm:text-2xl font-black text-brand-gold">Online</p><p class="text-xs text-brand-muted uppercase tracking-wider mt-1">Catálogo y compra desde la web</p></div>
-      <div class="py-1"><p class="text-xl sm:text-2xl font-black text-brand-gold">Redsys</p><p class="text-xs text-brand-muted uppercase tracking-wider mt-1">Pasarela bancaria</p></div>
-      <div class="py-1"><p class="text-xl sm:text-2xl font-black text-brand-gold">Ayuda</p><p class="text-xs text-brand-muted uppercase tracking-wider mt-1">Atención antes y después</p></div>
+      <div class="py-1">
+        <p id="statClients" class="stat-num text-xl sm:text-2xl font-black text-brand-gold">Santander</p>
+        <p class="text-xs text-brand-muted uppercase tracking-wider mt-1">Tienda física</p>
+      </div>
+      <div class="py-1">
+        <p class="stat-num text-xl sm:text-2xl font-black text-brand-gold">Catálogo</p>
+        <p class="text-xs text-brand-muted uppercase tracking-wider mt-1">Productos publicados</p>
+      </div>
+      <div class="py-1">
+        <p class="stat-num text-xl sm:text-2xl font-black text-brand-gold">Redsys</p>
+        <p class="text-xs text-brand-muted uppercase tracking-wider mt-1">Pasarela bancaria</p>
+      </div>
+      <div class="py-1">
+        <p class="stat-num text-xl sm:text-2xl font-black text-brand-gold">Ayuda</p>
+        <p class="text-xs text-brand-muted uppercase tracking-wider mt-1">Atención y soporte</p>
+      </div>
     </div>
   </div>
 
@@ -871,21 +898,21 @@
   </section>
 
   <!-- ══════════════════════════════════════════
-       BANNER PRINCIPAL — REGALO / ENVÍO GRATIS
+       BANNER PRINCIPAL — CATÁLOGO Y CONDICIONES
   ══════════════════════════════════════════ -->
   <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
     <div class="relative overflow-hidden rounded-3xl border border-brand-gold/40 bg-gradient-to-r from-brand-dark via-[#15120a] to-brand-dark p-8 sm:p-12">
       <div class="absolute inset-0 opacity-25 pointer-events-none" aria-hidden="true" style="background-image: radial-gradient(circle at 85% 30%, #D4AF37 0%, transparent 45%);"></div>
       <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <span class="inline-block bg-brand-gold/15 border border-brand-gold/30 text-brand-gold text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4">Promoción exclusiva</span>
+          <span class="inline-block bg-brand-gold/15 border border-brand-gold/30 text-brand-gold text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4">Catálogo online</span>
           <h2 class="text-2xl sm:text-3xl md:text-4xl font-black leading-tight">
-            Compras superiores a <span class="text-brand-gold gold-text">50€</span>
+            Compra online desde <span class="text-brand-gold gold-text">Nutretium</span>
           </h2>
-          <p class="text-brand-muted text-base sm:text-lg mt-2">🎁 Regalo gratis &nbsp;o&nbsp; 🚚 Envío gratis a península</p>
+          <p class="text-brand-muted text-base sm:text-lg mt-2">Explora el catálogo y revisa las condiciones disponibles antes de confirmar tu pedido</p>
         </div>
         <a href="#products" class="flex-shrink-0 bg-brand-gold text-black font-black px-7 py-4 rounded-xl text-sm sm:text-base hover:bg-brand-goldlight transition-colors text-center">
-          Aprovechar oferta
+          Ver catálogo
         </a>
       </div>
     </div>
@@ -896,9 +923,14 @@
   ══════════════════════════════════════════ -->
   <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
     <div class="relative overflow-hidden rounded-3xl border border-brand-border aspect-video sm:aspect-[21/9] bg-black">
-      <div class="w-full h-full flex items-center justify-center p-8 bg-gradient-to-br from-black via-[#15120a] to-black" role="img" aria-label="Nutretium Santander, tienda física y online">
-        <div class="text-center max-w-2xl"><p class="text-brand-gold text-xs font-bold uppercase tracking-widest">NUTRETIUM · SANTANDER</p><p class="text-white text-2xl sm:text-4xl font-black mt-3">Tienda física + compra online</p><p class="text-brand-muted mt-3">C/ La Albericia 1 · Suplementación deportiva, açaí, smoothies y alimentación saludable.</p></div>
-      </div>
+      <video
+        class="w-full h-full object-cover opacity-80"
+        autoplay muted loop playsinline
+        
+        aria-label="Vídeo deportivo NUTRETIUM"
+      >
+        
+      </video>
       <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
       <div class="absolute bottom-0 left-0 p-6 sm:p-10">
         <span class="text-brand-gold text-xs font-bold uppercase tracking-widest">Tu mejor versión empieza hoy</span>
@@ -1003,7 +1035,7 @@
       <div class="text-center max-w-2xl mx-auto mb-10 sm:mb-12">
         <span class="text-brand-gold text-xs font-bold uppercase tracking-widest">Entrenador personal</span>
         <h2 class="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mt-2">Tu plan, hecho a tu medida</h2>
-        <p class="text-brand-muted mt-3 text-sm sm:text-base">Trabaja con profesionales certificados y consigue resultados reales con un acompañamiento 100% personalizado.</p>
+        <p class="text-brand-muted mt-3 text-sm sm:text-base">Solicita información sobre entrenamiento y el equipo te confirmará disponibilidad, alcance y condiciones del servicio.</p>
       </div>
       <div class="grid sm:grid-cols-3 gap-4 sm:gap-6 mb-10">
         <div class="bg-brand-dark border border-brand-border rounded-2xl p-6 text-center hover:border-brand-gold/50 transition-colors">
@@ -1014,7 +1046,7 @@
         <div class="bg-brand-dark border border-brand-border rounded-2xl p-6 text-center hover:border-brand-gold/50 transition-colors">
           <span class="text-4xl">🥗</span>
           <h3 class="font-bold text-lg mt-4">Dietas</h3>
-          <p class="text-brand-muted text-sm mt-2 leading-relaxed">Planes nutricionales adaptados a tus metas, gustos y alergias.</p>
+          <p class="text-brand-muted text-sm mt-2 leading-relaxed">Información sobre hábitos y objetivos dentro del alcance del profesional que preste el servicio.</p>
         </div>
         <div class="bg-brand-dark border border-brand-border rounded-2xl p-6 text-center hover:border-brand-gold/50 transition-colors">
           <span class="text-4xl">🔄</span>
@@ -1026,7 +1058,7 @@
         <button onclick="openModal('trainerModal')" class="inline-flex items-center gap-2 bg-brand-gold text-black font-black px-8 py-4 rounded-xl text-sm sm:text-base hover:bg-brand-goldlight transition-colors">
           💪 Solicita tu plan personalizado
         </button>
-        <p class="text-xs text-brand-muted mt-3">Primera evaluación gratuita · Respuesta en menos de 24 h</p>
+        <p class="text-xs text-brand-muted mt-3">El equipo confirmará disponibilidad y condiciones del servicio.</p>
       </div>
     </div>
   </section>
@@ -1040,12 +1072,12 @@
         <span class="text-brand-gold text-xs font-bold uppercase tracking-widest">Recogida rápida</span>
         <h2 class="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mt-2 mb-4">Zona Take Away</h2>
         <p class="text-brand-muted leading-relaxed mb-6 text-sm sm:text-base">
-          Pide online y recoge en tienda en minutos. Batidos recién preparados, snacks proteicos y productos listos para llevar, sin esperas ni colas.
+          Consulta directamente con Nutretium la carta y disponibilidad actual de productos preparados.
         </p>
         <ul class="space-y-3 mb-8">
-          <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg">✓</span> Pedido listo en 15 minutos</li>
+          <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg">✓</span> Disponibilidad sujeta a confirmación</li>
           <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg">✓</span> Batidos y bowls recién hechos</li>
-          <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg">✓</span> Paga online o al recoger</li>
+          <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg">✓</span> Condiciones de pago según el pedido confirmado</li>
         </ul>
         <button onclick="openModal('takeawayModal')" class="inline-flex items-center gap-2 bg-brand-gold text-black font-black px-7 py-3.5 rounded-xl text-sm hover:bg-brand-goldlight transition-colors">
           🥤 Pedir para recoger
@@ -1110,7 +1142,7 @@
     <div class="mb-8 sm:mb-12 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
       <div>
         <h2 class="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight">Lo que dicen nuestros clientes</h2>
-        <p class="text-brand-muted mt-2 text-sm sm:text-base">Opiniones verificadas de compradores reales.</p>
+        <p class="text-brand-muted mt-2 text-sm sm:text-base">Opiniones publicadas tras revisión.</p>
       </div>
       <button onclick="openModal('reviewModal')" class="flex-shrink-0 bg-brand-gold text-black font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-brand-goldlight transition-colors self-start sm:self-auto">
         + Dejar reseña
@@ -1131,29 +1163,29 @@
         <h2 class="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mt-3 mb-5 sm:mb-6">Ciencia al servicio<br/>del rendimiento</h2>
         <p class="text-brand-muted leading-relaxed mb-6 sm:mb-8 text-sm sm:text-base">
           <ul class="space-y-3">
-          <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg flex-shrink-0">✓</span> Ingredientes de grado farmacéutico</li>
-          <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg flex-shrink-0">✓</span> Sin aditivos artificiales innecesarios</li>
-          <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg flex-shrink-0">✓</span> Testado por terceros (Informed Sport)</li>
-          <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg flex-shrink-0">✓</span> Pago 100% seguro con Redsys</li>
+          <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg flex-shrink-0">✓</span> Catálogo de nutrición deportiva y alimentación saludable</li>
+          <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg flex-shrink-0">✓</span> Consulta ingredientes y alérgenos en la ficha y etiquetado de cada producto</li>
+          <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg flex-shrink-0">✓</span> Información basada en la documentación disponible de cada producto</li>
+          <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg flex-shrink-0">✓</span> Pago con tarjeta mediante Redsys</li>
         </ul>
       </div>
       <!-- Cert cards — 2x2 on mobile/tablet, stacked 2x2 always -->
       <div class="about-certs grid grid-cols-2 gap-3 sm:gap-4">
         <div class="cert-card bg-brand-dark border border-brand-border rounded-2xl p-4 sm:p-6 text-center">
-          <p class="text-3xl sm:text-4xl font-black text-brand-gold mb-1 sm:mb-2">ISO</p>
-          <p class="text-xs text-brand-muted uppercase tracking-wider">Certificación 22000</p>
+          <p class="text-3xl sm:text-4xl font-black text-brand-gold mb-1 sm:mb-2">CATÁLOGO</p>
+          <p class="text-xs text-brand-muted uppercase tracking-wider">Información de producto</p>
         </div>
         <div class="cert-card bg-brand-dark border border-brand-border rounded-2xl p-4 sm:p-6 text-center">
-          <p class="text-3xl sm:text-4xl font-black text-brand-gold mb-1 sm:mb-2">GMP</p>
-          <p class="text-xs text-brand-muted uppercase tracking-wider">Buenas prácticas</p>
+          <p class="text-3xl sm:text-4xl font-black text-brand-gold mb-1 sm:mb-2">FICHAS</p>
+          <p class="text-xs text-brand-muted uppercase tracking-wider">Datos y etiquetado</p>
         </div>
         <div class="cert-card bg-brand-dark border border-brand-border rounded-2xl p-4 sm:p-6 text-center">
-          <p class="text-3xl sm:text-4xl font-black text-brand-gold mb-1 sm:mb-2">SSL</p>
-          <p class="text-xs text-brand-muted uppercase tracking-wider">Pago cifrado</p>
+          <p class="text-3xl sm:text-4xl font-black text-brand-gold mb-1 sm:mb-2">REDSYS</p>
+          <p class="text-xs text-brand-muted uppercase tracking-wider">Pasarela bancaria</p>
         </div>
         <div class="cert-card bg-brand-dark border border-brand-border rounded-2xl p-4 sm:p-6 text-center">
-          <p class="text-3xl sm:text-4xl font-black text-brand-gold mb-1 sm:mb-2">30d</p>
-          <p class="text-xs text-brand-muted uppercase tracking-wider">Garantía total</p>
+          <p class="text-3xl sm:text-4xl font-black text-brand-gold mb-1 sm:mb-2">AYUDA</p>
+          <p class="text-xs text-brand-muted uppercase tracking-wider">Atención y soporte</p>
         </div>
       </div>
     </div>
@@ -1289,7 +1321,7 @@
         <span class="text-brand-gold font-black text-xl sm:text-2xl tracking-tighter gold-text">NUTRE<span class="text-white">TIUM</span></span>
         <h4 class="text-white font-bold text-sm uppercase tracking-wider mt-5 mb-3">Por qué Nutretium</h4>
         <p class="text-brand-muted text-sm leading-relaxed">
-          En Nutretium creemos que cuidarte no debería ser complicado. Por eso seleccionamos cada producto con criterios de máxima calidad: ingredientes de grado farmacéutico, marcas líderes y formulaciones testadas por terceros. Detrás de cada pedido hay un equipo apasionado por el deporte y la salud, asesoramiento experto y un compromiso real con tus resultados. Catálogo y compra desde la web, precios justos y envíos rápidos: esa es nuestra forma de acompañarte para que des lo mejor de ti, cada día.
+          En Nutretium seleccionamos nutrición deportiva y alimentación saludable con información clara y atención cercana desde Santander. Consulta la ficha y el etiquetado vigente de cada referencia, y pregunta al equipo cuando necesites ayuda para elegir.
         </p>
       </div>
 
@@ -1352,9 +1384,8 @@
         <div>
           <h4 class="text-white font-bold text-sm uppercase tracking-wider mb-4">Atención al cliente</h4>
           <ul class="space-y-2 text-sm text-brand-muted leading-relaxed">
-            <li>✓ <strong class="text-white">30 días</strong> de devolución</li>
-            <li>✓ Envío de vuelta gratuito</li>
-            <li>✓ Cambios sin coste</li>
+            <li><a href="/ayuda#devoluciones" class="hover:text-brand-gold transition-colors">✓ Devoluciones y desistimiento</a></li>
+            <li><a href="/ayuda#envios" class="hover:text-brand-gold transition-colors">✓ Entrega y gastos</a></li>
             <li><a href="tel:+34633753517" class="hover:text-brand-gold transition-colors">📞 633 753 517</a></li>
             <li><a href="mailto:appnutretium@gmail.com" class="hover:text-brand-gold transition-colors">✉️ appnutretium@gmail.com</a></li>
           </ul>
@@ -1365,13 +1396,7 @@
       <div class="border-t border-brand-border pt-6 mb-6">
         <p class="text-xs font-bold text-brand-muted uppercase tracking-wider mb-3">Métodos de pago seguros</p>
         <div class="flex flex-wrap items-center gap-2.5">
-          <span class="pay-badge">💳 Tarjeta</span>
-          <span class="pay-badge">PayPal</span>
-          <span class="pay-badge">Bizum</span>
-          <span class="pay-badge">SeQura</span>
-          <span class="pay-badge">Klarna</span>
-          <span class="pay-badge">Apple&nbsp;Pay</span>
-          <span class="pay-badge">Google&nbsp;Pay</span>
+          <span class="pay-badge">💳 Tarjeta mediante Redsys</span>
         </div>
       </div>
 
@@ -1379,7 +1404,7 @@
       <div class="border-t border-brand-border pt-6">
         <div class="flex flex-wrap gap-x-5 gap-y-2 mb-4 text-xs text-brand-muted">
           <button onclick="openInfo('envios')" class="hover:text-brand-gold transition-colors">Información de envíos</button>
-          <button onclick="openInfo('condiciones')" class="hover:text-brand-gold transition-colors">Condiciones generales</button>
+          <a href="/condiciones" class="hover:text-brand-gold transition-colors">Condiciones generales</a>
           <a href="/privacidad" class="hover:text-brand-gold transition-colors">Política de privacidad</a>
           <button onclick="openInfo('cookies')" class="hover:text-brand-gold transition-colors">Uso de cookies</button>
           <!-- Retirar el consentimiento tiene que ser tan fácil como darlo. -->
@@ -2100,6 +2125,21 @@
 
   <script src="products-data.js"></script>
   <script src="app.js"></script>
+  <script src="trust-fixes.js"></script>
+  <script src="commerce-pro.js"></script>
+  <script src="wishlist-sync.js"></script>
+  <script src="final-hardening.js"></script>
+  <script src="commerce-suite.js"></script>
+  <script src="commercial-finish.js"></script>
+  <script src="compare-suite.js"></script>
+  <script src="smart-store-engine.js"></script>
+  <script src="smart-store.js"></script>
+  <script src="pro-qa-fixes.js"></script>
+  <script src="production-finish.js"></script>
+  <script src="mobile-commerce-pro.js"></script>
+  <script src="runtime-content.js"></script>
+  <script src="runtime-performance.js"></script>
+  <script src="runtime-guard.js"></script>
   <script src="animations.js"></script>
 </body>
 </html>

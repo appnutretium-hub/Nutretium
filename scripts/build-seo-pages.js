@@ -79,7 +79,9 @@ function buildProductPages() {
     const pre = `<div class="crumb"><a href="/">Inicio</a> · <a href="/categoria/${pim.slugify(p.category || 'catalogo')}">${esc(p.category || 'Catálogo')}</a> · ${esc(p.name)}</div><section class="product"><div class="visual">${p.images?.[0]?`<img src="/${esc(p.images[0])}" alt="${esc(p.name)}">`:`<div class="emoji">${esc(p.emoji || '📦')}</div>`}</div><div><span class="eyebrow">${esc(p.brand || p.category || 'Nutretium')}</span><h1 class="title">${esc(p.name)}</h1><div class="price">€${Number(p.price).toFixed(2)}</div><p class="desc">${esc(description)}</p><noscript><p>Activa JavaScript para seleccionar variantes y añadir este producto al carrito.</p></noscript></div></section>`;
     let html = source
       .replace(/<title>[^<]*<\/title>/, `<title>${esc(p.name)} | NUTRETIUM</title>`)
-      .replace('</head>', `  <meta name="description" content="${esc(description)}"><link rel="canonical" href="${canonical}"><script id="nt-product-schema" type="application/ld+json">${json(productSchema)}</script><script id="nt-breadcrumb-schema" type="application/ld+json">${json(breadcrumb)}</script>\n</head>`)
+      .replace(/<meta\s+name="description"[^>]*>/i, `<meta name="description" content="${esc(description)}">`)
+      .replace(/<link\s+rel="canonical"[^>]*>/i, `<link rel="canonical" href="${canonical}">`)
+      .replace('</head>', `  <meta property="og:type" content="product"><meta property="og:title" content="${esc(p.name)} | NUTRETIUM"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${canonical}">${p.images?.[0]?`<meta property="og:image" content="${esc(abs('/'+p.images[0].replace(/^\//,'')))}">`:''}<script id="nt-product-schema" type="application/ld+json">${json(productSchema)}</script><script id="nt-breadcrumb-schema" type="application/ld+json">${json(breadcrumb)}</script>\n</head>`)
       .replace('<main id="app" class="wrap"></main>', `<main id="app" class="wrap">${pre}</main>`);
     writeRoute('producto', `${pim.slugify(p.name)}-${p.id}`, html);
   }
@@ -107,7 +109,7 @@ function buildCollections() {
 }
 
 function buildSitemap(brands) {
-  const urls = new Set([`${ORIGIN}/`,`${ORIGIN}/ayuda`,`${ORIGIN}/aprende`,`${ORIGIN}/recomendador`,`${ORIGIN}/privacidad`]);
+  const urls = new Set([`${ORIGIN}/`,`${ORIGIN}/ayuda`,`${ORIGIN}/aprende`,`${ORIGIN}/recomendador`,`${ORIGIN}/privacidad`,`${ORIGIN}/condiciones`]);
   NUTRETIUM_CATEGORIES.forEach(c => { if (products.some(p=>p.category===c)) urls.add(`${ORIGIN}/categoria/${pim.slugify(c)}`); });
   brands.forEach(b => urls.add(`${ORIGIN}/marca/${pim.slugify(b)}`));
   pim.SEO_INTENTS.forEach(x => { if (products.some(p=>x.categories.includes(p.category))) urls.add(`${ORIGIN}/objetivo/${x.slug}`); });

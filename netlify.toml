@@ -1,67 +1,7 @@
 [build]
   publish = "dist"
   functions = "netlify/functions"
-  command = """
-    npm run build:css &&
-    node scripts/staff-login-inject.js &&
-    cat human-touch.css >> styles.css &&
-    cat commerce-core.css >> styles.css &&
-    node scripts/compose-app.js &&
-    node --check app.js &&
-    node --check trust-fixes.js &&
-    node --check commerce-pro.js &&
-    node --check final-hardening.js &&
-    node --check commerce-suite.js &&
-    node --check commercial-finish.js &&
-    node --check compare-suite.js &&
-    node --check pro-qa-fixes.js &&
-    node --check production-finish.js &&
-    node --check mobile-commerce-pro.js &&
-    node --check product-variants.js &&
-    node --check producto.js &&
-    node --check product-education.js &&
-    node --check comparar.js &&
-    node --check checkout.js &&
-    node --check cuenta.js &&
-    node --check smart-shop.js &&
-    node --check admin-shell.js &&
-    node --check staff-login-ui.js &&
-    node --check settings.js &&
-    node --check control.js &&
-    node --check backoffice.js &&
-    node --check ops.js &&
-    node --check enterprise.js &&
-    node --check ai-corporation.js &&
-    node --check netlify/lib/email.js &&
-    node --check netlify/lib/promotions.js &&
-    node --check netlify/lib/staff.js &&
-    node --check netlify/lib/session.js &&
-    node --check netlify/lib/enterprise-store.js &&
-    node --check netlify/lib/outbox.js &&
-    node --check netlify/lib/agent-governance.js &&
-    node --check netlify/lib/ai-truth-layer.js &&
-    node --check netlify/lib/ai-memory.js &&
-    node --check netlify/lib/ai-decision-engine.js &&
-    node --check netlify/lib/ai-runtime.js &&
-    node --check netlify/functions/ai-control-plane.js &&
-    node --check netlify/functions/ai-worker.js &&
-    node --check netlify/functions/auth.js &&
-    node --check netlify/functions/outbox-worker.js &&
-    node --check netlify/functions/redsys-notify.js &&
-    node --check netlify/functions/checkout.js &&
-    node --check netlify/functions/commerce.js &&
-    node --check netlify/functions/saved-cart.js &&
-    node --check netlify/functions/analytics-event.js &&
-    node --check netlify/functions/admin-analytics.js &&
-    node --check netlify/functions/system-health.js &&
-    node --check netlify/functions/production-sentinel.js &&
-    node --check netlify/functions/admin-orders.js &&
-    node --check netlify/functions/contact.js &&
-    node scripts/test-ai-control-plane.js &&
-    node scripts/smoke-web.js &&
-    node scripts/audit-architecture.js &&
-    node scripts/prepare-dist.js
-  """
+  command = "npm run build"
 
 [build.environment]
   NODE_VERSION = "22"
@@ -80,6 +20,8 @@
   schedule = "0 7 * * *"
 [functions."ai-worker"]
   schedule = "30 5 * * *"
+[functions."workforce-worker"]
+  schedule = "0 * * * *"
 [functions."notification-worker"]
   schedule = "*/30 * * * *"
 [functions."outbox-worker"]
@@ -216,6 +158,10 @@
 [[redirects]]
   from = "/privacidad"
   to = "/privacidad.html"
+  status = 200
+[[redirects]]
+  from = "/condiciones"
+  to = "/condiciones.html"
   status = 200
 [[redirects]]
   from = "/comparar"

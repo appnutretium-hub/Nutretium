@@ -1,13 +1,10 @@
 name: Nutretium Maximum Security Gate
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
   schedule:
     - cron: '17 3 * * 1'
 concurrency:
-  group: security-max-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: security-max-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read

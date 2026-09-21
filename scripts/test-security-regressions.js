@@ -36,7 +36,7 @@ function signedWithHeader(header,payload){const h=Buffer.from(JSON.stringify(hea
 
  const cuenta=fs.readFileSync('cuenta.js','utf8');assert(cuenta.includes("currentPassword:$('oldPassword').value"),'Mi Cuenta debe enviar currentPassword al backend');
 
- const blocked=await checkoutSecure.handler({httpMethod:'POST',headers:{host:'nutretium.com','x-nf-client-connection-ip':'127.0.0.210'},body:JSON.stringify({action:'pay',items:[],guest:{email:'a@b.com',name:'A'}})});
+ const blocked=await checkoutSecure.handler({httpMethod:'POST',headers:{host:'nutretium.com','x-nf-client-connection-ip':'127.0.0.210'},body:JSON.stringify({action:'pay',items:[],termsAccepted:true,termsVersion:'2026-09-20',guest:{email:'a@b.com',name:'A'}})});
  assert.strictEqual(blocked.statusCode,503,'Producción no puede iniciar cobro Enterprise sin COMMERCE_LIVE y Redsys production');
  process.env.MAINTENANCE_MODE='true';
  const maintenance=await checkoutSecure.handler({httpMethod:'POST',headers:{host:'preview.local','x-nf-client-connection-ip':'127.0.0.211'},body:JSON.stringify({action:'quote',items:[]})});

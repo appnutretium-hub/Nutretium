@@ -12,6 +12,7 @@ const NEVER_PUBLIC_EXT=new Set(['.md','.txt','.csv','.xlsx','.xls','.pdf','.env'
 
 function allowedFile(full,relative){
  const base=path.basename(relative),ext=path.extname(base).toLowerCase();
+ if(relative.startsWith('sources'+path.sep+'amix_fotos_categoria_nombre_pvp_FINAL_WEB'+path.sep))return false;
  if(PUBLIC_FILES.has(relative)||PUBLIC_FILES.has(base))return true;
  if(!relative.includes(path.sep)&&ROOT_FILE_DENY.has(base))return false;
  if(NEVER_PUBLIC_EXT.has(ext))return false;

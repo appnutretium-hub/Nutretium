@@ -1,9 +1,6 @@
 name: Nutretium Build & Enterprise Gate
 on:
-  # Solo en PR: main-integrity.yml exige que todo commit de main venga de un pull
-  # request, así que el push a main repetiría un CI que ya pasó.
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 concurrency:
   group: quality-${{ github.workflow }}-${{ github.sha }}
   cancel-in-progress: true

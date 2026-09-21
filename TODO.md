@@ -11,7 +11,7 @@ Documento actualizado tras el hardening final. Los puntos de código que ya est�
 - Cambio y recuperación de contraseña, verificación de email y revocación de sesiones.
 - Seguimiento seguro para pedidos de invitado.
 - Rate limiting en endpoints sensibles.
-- Auditoría de arquitectura, seguridad, trust/claims y pruebas E2E de navegador.
+- Auditoría de arquitectura, seguridad y claims; suite E2E de navegador preparada en CI.
 - Quality Gates de GitHub para build y navegador.
 - Node 22 alineado entre CI y Netlify.
 - Points fail-closed y activación explícita.
@@ -42,6 +42,10 @@ Configurar y validar en Netlify, sin exponer valores:
 - `RESEND_API_KEY`
 - `ORDER_NOTIFICATION_EMAIL`
 - `ORDER_EMAIL_FROM` con dominio verificado
+- `MFA_ENCRYPTION_KEY`
+- `STAFF_TOTP_SECRETS` o aprovisionamiento MFA individual antes del primer acceso privilegiado
+- `REQUIRE_STAFF_MFA=true`
+- `REQUIRE_PRODUCT_COMPLIANCE=true`
 - variables de envío si se habilita delivery
 
 `/.netlify/functions/system-health` debe quedar con `ready:true` antes de considerar la tienda preparada para cobro real.
@@ -79,6 +83,10 @@ Definir proveedor, zonas, tarifa, IVA aplicable, umbral de envío gratis, SLA y 
 
 Completar el stock real de las referencias cuyo inventario sigue sin estar documentado. No estimar cantidades.
 
+### 7 bis. Expedientes de producto
+
+Los 80 productos activos tienen SKU, pero el catálogo fuente no aporta GTIN, descripción documentada, ingredientes, alérgenos ni tabla nutricional estructurada. Cargar y aprobar el expediente real de cada SKU en `product-compliance`. El checkout de producción queda deliberadamente bloqueado para referencias sin aprobación y evidencias; `COMPLIANCE_EXEMPT_SKUS` solo debe usarse para excepciones documentadas.
+
 ### 8. Fotografías reales/licenciadas
 
 Completar las imágenes faltantes con fotos propias o packshots autorizados. No hacer scraping automático ni publicar imágenes sin licencia.
@@ -94,6 +102,14 @@ La sincronización automática de stock web ↔ TPVsol no está validada. Implem
 ### 11. Protección de `main`
 
 Los workflows existen y pasan, pero la protección/ruleset de la rama depende de permisos administrativos de GitHub. Configurar un ruleset que obligue a pasar los Quality Gates antes de fusionar o actualizar `main`.
+
+### 12. Cuenta de Google
+
+Definir qué integración necesita la web (inicio de sesión de clientes, Merchant Center, Analytics, Drive u otra). No se ha enlazado ninguna cuenta porque el proyecto no incluye credenciales OAuth ni una decisión de alcance. Configurarla solo mediante OAuth y secretos del proveedor; nunca incluir credenciales en el repositorio.
+
+### 13. E2E visual final
+
+Ejecutar en GitHub Actions la suite Playwright de 9 pruebas con Chromium. En la revisión local la descarga del navegador fue bloqueada por el CDN (timeouts/502); las pruebas no se contabilizan como superadas hasta que el workflow quede verde.
 
 ## Regla de cierre
 

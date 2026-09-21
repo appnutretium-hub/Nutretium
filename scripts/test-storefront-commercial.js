@@ -20,6 +20,9 @@ const forbidden = [
   ['promo primer pedido no validada', '10% de descuento en tu primer pedido'],
   ['vídeo de stock Coverr', 'cdn.coverr.co'],
   ['poster de stock Unsplash', 'images.unsplash.com/photo-1534438327276-14e5300c3a48'],
+  ['método PayPal no habilitado', 'PayPal'],
+  ['método Bizum no habilitado', 'Bizum'],
+  ['claim envío gratis', 'Envío gratis'],
 ];
 
 for (const [label, needle] of forbidden) {

@@ -20,6 +20,7 @@ exports.handler=async function(event){
   if(verified.claims.kind!=='staff-login')return json(401,{error:'La credencial no procede del acceso de personal.'});
   try{defense.assertSessionBinding(event,verified.claims)}catch{return json(401,{error:'La credencial cambió de contexto. Vuelve a iniciar sesión.'})}
   const current=await currentPermissions(verified.email);if(!current.permissions.size||current.member?.active===false||current.member?.role==='client')return json(403,{error:'Esta cuenta no tiene permisos internos.'});
+  const mfaRequired=['owner','admin'].includes(String(current.member?.role||''))||security.staffMfaRequired()||verified.user?.mfaEnabled===true;if(mfaRequired&&verified.claims.mfa!==true)return json(401,{error:'La sesión interna requiere autenticación MFA verificada.',code:'STAFF_MFA_REQUIRED'});
   const now=Math.floor(Date.now()/1000),csrf=security.randomToken(32),binding=defense.newSessionBinding(event),token=signJWT({sub:verified.user.id,email:verified.email,role:current.member.role,kind:'staff',mfa:verified.claims.mfa===true,csrf,sid:binding.sid,fp:binding.fp,jti:binding.jti,sv:Number(verified.user.sessionVersion||0),exp:now+MAX_AGE});
   return json(200,{ok:true,email:verified.email,role:current.member.role,permisos:[...current.permissions],expiresIn:MAX_AGE,csrf},{'Set-Cookie':cookie(token,MAX_AGE)});
  }

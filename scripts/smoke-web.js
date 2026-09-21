@@ -7,7 +7,7 @@ const root = process.cwd();
 const requiredFiles = [
   'index.html','app.js','products-data.js','styles.css','trust-fixes.js',
   'franchise-trust.js','commerce-pro.js','final-hardening.js','producto.html','producto.js',
-  'product-variants.js','commerce-core.js','ayuda.html','netlify.toml','netlify/functions/redsys-notify.js','netlify/lib/email.js'
+  'product-pim.js','product-variants.js','commerce-core.js','ayuda.html','condiciones.html','netlify.toml','netlify/functions/redsys-notify.js','netlify/lib/email.js'
 ];
 
 const failures = [];
@@ -26,8 +26,10 @@ if (!failures.length) {
   if (!index.includes('id="cartItems"')) failures.push('Falta contenedor de carrito');
 
   const productHtml = read('producto.html');
+  if (!productHtml.includes('product-pim.js')) failures.push('producto.html no carga product-pim.js');
   if (!productHtml.includes('product-variants.js')) failures.push('producto.html no carga product-variants.js');
   if (!productHtml.includes('producto.js')) failures.push('producto.html no carga producto.js');
+  if (productHtml.indexOf('product-pim.js') > productHtml.indexOf('product-variants.js')) failures.push('producto.html carga product-pim.js demasiado tarde');
 
   const product = read('producto.js');
   if (!product.includes('window.NUTRETIUM_PRODUCTS')) failures.push('Ficha producto no usa catálogo real');
@@ -48,6 +50,12 @@ if (!failures.length) {
 
   const netlify = read('netlify.toml');
   if (!netlify.includes('from = "/ayuda"')) failures.push('Falta ruta /ayuda');
+  if (!netlify.includes('from = "/condiciones"')) failures.push('Falta ruta /condiciones');
+
+  const checkout = read('checkout.js');
+  ['termsAccepted','termsVersion','checkoutTerms'].forEach(token => {
+    if (!checkout.includes(token)) failures.push(`Checkout sin consentimiento contractual: ${token}`);
+  });
 
   const commerce = read('commerce-pro.js');
   ['installCartPersistence','insertCatalogToolbar','installSearchSuggestions','installGroundedChat'].forEach(fn => {

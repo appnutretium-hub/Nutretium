@@ -10,8 +10,9 @@ process.env.SHIPPING_COUNTRY = 'España';
 process.env.SHIPPING_LABEL = 'Envío de prueba';
 process.env.JWT_SECRET = 'secreto-de-pruebas-con-mas-de-32-caracteres';
 
-const CLAVE_SANDBOX = 'sq7HjrUOBfKmC576ILgskD5srU870gJ7';
-const COMERCIO = '369551841';
+// Credenciales sintéticas: válidas solo como fixture criptográfico local.
+const CLAVE_SANDBOX = 'MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAw';
+const COMERCIO = '999008881';
 const TERMINAL = '1';
 
 function signingKey(secretBase64, order) {
@@ -47,17 +48,19 @@ function paymentRequest(items, options) {
     body: JSON.stringify({
       items: items,
       amount: config.amount,
+      termsAccepted: true,
+      termsVersion: '2026-09-20',
       guest: config.withoutGuest ? undefined : {
-        name: 'Ana',
-        surname: 'García',
-        email: 'cliente@ejemplo.com',
-        phone: '600123456',
+        name: 'Test',
+        surname: 'User',
+        email: 'checkout@example.invalid',
+        phone: '000000000',
         direccion: {
-          calle: 'Calle La Albericia 1',
-          piso: '3B',
-          cp: '39012',
-          localidad: 'Santander',
-          provincia: 'Cantabria',
+          calle: 'Calle Ficticia 1',
+          piso: '0',
+          cp: '00000',
+          localidad: 'Ciudad de Prueba',
+          provincia: 'Provincia de Prueba',
           pais: 'España'
         }
       }

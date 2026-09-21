@@ -13,22 +13,60 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Verify main commit comes from a pull request
+      - name: Verify main commit origin
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls"
-          curl --fail --silent --show-error \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "$api" > /tmp/prs.json
+          repo_api="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+          headers=(
+            -H "Accept: application/vnd.github+json"
+            -H "Authorization: Bearer $GH_TOKEN"
+            -H "X-GitHub-Api-Version: 2022-11-28"
+          )
+          curl --fail --silent --show-error "${headers[@]}" \
+            "$repo_api/commits/${GITHUB_SHA}/pulls" > /tmp/prs.json
+          curl --fail --silent --show-error "${headers[@]}" \
+            "$repo_api/commits/${GITHUB_SHA}" > /tmp/commit.json
           node - <<'NODE'
           const fs=require('fs');
-          const rows=JSON.parse(fs.readFileSync('/tmp/prs.json','utf8'));
-          const ok=Array.isArray(rows)&&rows.some(pr=>pr?.merged_at&&pr?.base?.ref==='main');
-          if(!ok) throw new Error('El commit de main no está asociado a un PR fusionado hacia main. Activa branch protection/ruleset para bloquear este caso antes del push.');
-          console.log('[main-integrity] commit trazable a PR fusionado hacia main');
+          const prs=JSON.parse(fs.readFileSync('/tmp/prs.json','utf8'));
+          const commit=JSON.parse(fs.readFileSync('/tmp/commit.json','utf8'));
+          const fromMergedPr=Array.isArray(prs)&&prs.some(pr=>pr?.merged_at&&pr?.base?.ref==='main');
+          if(fromMergedPr){
+            console.log('[main-integrity] commit trazable a PR fusionado hacia main');
+            process.exit(0);
+          }
+
+          // El panel publica catálogo/fotos como un commit atómico para conservar
+          // products-data.js como fuente única. Esa excepción es deliberadamente
+          // estrecha; cualquier otro cambio directo en main sigue fallando.
+          const message=String(commit?.commit?.message||'');
+          const allowedMessage=[
+            /^Catálogo desde el panel:/,
+            /^Categorías actualizadas desde administración/,
+            /^Categoría renombrada:/,
+            /^Marca renombrada:/
+          ].some(pattern=>pattern.test(message));
+          const files=Array.isArray(commit?.files)?commit.files:[];
+          const allowedPath=path=>
+            path==='products-data.js' ||
+            path==='netlify/lib/no-vendibles.js' ||
+            /^sources\/productos\//.test(path);
+          const allowedCatalogCommit=
+            allowedMessage &&
+            files.length>0 &&
+            files.every(file=>allowedPath(String(file?.filename||''))) &&
+            Array.isArray(commit?.parents) &&
+            commit.parents.length===1;
+
+          if(!allowedCatalogCommit){
+            const paths=files.map(file=>file?.filename).filter(Boolean).join(', ');
+            throw new Error(
+              'El commit de main no procede de un PR ni es una publicación de catálogo permitida. '+
+              'Rutas detectadas: '+(paths||'(ninguna)')
+            );
+          }
+          console.log('[main-integrity] publicación atómica de catálogo permitida:',files.map(f=>f.filename).join(', '));
           NODE

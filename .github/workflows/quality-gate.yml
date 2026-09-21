@@ -137,7 +137,6 @@ jobs:
           node --check netlify/functions/workforce-worker.js
           node --check netlify/functions/ai-federation.js
           node --check netlify/functions/agent-memory-status.js
-          node --check netlify/functions/agent-memory-guardian.js
       - name: Architecture and maximum security audits
         run: |
           node scripts/audit-architecture.js

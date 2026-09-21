@@ -11,11 +11,14 @@ function fallbackConsume({scope,event,extra='',limit=10,windowMs=10*60*1000}){
  state={startedAt:Number(state.startedAt),count:Number(state.count||0)+1};FALLBACK_ROOT.set(key,state);
  return{allowed:true,degraded:true,remaining:Math.max(0,limit-state.count),fallback:true};
 }
-async function consume({scope,event,extra='',limit=10,windowMs=10*60*1000}){
- const store=getBlobStore(`rate-${scope}`);if(!store||typeof store.getWithMetadata!=='function')return fallbackConsume({scope,event,extra,limit,windowMs});
+function degradedResult({scope,event,extra,limit,windowMs,allowDegradedFallback}){
+ return allowDegradedFallback===true?fallbackConsume({scope,event,extra,limit,windowMs}):{allowed:false,degraded:true,retryAfter:60};
+}
+async function consume({scope,event,extra='',limit=10,windowMs=10*60*1000,allowDegradedFallback=false}){
+ const store=getBlobStore(`rate-${scope}`);if(!store||typeof store.getWithMetadata!=='function')return degradedResult({scope,event,extra,limit,windowMs,allowDegradedFallback});
  const key=keyFor(scope,event,extra),now=Date.now();
  for(let attempt=0;attempt<10;attempt++){
-  let entry=null;try{entry=await store.getWithMetadata(key,{type:'json',consistency:'strong'})}catch{return fallbackConsume({scope,event,extra,limit,windowMs})}
+  let entry=null;try{entry=await store.getWithMetadata(key,{type:'json',consistency:'strong'})}catch{return degradedResult({scope,event,extra,limit,windowMs,allowDegradedFallback})}
   let state=entry?.data;
   if(!state||!Number.isFinite(Number(state.startedAt))||now-Number(state.startedAt)>=windowMs)state={startedAt:now,count:0};
   const count=Number(state.count)||0;
@@ -25,11 +28,11 @@ async function consume({scope,event,extra='',limit=10,windowMs=10*60*1000}){
   const write=await store.setJSON(key,next,opts).catch(()=>null);
   if(write?.modified===true)return{allowed:true,remaining:Math.max(0,limit-next.count)};
  }
- return fallbackConsume({scope,event,extra,limit,windowMs});
+ return degradedResult({scope,event,extra,limit,windowMs,allowDegradedFallback});
 }
 async function reset({scope,event,extra=''}){
  const rawKey=keyFor(scope,event,extra);FALLBACK_ROOT.delete(`${scope}:${rawKey}`);
  const store=getBlobStore(`rate-${scope}`);if(!store)return true;
  try{await store.delete(rawKey);return true}catch{return false}
 }
-module.exports={consume,reset,ipOf,keyFor,fallbackConsume};
+module.exports={consume,reset,ipOf,keyFor,fallbackConsume,degradedResult};

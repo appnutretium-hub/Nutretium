@@ -87,7 +87,8 @@ const DIRECCION = { calle:'Calle la Albericia 1', piso:'3º B', cp:'39012', loca
     const sexto=await llama({action:'login',email:victima,password:'me-la-invento'},ip);comprueba('el sexto se frena con 429',sexto.estado===429,String(sexto.estado));comprueba('y dice cuánto hay que esperar',/minutos/.test(sexto.datos.error||''),sexto.datos.error);
     comprueba('frena también un correo que no existe: no revela cuáles están registrados',sexto.estado===429);
     const ipReal='127.0.0.40';for(let i=0;i<5;i++)await llama({action:'login',email:CLIENTE,password:'mal'},ipReal);
-    const conLaBuena=await llama({action:'login',email:CLIENTE,password:CLAVE},ipReal);comprueba('durante el castigo no entra ni con la contraseña correcta',conLaBuena.estado===429,String(conLaBuena.estado));
+    const conLaBuena=await llama({action:'login',email:CLIENTE,password:CLAVE},ipReal);comprueba('una contraseña correcta entra aunque haya intentos fallidos previos',conLaBuena.estado===200,String(conLaBuena.estado));
+    const malaTrasReset=await llama({action:'login',email:CLIENTE,password:'mal'},ipReal);comprueba('el acceso correcto limpia el castigo anterior',malaTrasReset.estado===401,String(malaTrasReset.estado));
     const ipReset='127.0.0.50';const buena=await llama({action:'login',email:CLIENTE,password:CLAVE},ipReset);comprueba('un login correcto funciona',buena.estado===200,String(buena.estado));
     for(let i=0;i<5;i++)ultima=await llama({action:'login',email:CLIENTE,password:'mal'},ipReset);comprueba('un login correcto anterior resetea su contador',ultima.estado===401,String(ultima.estado));
   }

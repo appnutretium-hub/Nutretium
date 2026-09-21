@@ -1,0 +1,9 @@
+'use strict';
+const crypto=require('crypto');
+function normalize(value){if(Array.isArray(value))return value.map(normalize);if(value&&typeof value==='object'){const out={};for(const key of Object.keys(value).sort()){if(value[key]!==undefined)out[key]=normalize(value[key])}return out}return value}
+function payload(snapshot){const copy={...snapshot};delete copy.checksum;delete copy.integrity;return copy}
+function checksumV2(snapshot){return crypto.createHash('sha256').update(JSON.stringify(normalize(payload(snapshot)))).digest('hex')}
+function checksumLegacy(snapshot){const copy={...snapshot};delete copy.checksum;return crypto.createHash('sha256').update(JSON.stringify(copy)).digest('hex')}
+function seal(snapshot){const base={...snapshot,backupVersion:2};delete base.checksum;delete base.integrity;const checksum=checksumV2(base);return{...base,integrity:{version:2,algorithm:'sha256',canonical:'sorted-json',checksum},checksum}}
+function verify(snapshot){if(!snapshot||typeof snapshot!=='object')return{ok:false,verified:false,error:'Snapshot inexistente o inválido.'};if(Number(snapshot.integrity?.version)===2){if(snapshot.integrity.algorithm!=='sha256')return{ok:false,verified:false,error:'Algoritmo de integridad no soportado.'};const computed=checksumV2(snapshot),expected=String(snapshot.integrity.checksum||''),top=String(snapshot.checksum||expected);return computed===expected&&computed===top?{ok:true,verified:true,version:2,checksum:computed}:{ok:false,verified:false,error:'El backup no supera la verificación de integridad.'}}if(snapshot.checksum){const computed=checksumLegacy(snapshot);return computed===snapshot.checksum?{ok:true,verified:true,version:1,checksum:computed}:{ok:false,verified:false,error:'El backup no supera la verificación de integridad.'}}return{ok:true,verified:false,version:0,checksum:null,warning:'Backup legado sin checksum.'}}
+module.exports={normalize,checksumV2,checksumLegacy,seal,verify};

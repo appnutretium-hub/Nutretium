@@ -6,6 +6,7 @@ const governance=require('./agent-governance');
 const truth=require('./ai-truth-layer');
 const baseRuntime=require('./ai-runtime');
 const zeroCost=require('./zero-cost-policy');
+const memorySecurity=require('./agent-memory-security');
 
 const SYSTEM={email:'enterprise-workforce@nutretium.local',role:'system'};
 
@@ -43,7 +44,8 @@ async function runRoleWithSnapshot({id,action,snapshot,env=process.env}={}){
   zeroCost.assertZeroSpend(env);
   const clean=roleId(id),role=getRole(clean);if(!role)throw new Error('Puesto IA no reconocido.');
   const selected=String(action||defaultActionForRole(clean)||'').trim().toLowerCase();if(!selected)throw new Error(`El puesto ${role.title} no tiene una acción autónoma segura configurada.`);
-  const agent=workforceAgent(clean),policy=governance.policy(agent,selected);if(!policy.allowed)throw new Error(policy.error||'Acción no permitida.');
+  const agent=workforceAgent(clean);await memorySecurity.assertNotQuarantined(agent);
+  const policy=governance.policy(agent,selected);if(!policy.allowed)throw new Error(policy.error||'Acción no permitida.');
   if(policy.requiresApproval)return{policy,provider:{mode:'blocked',externalSpendLimitEur:0,model:null},result:{agent,workforceRoleId:clean,action:selected,status:'HUMAN_APPROVAL_REQUIRED',validation:'NO_VALIDADO',requiresHumanDecision:true,role:{title:role.title,department:role.department,family:role.family,level:role.level,reportsTo:role.reportsTo},reason:'La acción no es autónoma y debe pasar por aprobación humana.'}};
   const required=requiredSourcesForRole(clean),rawGate=truth.sourceGate(snapshot,required),gate={...rawGate,required},view=baseRuntime.businessView(snapshot);
   let base={provider:{mode:'deterministic',externalSpendLimitEur:0,model:null},result:{}};
@@ -67,9 +69,9 @@ async function runFamily({family,requestedBy='system',env=process.env,maxRoles=n
     if(budgetGuard&&!budgetGuard.canContinue()){budgetExhausted=true;break;}
     if(!p.executable){results.push({roleId:p.roleId,title:p.title,status:'skipped',reason:'no_safe_autonomous_action'});continue;}
     try{const record=await persistRoleRun({id:p.roleId,action:p.defaultAction,requestedBy,snapshot,env});results.push({roleId:p.roleId,title:p.title,action:p.defaultAction,status:record.status,id:record.id,validation:record.output?.result?.validation||'NO_VALIDADO'});}
-    catch(error){results.push({roleId:p.roleId,title:p.title,action:p.defaultAction,status:'failed',error:String(error.message||error).slice(0,300)});}
+    catch(error){results.push({roleId:p.roleId,title:p.title,action:p.defaultAction,status:error.code==='AGENT_QUARANTINED'?'quarantined':'failed',error:String(error.message||error).slice(0,300)});}
   }
-  return{generatedAt:new Date().toISOString(),family:plan.family,label:plan.label,dataQuality:snapshot.quality,roles:plan.roles.length,executed:results.length,failed:results.filter(x=>x.status==='failed').length,budgetExhausted,zeroCost:true,externalSpendLimitEur:0,results};
+  return{generatedAt:new Date().toISOString(),family:plan.family,label:plan.label,dataQuality:snapshot.quality,roles:plan.roles.length,executed:results.length,failed:results.filter(x=>x.status==='failed').length,quarantined:results.filter(x=>x.status==='quarantined').length,budgetExhausted,zeroCost:true,externalSpendLimitEur:0,results};
 }
 
 async function runScheduledCycle({requestedBy='workforce-worker',date=new Date()}={}){

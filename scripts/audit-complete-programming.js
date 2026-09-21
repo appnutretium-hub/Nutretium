@@ -34,6 +34,16 @@ function staticAssetExists(htmlFile,url){
   const target=clean.startsWith('/')?path.join(ROOT,clean.slice(1)):path.resolve(path.dirname(htmlFile),clean);
   return fs.existsSync(target)&&fs.statSync(target).isFile();
 }
+function executableModuleRefs(src){
+  const refs=[];
+  const patterns=[
+    /(^|[^'"`\w])require\(\s*['"](\.{1,2}\/[^'"]+)['"]\s*\)/gm,
+    /(^|[^'"`\w])\bfrom\s+['"](\.{1,2}\/[^'"]+)['"]/gm,
+    /(^|[^'"`\w])\bimport\s*\(\s*['"](\.{1,2}\/[^'"]+)['"]\s*\)/gm,
+  ];
+  for(const re of patterns){let m;while((m=re.exec(src)))refs.push(m[2]);}
+  return refs;
+}
 
 const files=walk(ROOT);
 const jsFiles=files.filter(f=>/\.(?:js|cjs|mjs)$/.test(f));
@@ -46,8 +56,10 @@ for(const file of jsFiles){
   const checked=spawnSync(process.execPath,['--check',file],{encoding:'utf8'});
   if(checked.status!==0)issues.push(`${rel(file)}: sintaxis inválida: ${(checked.stderr||checked.stdout||'').trim().slice(0,500)}`);
   const src=fs.readFileSync(file,'utf8');
-  const patterns=[/require\(\s*['"](\.{1,2}\/[^'"]+)['"]\s*\)/g,/\bfrom\s+['"](\.{1,2}\/[^'"]+)['"]/g,/\bimport\s*\(\s*['"](\.{1,2}\/[^'"]+)['"]\s*\)/g];
-  for(const re of patterns){let m;while((m=re.exec(src))){stats.localModules++;if(!existsLocal(file,m[1]))issues.push(`${rel(file)}: módulo local inexistente ${m[1]}`)}}
+  for(const spec of executableModuleRefs(src)){
+    stats.localModules++;
+    if(!existsLocal(file,spec))issues.push(`${rel(file)}: módulo local inexistente ${spec}`);
+  }
 }
 
 for(const file of textFiles){

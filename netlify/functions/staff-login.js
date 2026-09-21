@@ -28,8 +28,8 @@ async function upgradeHashIfNeeded(email, password, user, verification) {
   await usuarios.muta(email, current => current.passwordHash === user.passwordHash ? { ...current, passwordHash:upgraded, passwordHashUpgradedAt:at, updatedAt:at } : null).catch(() => null);
 }
 async function checkThrottle(event, email) {
-  const gate = await consume({scope: 'staff-login',event,extra: email,limit: MAX_INTENTOS,windowMs: VENTANA_MS});
-  return {ok: gate.allowed === true,retryAfter: Math.max(1, Number(gate.retryAfter) || 60),degraded: gate.degraded === true};
+  const gate = await consume({scope: 'staff-login',event,extra: email,limit: MAX_INTENTOS,windowMs: VENTANA_MS,allowDegradedFallback:true});
+  return {ok: gate.allowed === true,retryAfter: Math.max(1, Number(gate.retryAfter) || 60),degraded: gate.degraded === true,fallback:gate.fallback===true};
 }
 async function clearAttempts(event, email) { await reset({ scope: 'staff-login', event, extra: email }).catch(() => false); }
 function privilegedMfaExempt(role){return temporaryAccess.privilegedMfaBypassActive(role)}
@@ -43,7 +43,7 @@ exports.handler = async event => {
   let body;try { body = JSON.parse(event.body || '{}'); } catch { return response(400, { error: 'JSON no válido.' }); }
   const email = String(body.email || '').trim().toLowerCase(),password = String(body.password || ''),mfaCode = String(body.mfaCode || '').replace(/\s/g, '');
   const wait = await checkThrottle(event, email);
-  if (!wait.ok) return response(wait.degraded ? 503 : 429,{error: wait.degraded ? 'El control de acceso del personal no está disponible. Prueba de nuevo más tarde.' : 'Demasiados intentos. Prueba más tarde.'},{ 'Retry-After': String(wait.retryAfter) });
+  if (!wait.ok) return response(429,{error:'Demasiados intentos. Prueba más tarde.'},{ 'Retry-After': String(wait.retryAfter) });
   const user = await usuarios.lee(email),role = await effectiveRoleFor(email),verification = user ? verifyPasswordRecord(password, user.passwordHash) : { ok:false, needsRehash:false };
   if (!user || role === 'client' || !verification.ok) return response(401, { error: 'Credenciales incorrectas.' });
   const mfaBypass=privilegedMfaExempt(role),requireMfa = mfaRequiredFor(role,user),secret = secretFor(email,user);let mfaVerified = false;
@@ -58,6 +58,6 @@ exports.handler = async event => {
   await upgradeHashIfNeeded(email, password, user, verification);await clearAttempts(event, email);
   const binding=defense.newSessionBinding(event);
   const token = signJWT({sub: user.id,email,role,kind: 'staff-login',mfa: mfaVerified,mfaBypass,mfaBypassUntil:mfaBypass?temporaryAccess.MFA_BYPASS_UNTIL:0,sv: Number(user.sessionVersion || 0),fp:binding.fp,jti:binding.jti,exp: Math.floor(Date.now() / 1000) + security.STAFF_LOGIN_TTL_SECONDS});
-  return response(200, {user: {id: user.id,name: user.name,surname: user.surname,email: user.email,phone: user.phone,role,token,mfa: mfaVerified,mfaRequired:requireMfa,mfaExempt:mfaBypass,mfaBypassUntil:mfaBypass?temporaryAccess.MFA_BYPASS_UNTIL_ISO:null,expiresIn:security.STAFF_LOGIN_TTL_SECONDS}});
+  return response(200, {user: {id: user.id,name: user.name,surname: user.surname,email: user.email,phone: user.phone,role,token,mfa: mfaVerified,mfaRequired:requireMfa,mfaExempt:mfaBypass,mfaBypassUntil:mfaBypass?temporaryAccess.MFA_BYPASS_UNTIL_ISO:null,rateLimitFallback:wait.fallback===true,expiresIn:security.STAFF_LOGIN_TTL_SECONDS}});
 };
 exports._test = { verifyPassword, upgradeHashIfNeeded, checkThrottle, privilegedMfaExempt, mfaRequiredFor };

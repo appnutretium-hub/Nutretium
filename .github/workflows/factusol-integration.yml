@@ -2,6 +2,7 @@ name: FACTUSOL Integration Gate
 on:
   push:
     branches:
+      - main
       - integration/factusol-live-sync
   pull_request:
     branches:

@@ -21,15 +21,17 @@ function paymentsState(env={}){
  const ready=mode==='production'&&live&&credentials;
  return{ready,mode,live,credentialsConfigured:credentials,reason:ready?'production-ready':mode!=='production'?'test-mode':!live?'commerce-live-disabled':'missing-credentials'};
 }
-function tpvState(env={}){
- const mode=clean(env.TPVSOL_SYNC_MODE).toLowerCase();
- const endpoint=clean(env.TPVSOL_SYNC_ENDPOINT),token=Boolean(clean(env.TPVSOL_SYNC_TOKEN));
- const validated=asBool(env.TPVSOL_CONNECTION_VALIDATED);
- let endpointConfigured=false;try{endpointConfigured=Boolean(endpoint&&new URL(endpoint).protocol==='https:')}catch{}
- const supported=new Set(['api','middleware']);
- const ready=validated&&supported.has(mode)&&endpointConfigured&&token;
- const reason=ready?'validated-transport':!supported.has(mode)?'unsupported-transport':!endpointConfigured?'missing-https-endpoint':!token?'missing-token':!validated?'transport-not-validated':'not-ready';
- return{ready,mode:mode||null,validated,endpointConfigured,tokenConfigured:token,reason};
+function factusolState(input={}){
+ const ready=input.ready===true&&input.configured===true&&input.connected===true;
+ return{ready,configured:input.configured===true,connected:input.connected===true,exercise:clean(input.exercise)||null,reason:ready?'connected':clean(input.reason)||(!input.configured?'not-configured':!input.connected?'not-connected':'not-ready')};
+}
+function catalogState(input={}){
+ const ready=input.ready===true;
+ return{ready,active:Number(input.active)||0,presentationReady:input.presentationReady===true,reason:ready?'sale-critical-data-ready':'sale-critical-data-incomplete'};
+}
+function complianceState(input={}){
+ const ready=input.ready===true&&input.strict===true;
+ return{ready,strict:input.strict===true,blocked:Number(input.blocked)||0,reason:ready?'approved':clean(input.reason)||'approval-and-evidence-required'};
 }
 async function fetchJson(url,{headers={},timeoutMs=5000}={},fetchImpl=global.fetch){
  if(typeof fetchImpl!=='function')throw new Error('fetch unavailable');
@@ -70,11 +72,11 @@ async function resendState(env={},fetchImpl=global.fetch){
   return{ready:status==='verified',reason:status==='verified'?'verified':match?'domain-not-verified':'domain-not-found',domain,status:status||null};
  }catch(error){return{ready:false,reason:'resend-check-failed',domain,error:String(error.message||'error').slice(0,120)}}
 }
-async function assessExternalReadiness({env=process.env,shipping={},fetchImpl=global.fetch}={}){
+async function assessExternalReadiness({env=process.env,shipping={},factusol={},catalog={},compliance={},fetchImpl=global.fetch}={}){
  const [deployment,email]=await Promise.all([githubDeploymentState(env,fetchImpl),resendState(env,fetchImpl)]);
- const payments=paymentsState(env),delivery=shippingState(shipping),tpv=tpvState(env);
- const checks={deployment,email,payments,shipping:delivery,tpv};
+ const payments=paymentsState(env),delivery=shippingState(shipping),erp=factusolState(factusol),catalogue=catalogState(catalog),productCompliance=complianceState(compliance);
+ const checks={deployment,email,payments,shipping:delivery,factusol:erp,catalog:catalogue,compliance:productCompliance};
  const blockers=Object.entries(checks).filter(([,value])=>!value.ready).map(([key,value])=>({key,reason:value.reason}));
  return{ready:blockers.length===0,checks,blockers,checkedAt:new Date().toISOString()};
 }
-module.exports={asBool,senderDomain,shippingState,paymentsState,tpvState,githubDeploymentState,resendState,assessExternalReadiness};
+module.exports={asBool,senderDomain,shippingState,paymentsState,factusolState,catalogState,complianceState,githubDeploymentState,resendState,assessExternalReadiness};

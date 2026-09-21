@@ -85,6 +85,7 @@ exports.handler = async function(event) {
         clientCode: body.clientCode,
         database: body.database,
         password: body.password,
+        exercise: body.exercise,
         warehouseCodes: body.warehouseCodes,
         tariffCode: body.tariffCode,
         orderSeries: body.orderSeries,

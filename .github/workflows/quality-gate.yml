@@ -1,5 +1,6 @@
 name: Nutretium Full Quality Gate
 on:
+  workflow_call:
   push:
     # Solo main: alimenta el workflow_run del que depende production-smoke.
     branches: [main]
@@ -25,10 +26,8 @@ jobs:
       - run: npm ci --omit=optional
       - name: Build production-equivalent storefront
         run: |
-          npm run build:css
-          node scripts/staff-login-inject.js
-          node scripts/compose-app.js
-          node --check app.js
+          npm run build
+          node scripts/verify-build-meta.js "$GITHUB_SHA" dist/build-meta.json
       - name: Core and enterprise tests
         run: |
           npm test
@@ -44,6 +43,7 @@ jobs:
           npm run test:passwords
           npm run test:contracts
           npm run test:external-readiness
+          node scripts/test-factusol-integration.js
           npm run test:production-quality
           npm run test:enterprise
       - name: AI, Nexus, workforce, federation and zero-cost regressions
@@ -66,6 +66,7 @@ jobs:
           node --check staff-session-bridge.js
           node --check scripts/build-seo-pages.js
           node --check scripts/compose-app.js
+          node --check scripts/verify-build-meta.js
           node --check scripts/test-external-readiness.js
           node --check scripts/test-zero-trust-security.js
           node --check scripts/test-defense-in-depth.js
@@ -92,6 +93,10 @@ jobs:
           node --check netlify/lib/audit-log.js
           node --check netlify/lib/enterprise-store.js
           node --check netlify/lib/external-readiness.js
+          node --check netlify/lib/commerce-readiness.js
+          node --check netlify/lib/factusol-client.js
+          node --check netlify/lib/factusol-vault.js
+          node --check netlify/lib/factusol-commerce.js
           node --check netlify/lib/security-policy.js
           node --check netlify/lib/security-defense.js
           node --check netlify/lib/mfa-replay.js
@@ -158,7 +163,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Start and verify static storefront
         run: |
-          node scripts/dev-server.js > /tmp/nutretium-server.log 2>&1 &
+          node scripts/dev-server.js --root dist > /tmp/nutretium-server.log 2>&1 &
           echo $! > /tmp/nutretium-server.pid
           for i in $(seq 1 30); do
             if curl --fail --silent --show-error http://127.0.0.1:4173/ >/dev/null; then

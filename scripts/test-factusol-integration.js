@@ -52,12 +52,14 @@ function mockApi(){
 
   process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
   process.env.CONFIG_VAULT_KEY='test-key-not-production';
-  await vault.write({manufacturerCode:'2020',clientCode:'123456',database:'3FS999',password:'secret',warehouseCodes:'GEN',tariffCode:'1',liveEnabled:false,writeEnabled:false});
+  await vault.write({manufacturerCode:'2020',clientCode:'123456',database:'3FS999',password:'secret',exercise:'2026',warehouseCodes:'GEN',tariffCode:'1',liveEnabled:false,writeEnabled:false});
   const saved=await vault.read();
   assert.equal(saved.manufacturerCode,'2020');
   assert.equal(saved.password,'secret');
+  assert.equal(saved.exercise,'2026');
   const status=await vault.status();
   assert.equal(status.passwordConfigured,true);
+  assert.equal(status.exerciseConfigured,true);
   await vault.clear();
   assert.equal(await vault.read(),null);
 

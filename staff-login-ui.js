@@ -39,6 +39,20 @@
       if (mfaLabel) mfaLabel.hidden = true;
       mfa.required = false;
 
+      if (!form.querySelector('[data-password-recovery]')) {
+        const recovery = document.createElement('button');
+        recovery.type = 'button';
+        recovery.dataset.passwordRecovery = '1';
+        recovery.textContent = 'He olvidado mi contraseña';
+        recovery.style.cssText = 'margin-top:10px;background:transparent;border:0;color:#d4af37;text-decoration:underline;cursor:pointer;padding:4px 0;font:inherit';
+        recovery.addEventListener('click', () => {
+          const value = email.value.trim();
+          const query = value ? `?email=${encodeURIComponent(value)}` : '';
+          location.href = `/mi-nutretium${query}`;
+        });
+        form.appendChild(recovery);
+      }
+
       form.addEventListener(
         'submit',
         async event => {

@@ -26,19 +26,27 @@ function enrichDecay(state){
   for(const bucket of Object.keys(mem))if(Array.isArray(mem[bucket]))mem[bucket]=mem[bucket].map(x=>({...x,confidenceWeight:confidenceWeight(x)}));
   next.privateMemory=mem;next.decayEvaluatedAt=now();return next;
 }
-function dedupe(items=[]){
-  const seen=new Set(),out=[];
-  for(let i=items.length-1;i>=0;i--){const x=items[i],key=safeMemory.hash({content:x?.content||x?.summary||x?.decision||x?.action||x,source:x?.source||null});if(seen.has(key))continue;seen.add(key);out.push(x);}
-  return out.reverse();
+function semanticKey(x){return safeMemory.hash({content:x?.content||x?.summary||x?.decision||x?.action||x,source:x?.source||null});}
+function dedupeWithRemoved(items=[]){
+  const seen=new Set(),keptReverse=[],removed=[];
+  for(let i=items.length-1;i>=0;i--){
+    const x=items[i],key=semanticKey(x);
+    if(seen.has(key)){removed.push({item:x,reason:'duplicate',semanticKey:key});continue;}
+    seen.add(key);keptReverse.push(x);
+  }
+  return{kept:keptReverse.reverse(),removed};
 }
+function archiveEntry(bucket,x,reason,extra={}){return{bucket,reason,itemHash:safeMemory.hash(x),at:x?.at||null,confidenceWeight:x?.confidenceWeight||null,...extra};}
 function compactState(state,{keepPerBucket=16}={}){
   const next=enrichDecay(state),mem=next.privateMemory||{},archive=[];
   for(const bucket of ['facts','operational','learnings','errors','decisions']){
-    const rows=dedupe(Array.isArray(mem[bucket])?mem[bucket]:[]).sort((a,b)=>Number(b.confidenceWeight||0)-Number(a.confidenceWeight||0));
-    const keep=rows.slice(0,Math.max(4,Math.min(Number(keepPerBucket)||16,24))),drop=rows.slice(keep.length);
-    mem[bucket]=keep;archive.push(...drop.map(x=>({bucket,itemHash:safeMemory.hash(x),at:x.at||null,confidenceWeight:x.confidenceWeight||null})));
+    const source=Array.isArray(mem[bucket])?mem[bucket]:[],deduped=dedupeWithRemoved(source);
+    archive.push(...deduped.removed.map(x=>archiveEntry(bucket,x.item,x.reason,{semanticKey:x.semanticKey})));
+    const rows=deduped.kept.sort((a,b)=>Number(b.confidenceWeight||0)-Number(a.confidenceWeight||0));
+    const limit=Math.max(4,Math.min(Number(keepPerBucket)||16,24)),keep=rows.slice(0,limit),drop=rows.slice(limit);
+    mem[bucket]=keep;archive.push(...drop.map(x=>archiveEntry(bucket,x,'capacity')));
   }
-  next.privateMemory=mem;next.compaction={at:now(),archivedCount:archive.length,archiveManifest:archive.slice(0,100)};return next;
+  next.privateMemory=mem;next.compaction={at:now(),archivedCount:archive.length,archiveManifest:archive.slice(0,100),manifestTruncated:archive.length>100};return next;
 }
 async function compactAgent(agent,{requestedBy='guardian',keepPerBucket=16}={}){
   await security.assertNotQuarantined(agent);
@@ -80,4 +88,4 @@ async function guardianScan({limit=250,autoCompact=false}={}){
   return{...summary,results};
 }
 
-module.exports={SYSTEM,signingEnv,confidenceWeight,enrichDecay,compactState,compactAgent,recoveryDrill,guardianScan};
+module.exports={SYSTEM,signingEnv,confidenceWeight,enrichDecay,semanticKey,dedupeWithRemoved,compactState,compactAgent,recoveryDrill,guardianScan};

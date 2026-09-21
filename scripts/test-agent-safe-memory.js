@@ -29,6 +29,9 @@ const backup=require('../netlify/lib/agent-checkpoint-backup');
   const promoted=await safeMemory.promoteShadow(shadowB.id,{requestedBy:'test'});
   assert.strictEqual(promoted.checkpointVersion,2,'La promoción debe crear nueva generación.');
   assert.strictEqual(promoted.previousCheckpointId,genesis.id,'Debe encadenar checkpoint anterior.');
+  const promotedRetry=await safeMemory.promoteShadow(shadowB.id,{requestedBy:'test-retry'});
+  assert.strictEqual(promotedRetry.id,promoted.id,'Reintentar el mismo shadow debe devolver el mismo checkpoint, no duplicarlo.');
+  assert.strictEqual(promotedRetry.checkpointVersion,promoted.checkpointVersion,'El reintento idempotente no incrementa generación.');
   assert.strictEqual((await safeMemory.integrity(agent,{depth:5})).ok,true,'La cadena promovida debe ser íntegra.');
 
   const stale=await safeMemory.createShadow({agent,task:'stale',requestedBy:'test'});
@@ -60,5 +63,5 @@ const backup=require('../netlify/lib/agent-checkpoint-backup');
   const skip=await bridge.promoteValidatedRun(notEligible,{requestedBy:'test'});
   assert.strictEqual(skip.promoted,false,'NO_VALIDADO no puede promover memoria estable.');
 
-  console.log(JSON.stringify({ok:true,agent,genesis:genesis.id,promoted:promoted.id,rollback:rollback.id,bridge:bridgeResult,backup:latestBackup.id},null,2));
+  console.log(JSON.stringify({ok:true,agent,genesis:genesis.id,promoted:promoted.id,promotedRetry:promotedRetry.id,rollback:rollback.id,bridge:bridgeResult,backup:latestBackup.id},null,2));
 })().catch(error=>{console.error(error);process.exit(1);});

@@ -55,6 +55,7 @@ jobs:
           node scripts/test-zero-cost-policy.js
           node scripts/test-ai-federation.js
           node scripts/test-agent-safe-memory.js
+          node scripts/test-agent-memory-extreme.js
       - name: Syntax hardening
         run: |
           node --check product-pim.js
@@ -74,6 +75,7 @@ jobs:
           node --check scripts/test-zero-cost-policy.js
           node --check scripts/test-ai-federation.js
           node --check scripts/test-agent-safe-memory.js
+          node --check scripts/test-agent-memory-extreme.js
           node --check runtime-content.js
           node --check runtime-performance.js
           node --check runtime-guard.js
@@ -101,6 +103,8 @@ jobs:
           node --check netlify/lib/agent-safe-memory.js
           node --check netlify/lib/agent-safe-memory-bridge.js
           node --check netlify/lib/agent-checkpoint-backup.js
+          node --check netlify/lib/agent-memory-security.js
+          node --check netlify/lib/agent-memory-lifecycle.js
           node --check netlify/functions/auth.js
           node --check netlify/functions/staff-login.js
           node --check netlify/functions/account-security.js

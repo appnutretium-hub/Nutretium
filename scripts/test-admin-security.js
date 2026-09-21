@@ -2,7 +2,8 @@
 const crypto=require('crypto');
 process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
 process.env.JWT_SECRET=crypto.randomBytes(48).toString('hex');
-process.env.ADMIN_EMAILS='owner@nutretium.test';
+process.env.OWNER_EMAILS='owner@nutretium.test';
+process.env.ADMIN_EMAILS='';
 process.env.REQUIRE_STAFF_MFA='true';
 
 const assert=require('assert');

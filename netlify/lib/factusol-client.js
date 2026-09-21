@@ -9,186 +9,22 @@ const WRITE_TABLES = new Set(['F_CLI', 'F_DIR', 'F_PCL', 'F_LPC']);
 
 function clean(value) { return String(value ?? '').trim(); }
 function asBool(value) { return clean(value).toLowerCase() === 'true'; }
-function asPositiveInt(value, fallback) {
-  const n = Number(value);
-  return Number.isInteger(n) && n > 0 ? n : fallback;
+function asPositiveInt(value, fallback) { const n=Number(value); return Number.isInteger(n)&&n>0?n:fallback; }
+function configFromEnv(env=process.env){return{baseUrl:clean(env.FACTUSOL_API_BASE_URL||DEFAULT_BASE_URL).replace(/\/+$/,''),manufacturerCode:clean(env.FACTUSOL_FABRICANTE_CODE),clientCode:clean(env.FACTUSOL_CLIENTE_CODE),database:clean(env.FACTUSOL_DATABASE),password:clean(env.FACTUSOL_PASSWORD),exercise:clean(env.FACTUSOL_EXERCISE||new Date().getFullYear()),timeoutMs:asPositiveInt(env.FACTUSOL_TIMEOUT_MS,DEFAULT_TIMEOUT_MS),writeEnabled:asBool(env.FACTUSOL_WRITE_ENABLED)}}
+function mergeConfig(base={},override={}){return{...base,...override,baseUrl:clean(override.baseUrl||base.baseUrl||DEFAULT_BASE_URL).replace(/\/+$/,''),manufacturerCode:clean(override.manufacturerCode??base.manufacturerCode),clientCode:clean(override.clientCode??base.clientCode),database:clean(override.database??base.database),password:clean(override.password??base.password),exercise:clean(override.exercise||base.exercise||new Date().getFullYear()),timeoutMs:asPositiveInt(override.timeoutMs,asPositiveInt(base.timeoutMs,DEFAULT_TIMEOUT_MS)),writeEnabled:override.writeEnabled===undefined?Boolean(base.writeEnabled):Boolean(override.writeEnabled)}}
+function validateConfig(cfg){const missing=[];if(!cfg.manufacturerCode)missing.push('manufacturerCode');if(!cfg.clientCode)missing.push('clientCode');if(!cfg.database)missing.push('database');if(!cfg.password)missing.push('password');let secureUrl=false;try{secureUrl=new URL(cfg.baseUrl).protocol==='https:'}catch{}if(!secureUrl)missing.push('baseUrl(https)');if(!/^\d{4}$/.test(cfg.exercise))missing.push('exercise(YYYY)');return{ok:missing.length===0,missing}}
+function decodeJwtExp(token){try{const payload=String(token||'').split('.')[1];if(!payload)return 0;const normalized=payload.replace(/-/g,'+').replace(/_/g,'/'),padded=normalized+'='.repeat((4-normalized.length%4)%4),parsed=JSON.parse(Buffer.from(padded,'base64').toString('utf8'));return Number(parsed.exp)||0}catch{return 0}}
+function normalizeRows(resultado){if(!Array.isArray(resultado))return[];return resultado.map(row=>{if(!Array.isArray(row))return row&&typeof row==='object'?{...row}:{};const out={};for(const cell of row){if(!cell||typeof cell!=='object')continue;const key=clean(cell.columna);if(key)out[key]=cell.dato}return out})}
+async function fetchWithTimeout(url,options,timeoutMs,fetchImpl){if(typeof fetchImpl!=='function')throw new Error('fetch unavailable');const controller=typeof AbortController==='function'?new AbortController():null,timer=controller?setTimeout(()=>controller.abort(),timeoutMs):null;try{return await fetchImpl(url,{...options,signal:controller?.signal})}finally{if(timer)clearTimeout(timer)}}
+async function readJson(response){let data;try{data=await response.json()}catch{throw Object.assign(new Error('FACTUSOL devolvió una respuesta no JSON.'),{code:'factusol-bad-json'})}if(!response.ok){const message=clean(data?.mensaje||data?.message||data?.error?.message||`HTTP ${response.status}`);throw Object.assign(new Error(`FACTUSOL API: ${message}`),{code:'factusol-http',status:response.status})}if(data&&clean(data.respuesta).toUpperCase()&&clean(data.respuesta).toUpperCase()!=='OK'){const message=clean(data.mensaje||data.message||'respuesta no OK');throw Object.assign(new Error(`FACTUSOL API: ${message}`),{code:'factusol-api-error'})}return data}
+
+class FactusolClient{
+ constructor({env=process.env,config={},fetchImpl=global.fetch}={}){this.cfg=mergeConfig(configFromEnv(env),config);this.fetchImpl=fetchImpl;this.token=null;this.tokenExp=0}
+ readiness(){const check=validateConfig(this.cfg);return{ready:check.ok,baseUrl:check.ok?this.cfg.baseUrl:null,exercise:this.cfg.exercise,manufacturerConfigured:Boolean(this.cfg.manufacturerCode),clientConfigured:Boolean(this.cfg.clientCode),databaseConfigured:Boolean(this.cfg.database),passwordConfigured:Boolean(this.cfg.password),writeEnabled:this.cfg.writeEnabled,missing:check.missing}}
+ async authenticate(force=false){const check=validateConfig(this.cfg);if(!check.ok)throw Object.assign(new Error(`FACTUSOL no configurado: ${check.missing.join(', ')}`),{code:'factusol-not-configured'});const now=Math.floor(Date.now()/1000);if(!force&&this.token&&(!this.tokenExp||this.tokenExp>now+30))return this.token;const response=await fetchWithTimeout(`${this.cfg.baseUrl}${LOGIN_PATH}`,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({codigoFabricante:Number(this.cfg.manufacturerCode),codigoCliente:Number(this.cfg.clientCode),baseDatosCliente:this.cfg.database,password:Buffer.from(this.cfg.password,'utf8').toString('base64')})},this.cfg.timeoutMs,this.fetchImpl);const data=await readJson(response),token=clean(data?.resultado);if(!token)throw Object.assign(new Error('FACTUSOL no devolvió token de acceso.'),{code:'factusol-no-token'});this.token=token;this.tokenExp=decodeJwtExp(token);return token}
+ async request(path,payload,retry=true){let token=await this.authenticate(false);let response=await fetchWithTimeout(`${this.cfg.baseUrl}${path}`,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({...payload,ejercicio:this.cfg.exercise})},this.cfg.timeoutMs,this.fetchImpl);if(response.status===401&&retry){token=await this.authenticate(true);response=await fetchWithTimeout(`${this.cfg.baseUrl}${path}`,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({...payload,ejercicio:this.cfg.exercise})},this.cfg.timeoutMs,this.fetchImpl)}return readJson(response)}
+ async query(sql){const statement=clean(sql);if(!/^SELECT\b/i.test(statement)||/;\s*\S/.test(statement))throw Object.assign(new Error('Solo se permiten consultas SELECT internas contra FACTUSOL.'),{code:'factusol-query-blocked'});const data=await this.request(QUERY_PATH,{consulta:statement});return normalizeRows(data?.resultado)}
+ async updateRecord(table,record){const name=clean(table).toUpperCase();if(!this.cfg.writeEnabled)throw Object.assign(new Error('Escritura FACTUSOL desactivada.'),{code:'factusol-write-disabled'});if(!WRITE_TABLES.has(name))throw Object.assign(new Error(`Escritura no permitida en ${name||'tabla vacía'}.`),{code:'factusol-table-blocked'});if(!Array.isArray(record)||!record.length||record.some(x=>!x||!clean(x.columna)))throw Object.assign(new Error('Registro FACTUSOL no válido.'),{code:'factusol-invalid-record'});return this.request(UPDATE_PATH,{tabla:name,registro:record})}
+ async health(){const started=Date.now(),rows=await this.query('SELECT TOP 1 CODART, CCOART FROM F_ART');return{ok:true,latencyMs:Date.now()-started,sampleRows:rows.length}}
 }
-
-function configFromEnv(env = process.env) {
-  const baseUrl = clean(env.FACTUSOL_API_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, '');
-  const exercise = clean(env.FACTUSOL_EXERCISE || new Date().getFullYear());
-  return {
-    baseUrl,
-    manufacturerCode: clean(env.FACTUSOL_FABRICANTE_CODE),
-    clientCode: clean(env.FACTUSOL_CLIENTE_CODE),
-    database: clean(env.FACTUSOL_DATABASE),
-    password: clean(env.FACTUSOL_PASSWORD),
-    exercise,
-    timeoutMs: asPositiveInt(env.FACTUSOL_TIMEOUT_MS, DEFAULT_TIMEOUT_MS),
-    writeEnabled: asBool(env.FACTUSOL_WRITE_ENABLED),
-  };
-}
-
-function validateConfig(cfg) {
-  const missing = [];
-  if (!cfg.manufacturerCode) missing.push('FACTUSOL_FABRICANTE_CODE');
-  if (!cfg.clientCode) missing.push('FACTUSOL_CLIENTE_CODE');
-  if (!cfg.database) missing.push('FACTUSOL_DATABASE');
-  if (!cfg.password) missing.push('FACTUSOL_PASSWORD');
-  let secureUrl = false;
-  try { secureUrl = new URL(cfg.baseUrl).protocol === 'https:'; } catch {}
-  if (!secureUrl) missing.push('FACTUSOL_API_BASE_URL(https)');
-  if (!/^\d{4}$/.test(cfg.exercise)) missing.push('FACTUSOL_EXERCISE(YYYY)');
-  return { ok: missing.length === 0, missing };
-}
-
-function decodeJwtExp(token) {
-  try {
-    const payload = String(token || '').split('.')[1];
-    if (!payload) return 0;
-    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
-    const parsed = JSON.parse(Buffer.from(padded, 'base64').toString('utf8'));
-    return Number(parsed.exp) || 0;
-  } catch { return 0; }
-}
-
-function normalizeRows(resultado) {
-  if (!Array.isArray(resultado)) return [];
-  return resultado.map((row) => {
-    if (!Array.isArray(row)) return row && typeof row === 'object' ? { ...row } : {};
-    const out = {};
-    for (const cell of row) {
-      if (!cell || typeof cell !== 'object') continue;
-      const key = clean(cell.columna);
-      if (key) out[key] = cell.dato;
-    }
-    return out;
-  });
-}
-
-async function fetchWithTimeout(url, options, timeoutMs, fetchImpl) {
-  if (typeof fetchImpl !== 'function') throw new Error('fetch unavailable');
-  const controller = typeof AbortController === 'function' ? new AbortController() : null;
-  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
-  try {
-    return await fetchImpl(url, { ...options, signal: controller?.signal });
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-}
-
-async function readJson(response) {
-  let data;
-  try { data = await response.json(); }
-  catch { throw Object.assign(new Error('FACTUSOL devolvió una respuesta no JSON.'), { code: 'factusol-bad-json' }); }
-  if (!response.ok) {
-    const message = clean(data?.mensaje || data?.message || data?.error?.message || `HTTP ${response.status}`);
-    throw Object.assign(new Error(`FACTUSOL API: ${message}`), { code: 'factusol-http', status: response.status });
-  }
-  if (data && clean(data.respuesta).toUpperCase() && clean(data.respuesta).toUpperCase() !== 'OK') {
-    const message = clean(data.mensaje || data.message || 'respuesta no OK');
-    throw Object.assign(new Error(`FACTUSOL API: ${message}`), { code: 'factusol-api-error' });
-  }
-  return data;
-}
-
-class FactusolClient {
-  constructor({ env = process.env, fetchImpl = global.fetch } = {}) {
-    this.cfg = configFromEnv(env);
-    this.fetchImpl = fetchImpl;
-    this.token = null;
-    this.tokenExp = 0;
-  }
-
-  readiness() {
-    const check = validateConfig(this.cfg);
-    return {
-      ready: check.ok,
-      baseUrl: check.ok ? this.cfg.baseUrl : null,
-      exercise: this.cfg.exercise,
-      manufacturerConfigured: Boolean(this.cfg.manufacturerCode),
-      clientConfigured: Boolean(this.cfg.clientCode),
-      databaseConfigured: Boolean(this.cfg.database),
-      passwordConfigured: Boolean(this.cfg.password),
-      writeEnabled: this.cfg.writeEnabled,
-      missing: check.missing,
-    };
-  }
-
-  async authenticate(force = false) {
-    const check = validateConfig(this.cfg);
-    if (!check.ok) throw Object.assign(new Error(`FACTUSOL no configurado: ${check.missing.join(', ')}`), { code: 'factusol-not-configured' });
-    const now = Math.floor(Date.now() / 1000);
-    if (!force && this.token && (!this.tokenExp || this.tokenExp > now + 30)) return this.token;
-    const response = await fetchWithTimeout(`${this.cfg.baseUrl}${LOGIN_PATH}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({
-        codigoFabricante: Number(this.cfg.manufacturerCode),
-        codigoCliente: Number(this.cfg.clientCode),
-        baseDatosCliente: this.cfg.database,
-        password: Buffer.from(this.cfg.password, 'utf8').toString('base64'),
-      }),
-    }, this.cfg.timeoutMs, this.fetchImpl);
-    const data = await readJson(response);
-    const token = clean(data?.resultado);
-    if (!token) throw Object.assign(new Error('FACTUSOL no devolvió token de acceso.'), { code: 'factusol-no-token' });
-    this.token = token;
-    this.tokenExp = decodeJwtExp(token);
-    return token;
-  }
-
-  async request(path, payload, retry = true) {
-    let token = await this.authenticate(false);
-    let response = await fetchWithTimeout(`${this.cfg.baseUrl}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ ...payload, ejercicio: this.cfg.exercise }),
-    }, this.cfg.timeoutMs, this.fetchImpl);
-    if (response.status === 401 && retry) {
-      token = await this.authenticate(true);
-      response = await fetchWithTimeout(`${this.cfg.baseUrl}${path}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ ...payload, ejercicio: this.cfg.exercise }),
-      }, this.cfg.timeoutMs, this.fetchImpl);
-    }
-    return readJson(response);
-  }
-
-  async query(sql) {
-    const statement = clean(sql);
-    if (!/^SELECT\b/i.test(statement) || /;\s*\S/.test(statement)) {
-      throw Object.assign(new Error('Solo se permiten consultas SELECT internas contra FACTUSOL.'), { code: 'factusol-query-blocked' });
-    }
-    const data = await this.request(QUERY_PATH, { consulta: statement });
-    return normalizeRows(data?.resultado);
-  }
-
-  async updateRecord(table, record) {
-    const name = clean(table).toUpperCase();
-    if (!this.cfg.writeEnabled) throw Object.assign(new Error('Escritura FACTUSOL desactivada.'), { code: 'factusol-write-disabled' });
-    if (!WRITE_TABLES.has(name)) throw Object.assign(new Error(`Escritura no permitida en ${name || 'tabla vacía'}.`), { code: 'factusol-table-blocked' });
-    if (!Array.isArray(record) || !record.length || record.some((x) => !x || !clean(x.columna))) {
-      throw Object.assign(new Error('Registro FACTUSOL no válido.'), { code: 'factusol-invalid-record' });
-    }
-    return this.request(UPDATE_PATH, { tabla: name, registro: record });
-  }
-
-  async health() {
-    const started = Date.now();
-    const rows = await this.query('SELECT TOP 1 CODART, CCOART FROM F_ART');
-    return { ok: true, latencyMs: Date.now() - started, sampleRows: rows.length };
-  }
-}
-
-module.exports = {
-  FactusolClient,
-  configFromEnv,
-  validateConfig,
-  normalizeRows,
-  decodeJwtExp,
-  WRITE_TABLES,
-  DEFAULT_BASE_URL,
-};
+module.exports={FactusolClient,configFromEnv,mergeConfig,validateConfig,normalizeRows,decodeJwtExp,WRITE_TABLES,DEFAULT_BASE_URL};

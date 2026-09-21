@@ -141,6 +141,8 @@ jobs:
           node --check netlify/functions/ai-worker.js
           node --check netlify/functions/ai-federation.js
           node --check netlify/functions/agent-memory-status.js
+      - name: Repository-wide programming integrity
+        run: node scripts/audit-complete-programming.js
       - name: Architecture and maximum security audits
         run: |
           node scripts/audit-architecture.js

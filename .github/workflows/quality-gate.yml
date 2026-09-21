@@ -1,7 +1,6 @@
 name: Nutretium Full Quality Gate
 on:
   push:
-    # Solo main: alimenta el workflow_run del que depende production-smoke.
     branches: [main]
   pull_request:
     branches: [main]
@@ -60,95 +59,10 @@ jobs:
           node scripts/test-agent-memory-extreme.js
       - name: Syntax hardening
         run: |
-          node --check product-pim.js
-          node --check product-variants.js
-          node --check producto.js
-          node --check wishlist-sync.js
-          node --check staff-session-bridge.js
-          node --check staff-login-ui.js
-          node --check scripts/test-staff-access-recovery.js
-          node --check scripts/build-seo-pages.js
-          node --check scripts/compose-app.js
-          node --check scripts/test-external-readiness.js
-          node --check scripts/test-zero-trust-security.js
-          node --check scripts/test-defense-in-depth.js
-          node --check scripts/audit-workflow-pinning.js
-          node --check scripts/test-nexus-core.js
-          node --check scripts/test-enterprise-workforce.js
-          node --check scripts/test-enterprise-workforce-runtime.js
-          node --check scripts/test-zero-cost-policy.js
-          node --check scripts/test-ai-federation.js
-          node --check scripts/test-ai-growth-loop.js
-          node --check scripts/test-agent-safe-memory.js
-          node --check scripts/test-agent-memory-extreme.js
-          node --check scripts/audit-interactive-controls.js
-          node --check tests/e2e-interactive-controls.spec.js
-          node --check runtime-content.js
-          node --check runtime-performance.js
-          node --check runtime-guard.js
-          node --check cuenta.js
-          node --check pedido.js
-          node --check settings.js
-          node --check netlify/lib/usuarios.js
-          node --check netlify/lib/passwords.js
-          node --check netlify/lib/rate-limit.js
-          node --check netlify/lib/guest-access.js
-          node --check netlify/lib/settings.js
-          node --check netlify/lib/audit-log.js
-          node --check netlify/lib/enterprise-store.js
-          node --check netlify/lib/external-readiness.js
-          node --check netlify/lib/security-policy.js
-          node --check netlify/lib/security-defense.js
-          node --check netlify/lib/mfa-replay.js
-          node --check netlify/lib/security-step-up.js
-          node --check netlify/lib/nexus-core.js
-          node --check netlify/lib/enterprise-workforce.js
-          node --check netlify/lib/enterprise-workforce-runtime.js
-          node --check netlify/lib/zero-cost-policy.js
-          node --check netlify/lib/federated-ai-router.js
-          node --check netlify/lib/ai-memory.js
-          node --check netlify/lib/ai-growth-loop.js
-          node --check netlify/lib/agent-safe-memory.js
-          node --check netlify/lib/agent-safe-memory-bridge.js
-          node --check netlify/lib/agent-checkpoint-backup.js
-          node --check netlify/lib/agent-memory-security.js
-          node --check netlify/lib/agent-memory-lifecycle.js
-          node --check netlify/functions/auth.js
-          node --check netlify/functions/staff-login.js
-          node --check netlify/functions/account-security.js
-          node --check netlify/functions/password-reset.js
-          node --check netlify/functions/customer-data.js
-          node --check netlify/functions/post-sale.js
-          node --check netlify/functions/guest-order.js
-          node --check netlify/functions/client-error.js
-          node --check netlify/functions/site-status.js
-          node --check netlify/functions/site-config.js
-          node --check netlify/functions/admin-session.js
-          node --check netlify/functions/admin-step-up.js
-          node --check netlify/functions/admin-audit.js
-          node --check netlify/functions/admin-orders.js
-          node --check netlify/functions/admin-catalogo.js
-          node --check netlify/functions/admin-settings.js
-          node --check netlify/functions/admin-status.js
-          node --check netlify/functions/admin-external-readiness.js
-          node --check netlify/functions/admin-governance.js
-          node --check netlify/functions/catalog-quality.js
-          node --check netlify/functions/checkout.js
-          node --check netlify/functions/refund-redsys.js
-          node --check netlify/functions/system-health.js
-          node --check netlify/functions/production-sentinel.js
-          node --check netlify/functions/platform-backup.js
-          node --check netlify/functions/platform-restore.js
-          node --check netlify/functions/nexus-status.js
-          node --check netlify/functions/workforce-status.js
-          node --check netlify/functions/workforce-run.js
-          node --check netlify/functions/workforce-worker.js
-          node --check netlify/functions/ai-worker.js
-          node --check netlify/functions/ai-federation.js
-          node --check netlify/functions/agent-memory-status.js
+          find . -type f -name '*.js' -not -path './node_modules/*' -not -path './dist/*' -print0 | xargs -0 -n1 node --check
       - name: Repository-wide programming integrity
         run: node scripts/audit-complete-programming.js
-      - name: Interactive controls and local navigation audit
+      - name: Interactive controls certification must be complete
         run: node scripts/audit-interactive-controls.js
       - name: Architecture and maximum security audits
         run: |
@@ -168,12 +82,12 @@ jobs:
           node scripts/dev-server.js > /tmp/nutretium-server.log 2>&1 &
           echo $! > /tmp/nutretium-server.pid
           for i in $(seq 1 30); do
-            if curl --fail --silent --show-error http://127.0.0.1:4173/ >/dev/null; then
-              exit 0
-            fi
+            if curl --fail --silent --show-error http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
             sleep 1
           done
           cat /tmp/nutretium-server.log
           exit 1
       - name: Browser E2E
         run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js tests/e2e-critical-flows.spec.js tests/e2e-interactive-controls.spec.js --browser=chromium --workers=1
+      - name: Exhaustive 223-control browser certification
+        run: npx playwright test tests/e2e-all-controls.spec.js --browser=chromium --workers=1

@@ -28,9 +28,14 @@ assert(fs.existsSync(productPage), 'Debe generarse HTML estático de producto');
 const productHtml = fs.readFileSync(productPage,'utf8');
 assert(productHtml.includes(`<h1 class="title">${first.name.replace(/&/g,'&amp;')}`) || productHtml.includes(first.name), 'La ficha estática debe contener el producto');
 assert(productHtml.includes('rel="canonical"'), 'La ficha estática debe tener canonical');
+assert.strictEqual((productHtml.match(/rel="canonical"/g)||[]).length, 1, 'La ficha estática debe tener un único canonical');
+assert.strictEqual((productHtml.match(/<meta\s+name="description"/gi)||[]).length, 1, 'La ficha estática debe tener una única meta description');
+assert.strictEqual((productHtml.match(/"@type":"Product"/g)||[]).length, 1, 'La ficha estática debe publicar un único Product schema');
 assert(productHtml.includes('"@type":"Product"'), 'La ficha estática debe tener Product schema');
 assert(productHtml.includes('"@type":"BreadcrumbList"'), 'La ficha estática debe tener BreadcrumbList');
 assert(productHtml.includes('/product-media.js'), 'La ficha debe cargar el módulo multimedia');
+assert(productHtml.includes('/product-pim.js'), 'La ficha debe cargar el normalizador PIM');
+assert(productHtml.indexOf('/product-pim.js') < productHtml.indexOf('/product-variants.js'), 'El PIM debe cargarse antes del selector de variantes');
 
 const category = NUTRETIUM_CATEGORIES.find(c => active.some(p => p.category === c));
 assert(category, 'Debe existir una categoría activa');
@@ -44,6 +49,7 @@ const brands = [...new Set(active.map(p=>p.brand).filter(Boolean))];
 if (brands.length) assert(fs.existsSync(path.join(root,'marca',pim.slugify(brands[0]),'index.html')), 'Debe generarse landing de marca');
 
 const sitemap = fs.readFileSync(path.join(root,'sitemap.xml'),'utf8');
+assert(sitemap.includes('/condiciones'), 'Sitemap debe incluir condiciones de contratación');
 assert(sitemap.includes(`/producto/${pim.slugify(first.name)}-${first.id}`), 'Sitemap debe incluir productos');
 assert(sitemap.includes(`/categoria/${pim.slugify(category)}`), 'Sitemap debe incluir categorías');
 if (brands.length) assert(sitemap.includes(`/marca/${pim.slugify(brands[0])}`), 'Sitemap estático debe incluir marcas');

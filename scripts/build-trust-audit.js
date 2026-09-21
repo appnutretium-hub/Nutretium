@@ -1,6 +1,8 @@
 'use strict';
 const fs=require('fs');
 const html=fs.readFileSync('index.html','utf8');
+const app=fs.readFileSync('app.js','utf8');
+const publicCopy=`${html}\n${app}`;
 const forbidden=[
  'Envío a península gratis a partir de 50€',
  '10% de descuento en tu primer pedido',
@@ -15,8 +17,15 @@ const forbidden=[
  'Certificación 22000',
  '>ISO</p>',
  '>GMP</p>',
- 'Garantía total'
+ 'Garantía total',
+ 'Envío gratis',
+ 'envío gratis',
+ '24–48 horas',
+ '24-48 horas',
+ 'Devoluciones gratuitas',
+ 'devolución gratuita'
 ];
-const hits=forbidden.filter(x=>html.includes(x));
+const hits=forbidden.filter(x=>publicCopy.includes(x));
 if(hits.length){console.error('[build-trust-audit] FALLO — claims no documentados en build final');hits.forEach(x=>console.error(' - '+x));process.exit(1)}
-console.log('[build-trust-audit] OK — no quedan claims comerciales/certificaciones no documentados conocidos en index.html final');
+if(!app.includes('El pago online disponible es con <strong>tarjeta mediante Redsys</strong>')){console.error('[build-trust-audit] FALLO — el asistente no limita expresamente el pago a Redsys');process.exit(1)}
+console.log('[build-trust-audit] OK — copy comercial conocida verificada en index.html y app.js');

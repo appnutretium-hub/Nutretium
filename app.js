@@ -2173,19 +2173,19 @@ function chatReply(userText) {
 
   // Formas de pago
   if (_hasAny(t, ['pago', 'pagar', 'tarjeta', 'bizum', 'paypal', 'klarna', 'sequra', 'apple pay', 'google pay', 'financi', 'a plazos', 'plazos'])) {
-    chatAddBot('💳 Aceptamos: <strong>Tarjeta, PayPal, Bizum, SeQura, Klarna, Apple Pay y Google Pay</strong>.<br/>Pago 100% seguro con Redsys y cifrado SSL. Con <strong>SeQura</strong> y <strong>Klarna</strong> puedes fraccionar el pago a plazos.');
+    chatAddBot('💳 El pago online disponible es con <strong>tarjeta mediante Redsys</strong>. Antes de pagar verás el total validado por el servidor.');
     return;
   }
 
   // Envíos
   if (_hasAny(t, ['envio', 'enviar', 'entrega', 'tarda', 'plazo', 'llega', 'cuando recibo', 'peninsula', 'canarias', 'baleares', 'gastos de envio', 'coste de envio', 'portes'])) {
-    chatAddBot('🚚 <strong>Envío express en 24–48 h</strong> laborables.<br/>• <strong>Gratis</strong> a partir de 50€ en península (por debajo, 3,95€).<br/>• Enviamos a península, Baleares, Canarias, Ceuta y Melilla.<br/>Recibirás un email con el seguimiento al salir tu pedido.');
+    chatAddBot('🚚 Los gastos y la disponibilidad del envío se calculan en el checkout según el destino y la configuración vigente. Consulta <a href="/ayuda#envios"><strong>Entrega</strong></a> para más información.');
     return;
   }
 
   // Devoluciones
   if (_hasAny(t, ['devolu', 'devolver', 'reembolso', 'cambiar', 'cambio', 'garantia', 'me arrepiento', 'no me gusta'])) {
-    chatAddBot('↩️ Tienes <strong>30 días</strong> para devolver. El producto debe ir sin abrir.<br/>Reembolso en 5–7 días y <strong>envío de vuelta gratuito</strong>. Los cambios no tienen coste.');
+    chatAddBot('↩️ En las compras a distancia existe, con carácter general, derecho de desistimiento de 14 días naturales, sujeto a las excepciones legales aplicables a productos perecederos, de salud o higiene. Consulta <a href="/ayuda#devoluciones"><strong>Devoluciones</strong></a>.');
     return;
   }
 
@@ -2212,7 +2212,7 @@ function chatReply(userText) {
 
   // Ofertas / descuentos / registro
   if (_hasAny(t, ['oferta', 'descuento', 'promocion', 'codigo', 'cupon', 'rebaja', 'primer pedido', 'registr', 'cuenta', 'darme de alta'])) {
-    chatAddBot('🎁 <strong>10% de descuento en tu primer pedido</strong> al registrarte, y <strong>envío gratis</strong> a partir de 50€.' +
+    chatAddBot('Puedes crear una cuenta para guardar tus pedidos y favoritos. El coste y las condiciones de envío se muestran en el checkout antes del pago.' +
       chatBtn('📝 Registrarme ahora', "openModal('registerModal'); toggleChat()") +
       chatBtn('🏷️ Ver productos destacados', "document.getElementById('recomendados').scrollIntoView({behavior:'smooth'}); toggleChat()"));
     return;
@@ -2330,24 +2330,24 @@ const INFO_CONTENT = {
     html: `
       <p>Gana mientras compartes lo que te gusta. Con el <strong class="text-brand-gold">Club Nutretium</strong> sumas puntos en cada compra que canjeas por descuentos exclusivos.</p>
       <p><strong class="text-white">Fidelización:</strong> 1€ gastado = 1 punto. 100 puntos = 5€ de descuento.</p>
-      <p><strong class="text-white">Afiliación:</strong> recomienda a tus amigos con tu código personal y gana un 10% de comisión por cada pedido que realicen.</p>
+      <p><strong class="text-white">Afiliación:</strong> las condiciones se publicarán cuando el programa esté activado y documentado.</p>
       <p>Escríbenos a <a href="mailto:appnutretium@gmail.com" class="text-brand-gold hover:underline">appnutretium@gmail.com</a> para unirte.</p>`
   },
   faqs: {
     title: 'Preguntas frecuentes (FAQs)',
     html: `
-      <p><strong class="text-white">¿Cuánto tarda mi pedido?</strong><br/>Envío express en 24–48 h laborables. Gratis a partir de 50€ en península.</p>
-      <p><strong class="text-white">¿Puedo devolver un producto?</strong><br/>Sí, dispones de 30 días. El producto debe estar sin abrir.</p>
-      <p><strong class="text-white">¿Los productos están certificados?</strong><br/>Todos cuentan con certificación ISO 22000 y GMP, y muchos con Informed Sport.</p>
+      <p><strong class="text-white">¿Cuánto tarda mi pedido?</strong><br/>El plazo aplicable se confirmará con las condiciones del envío. No publicamos un plazo único sin transportista validado.</p>
+      <p><strong class="text-white">¿Puedo devolver un producto?</strong><br/>Consulta las condiciones de desistimiento, excepciones y devolución antes de abrir el producto.</p>
+      <p><strong class="text-white">¿Los productos están certificados?</strong><br/>Solo se mostrarán certificaciones o alegaciones respaldadas por documentación verificable de cada referencia.</p>
       <p><strong class="text-white">¿Tenéis asesoramiento?</strong><br/>Sí, contacta con nuestro equipo o solicita un Entrenador Personal.</p>`
   },
   envios: {
     title: 'Información de envíos',
     html: `
-      <p>Realizamos envíos a toda la <strong class="text-white">península, Baleares, Canarias, Ceuta y Melilla</strong>.</p>
-      <p><strong class="text-white">Plazos:</strong> 24–48 h laborables en península.</p>
-      <p><strong class="text-white">Gastos:</strong> envío gratis en pedidos superiores a 50€ (península). Por debajo, 3,95€.</p>
-      <p>Recibirás un email con el número de seguimiento en cuanto tu pedido salga de nuestro almacén.</p>`
+      <p>La disponibilidad, el coste y las condiciones del envío se validan para el destino indicado antes de iniciar el pago.</p>
+      <p><strong class="text-white">Plazos:</strong> se confirmarán cuando exista un transportista y nivel de servicio aplicable al pedido.</p>
+      <p><strong class="text-white">Gastos:</strong> el importe mostrado en el checkout prevalece sobre cualquier información anterior.</p>
+      <p>Cuando exista seguimiento del transportista, se comunicará por los canales facilitados en el pedido.</p>`
   },
   condiciones: {
     title: 'Condiciones generales de contratación',

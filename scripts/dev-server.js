@@ -21,13 +21,16 @@ const TYPES = {
 http.createServer((req, res) => {
   const urlPath = decodeURIComponent(req.url.split('?')[0]);
   const rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '');
-  const file = path.join(ROOT, rel);
+  const initial = path.join(ROOT, rel);
 
   // Nunca servir fuera de la raíz del proyecto.
-  if (!file.startsWith(ROOT)) {
+  if (!initial.startsWith(ROOT)) {
     res.writeHead(403).end('Forbidden');
     return;
   }
+  const candidates = [initial];
+  if (!path.extname(initial)) candidates.push(initial + '.html', path.join(initial, 'index.html'));
+  const file = candidates.find(candidate => fs.existsSync(candidate) && fs.statSync(candidate).isFile()) || initial;
   fs.readFile(file, (err, data) => {
     if (err) {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('No encontrado: ' + rel);

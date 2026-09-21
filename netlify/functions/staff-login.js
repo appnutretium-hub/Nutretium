@@ -31,8 +31,8 @@ async function checkThrottle(event, email) {
   return {ok: gate.allowed === true,retryAfter: Math.max(1, Number(gate.retryAfter) || 60),degraded: gate.degraded === true};
 }
 async function clearAttempts(event, email) { await reset({ scope: 'staff-login', event, extra: email }).catch(() => false); }
-function privilegedMfaExempt(role){return role==='owner'||role==='admin'}
-function mfaRequiredFor(role,user){return !privilegedMfaExempt(role)&&user?.mfaEnabled===true}
+function privilegedMfaExempt(){return false}
+function mfaRequiredFor(role,user){return ['owner','admin'].includes(String(role||''))||security.staffMfaRequired()||user?.mfaEnabled===true}
 
 exports.handler = async event => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };

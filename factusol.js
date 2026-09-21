@@ -1,0 +1,20 @@
+'use strict';
+const $=id=>document.getElementById(id);
+const ENDPOINT='/.netlify/functions/admin-factusol';
+async function api(method,body){const headers={'Content-Type':'application/json'};const r=await fetch(ENDPOINT,{method,credentials:'same-origin',headers,body:body?JSON.stringify(body):undefined});const d=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(d.error||'No se pudo completar la operación.'),{status:r.status,data:d});return d}
+function statusText(d){const v=d.vault||{},r=d.readiness||{};return[
+ `Bóveda cifrada: ${v.vaultConfigured?'OK':'PENDIENTE'}`,
+ `Credenciales: ${v.manufacturerConfigured&&v.clientConfigured&&v.databaseConfigured&&v.passwordConfigured?'OK':'PENDIENTE'}`,
+ `Almacén: ${r.warehouseCodesConfigured?(r.warehouseCodes||[]).join(', '):'PENDIENTE'}`,
+ `Tarifa: ${r.tariffConfigured?(r.tariffCode||'OK'):'PENDIENTE'}`,
+ `Validación checkout: ${r.liveEnabled?'ACTIVA':'DESACTIVADA'}`,
+ `Escritura pedidos: ${r.writeEnabled?'ACTIVA':'DESACTIVADA'}`,
+ `Estado catálogo live: ${r.liveCatalogReady?'LISTO':'NO LISTO'}`
+ ].join('\n')}
+function render(d){$('state').textContent=statusText(d);$('state').className='status '+(d.readiness?.liveCatalogReady?'ok':'muted');$('liveEnabled').checked=Boolean(d.readiness?.liveEnabled);$('writeEnabled').checked=Boolean(d.readiness?.writeEnabled);if(Array.isArray(d.readiness?.warehouseCodes)&&d.readiness.warehouseCodes.length)$('warehouseCodes').value=d.readiness.warehouseCodes.join(',');if(d.readiness?.tariffCode)$('tariffCode').value=d.readiness.tariffCode}
+async function load(){try{render(await api('GET'))}catch(e){$('state').textContent=e.message;$('state').className='status bad';if([401,403].includes(e.status))setTimeout(()=>location.href='/backoffice.html',900)}}
+$('test').onclick=async()=>{try{const d=await api('POST',{action:'test'});render(d);$('message').textContent=`Conexión OK · latencia ${d.health?.latencyMs??'?'} ms`;$('message').className='status ok'}catch(e){$('message').textContent=e.message+(e.data?.detail?`\n${e.data.detail}`:'');$('message').className='status bad'}};
+$('discover').onclick=async()=>{try{const d=await api('POST',{action:'discover'});render(d);const w=(d.warehouses||[]).map(x=>`${x.code} — ${x.name||''}`).join('\n')||'Sin almacenes';const t=(d.tariffs||[]).map(x=>`${x.code} — ${x.name||''}`).join('\n')||'Sin tarifas';$('discovery').textContent=`ALMACENES\n${w}\n\nTARIFAS\n${t}`;$('discovery').className='status'}catch(e){$('discovery').textContent=e.message+(e.data?.detail?`\n${e.data.detail}`:'');$('discovery').className='status bad'}};
+$('save').onclick=async()=>{if(!$('manufacturerCode').value.trim()&&!confirm('El código fabricante está vacío. ¿Continuar usando el valor ya guardado?'))return;const body={action:'save',manufacturerCode:$('manufacturerCode').value.trim()||undefined,clientCode:$('clientCode').value.trim()||undefined,database:$('database').value.trim()||undefined,password:$('password').value||undefined,warehouseCodes:$('warehouseCodes').value.trim(),tariffCode:$('tariffCode').value.trim(),orderSeries:$('orderSeries').value.trim(),orderWarehouse:$('orderWarehouse').value.trim(),webCustomerCode:$('webCustomerCode').value.trim(),paymentCode:$('paymentCode').value.trim(),liveEnabled:$('liveEnabled').checked,writeEnabled:$('writeEnabled').checked};try{const d=await api('POST',body);$('password').value='';render(d);$('message').textContent='Configuración FACTUSOL guardada cifrada y verificada.';$('message').className='status ok'}catch(e){$('message').textContent=e.message;$('message').className='status bad'}};
+$('clear').onclick=async()=>{if(!confirm('¿Borrar toda la configuración FACTUSOL cifrada?'))return;try{const d=await api('POST',{action:'clear'});['manufacturerCode','clientCode','database','password','warehouseCodes','tariffCode','orderSeries','orderWarehouse','webCustomerCode','paymentCode'].forEach(id=>$(id).value='');render(d);$('message').textContent='Configuración eliminada.';$('message').className='status ok'}catch(e){$('message').textContent=e.message;$('message').className='status bad'}};
+load();

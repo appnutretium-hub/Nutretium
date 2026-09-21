@@ -78,6 +78,7 @@ jobs:
           node --check scripts/test-ai-growth-loop.js
           node --check scripts/test-agent-safe-memory.js
           node --check scripts/test-agent-memory-extreme.js
+          node --check scripts/audit-interactive-controls.js
           node --check runtime-content.js
           node --check runtime-performance.js
           node --check runtime-guard.js
@@ -143,6 +144,8 @@ jobs:
           node --check netlify/functions/agent-memory-status.js
       - name: Repository-wide programming integrity
         run: node scripts/audit-complete-programming.js
+      - name: Interactive controls and local navigation audit
+        run: node scripts/audit-interactive-controls.js
       - name: Architecture and maximum security audits
         run: |
           node scripts/audit-architecture.js

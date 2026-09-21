@@ -2,13 +2,14 @@
 
 const assert=require('assert');
 process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
-process.env.AI_OLLAMA_QUEUE_ENABLED='true';
-process.env.AI_OLLAMA_MODEL='test-local-model';
-process.env.AI_OLLAMA_RUNNER_TOKEN='test-runner-token-1234567890';
+delete process.env.AI_OLLAMA_QUEUE_ENABLED;
+delete process.env.AI_OLLAMA_MODEL;
+delete process.env.AI_OLLAMA_RUNNER_TOKEN;
 
 const live=require('../netlify/lib/ai-live-sources');
 const truth=require('../netlify/lib/ai-truth-layer');
 const queue=require('../netlify/lib/ollama-queue');
+const pairing=require('../netlify/lib/ollama-pairing');
 const orchestrator=require('../netlify/lib/ai-ollama-orchestrator');
 const bridge=require('../netlify/functions/ai-ollama-runner');
 
@@ -32,8 +33,17 @@ const bridge=require('../netlify/functions/ai-ollama-runner');
 
  const tq=truth.quality('products',catalog);
  assert.notEqual(tq.status,'NO_VALIDADO','Catálogo versionado quedó NO_VALIDADO pese a tener registros e IDs.');
- const cfg=orchestrator.config(process.env);assert.equal(cfg.enabled,true);assert.equal(cfg.externalSpendLimitEur,0);assert.equal(cfg.transport,'outbound_runner');
+ const initial=await orchestrator.config({});assert.equal(initial.externalSpendLimitEur,0);assert.equal(initial.transport,'outbound_runner');
  assert.equal(bridge._test.sameSecret('abc','abc'),true);assert.equal(bridge._test.sameSecret('abc','abd'),false);
+
+ const pair=await pairing.createPairing({createdBy:'owner@example.test',model:'test-local-model'});
+ assert(pair.code&&pair.code.length>=12,'No se generó código de emparejamiento.');
+ const consumed=await pairing.consumePairing({code:pair.code,runnerId:'runner-test'});
+ assert.equal(consumed.ok,true,'No se consumió pairing válido.');assert(consumed.token.length>=40,'Token runner demasiado corto.');
+ assert.equal((await pairing.consumePairing({code:pair.code,runnerId:'runner-2'})).ok,false,'Pairing reutilizable.');
+ assert.equal(await pairing.authenticate({token:consumed.token,runnerId:'runner-test',touch:false}),true,'Credencial runner inválida.');
+ assert.equal(await pairing.authenticate({token:'incorrecto',runnerId:'runner-test',touch:false}),false,'Credencial incorrecta aceptada.');
+ const cfg=await orchestrator.config({});assert.equal(cfg.enabled,true);assert.equal(cfg.model,'test-local-model');assert.equal(cfg.externalSpendLimitEur,0);
 
  const payload={agent:'inventory',action:'low-stock-scan',messages:[{role:'system',content:'s'},{role:'user',content:'u'}],model:'test-local-model',validation:'VALIDADO',requiredSources:['inventory'],dedupeKey:'test:inventory:1'};
  const first=await queue.enqueue(payload),second=await queue.enqueue(payload);
@@ -43,5 +53,5 @@ const bridge=require('../netlify/functions/ai-ollama-runner');
  const done=await queue.complete({id:claimed.id,leaseId:claimed.leaseId,result:'DATO VERIFICADO: test',model:'test-local-model'});assert.equal(done.ok,true);assert.equal(done.job.status,'completed');
  const stats=await queue.stats();assert.equal(stats.completed,1);assert.equal(stats.failed,0);
 
- console.log(`AI live sources + Ollama queue regressions: OK (${catalog.length} catálogo, ${inventory.length} stock)`);
+ console.log(`AI live sources + Ollama pairing/queue regressions: OK (${catalog.length} catálogo, ${inventory.length} stock)`);
 })().catch(error=>{console.error(error);process.exit(1)});

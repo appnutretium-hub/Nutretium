@@ -23,8 +23,8 @@ need('netlify.toml','Referrer-Policy = "strict-origin-when-cross-origin"');
 need('netlify.toml','Cross-Origin-Opener-Policy = "same-origin"');
 need('netlify.toml','X-Permitted-Cross-Domain-Policies = "none"');
 need('netlify.toml','Origin-Agent-Cluster = "?1"');
-need('.github/workflows/quality.yml','actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1');
-need('.github/workflows/quality.yml','actions/setup-node@820762786026740c76f36085b0efc47a31fe5020');
+need('.github/workflows/quality-gate.yml','actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1');
+need('.github/workflows/quality-gate.yml','actions/setup-node@820762786026740c76f36085b0efc47a31fe5020');
 need('.github/workflows/quality-gate.yml','scripts/audit-workflow-pinning.js');
 forbid('scripts/trust-inject.js',"postalCode:'39012'");
 if(failures.length){console.error('[security-audit] FALLO');failures.forEach(x=>console.error(' - '+x));process.exit(1)}

@@ -3,11 +3,29 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Mi cuenta — Nutretium</title>
 <style>
-:root{--g:#d4af37;--bg:#080808;--c:#111;--l:#292929;--t:#f3efe7;--m:#948e84;--bad:#e27b7b;--ok:#6ecb91}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px/1.5 Inter,system-ui,sans-serif}.shell{max-width:1180px;margin:auto;padding:25px 18px 60px}.head{display:flex;justify-content:space-between;align-items:center;gap:12px}.brand{font-weight:950;font-size:1.3rem}.brand b{color:var(--g)}a,button{color:inherit}.btn{border:1px solid var(--l);background:#121212;border-radius:9px;padding:9px 12px;text-decoration:none;cursor:pointer}.primary{background:var(--g);border-color:var(--g);color:#080808}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px}.card{border:1px solid var(--l);background:var(--c);border-radius:14px;padding:15px}.card h2{font-size:1rem;margin:0 0 9px}.muted{color:var(--m)}.list{display:grid;gap:7px}.item{border:1px solid #262626;border-radius:9px;padding:9px}.forms{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}input,textarea,select{width:100%;background:#080808;border:1px solid #333;color:#fff;border-radius:8px;padding:9px;margin:4px 0 8px}textarea{min-height:75px}.full{grid-column:1/-1}.login{max-width:380px;margin:15vh auto}.status{font-size:.75rem;margin-left:8px}.ok{color:var(--ok)}.bad{color:var(--bad)}.code{font:800 1.1rem/1.2 ui-monospace,monospace;color:var(--g);word-break:break-all}.toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #292929;border-radius:9px;padding:9px;margin:7px 0}.toggle input{width:auto;margin:0}@media(max-width:800px){.grid,.forms{grid-template-columns:1fr}.full{grid-column:auto}}
+:root{--g:#d4af37;--bg:#080808;--c:#111;--l:#292929;--t:#f3efe7;--m:#948e84;--bad:#e27b7b;--ok:#6ecb91}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px/1.5 Inter,system-ui,sans-serif}.shell{max-width:1180px;margin:auto;padding:25px 18px 60px}.head{display:flex;justify-content:space-between;align-items:center;gap:12px}.brand{font-weight:950;font-size:1.3rem}.brand b{color:var(--g)}a,button{color:inherit}.btn{border:1px solid var(--l);background:#121212;border-radius:9px;padding:9px 12px;text-decoration:none;cursor:pointer}.primary{background:var(--g);border-color:var(--g);color:#080808}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px}.card{border:1px solid var(--l);background:var(--c);border-radius:14px;padding:15px}.card h2{font-size:1rem;margin:0 0 9px}.muted{color:var(--m)}.list{display:grid;gap:7px}.item{border:1px solid #262626;border-radius:9px;padding:9px}.forms{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}input,textarea,select{width:100%;background:#080808;border:1px solid #333;color:#fff;border-radius:8px;padding:9px;margin:4px 0 8px}textarea{min-height:75px}.full{grid-column:1/-1}.login{max-width:420px;margin:12vh auto}.status{font-size:.78rem;display:block;margin-top:8px}.ok{color:var(--ok)}.bad{color:var(--bad)}.code{font:800 1.1rem/1.2 ui-monospace,monospace;color:var(--g);word-break:break-all}.toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #292929;border-radius:9px;padding:9px;margin:7px 0}.toggle input{width:auto;margin:0}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.hidden{display:none!important}@media(max-width:800px){.grid,.forms{grid-template-columns:1fr}.full{grid-column:auto}}
 </style>
 </head>
 <body>
-<section id="login" class="card login" hidden><h2>Mi cuenta</h2><p class="muted">Inicia sesión para acceder a tus servicios.</p><a class="btn primary" href="/?login=1">Volver a la tienda</a></section>
+<section id="login" class="card login" hidden>
+  <div id="loginDefault">
+    <h2>Mi cuenta</h2><p class="muted">Inicia sesión para acceder a tus servicios.</p>
+    <div class="actions"><a class="btn primary" href="/?login=1">Iniciar sesión</a><button id="forgotPassword" class="btn" type="button">He olvidado mi contraseña</button></div>
+  </div>
+  <form id="resetRequestForm" class="hidden" novalidate>
+    <h2>Recuperar contraseña</h2><p class="muted">Escribe el email de tu cuenta. Si existe, recibirás un enlace de recuperación de un solo uso.</p>
+    <label for="resetEmail">Email</label><input id="resetEmail" type="email" autocomplete="email" maxlength="254" required>
+    <div class="actions"><button class="btn primary" type="submit">Enviar enlace</button><button id="cancelResetRequest" class="btn" type="button">Volver</button></div>
+    <span id="resetRequestMsg" class="status muted" role="status" aria-live="polite"></span>
+  </form>
+  <form id="resetPasswordForm" class="hidden" novalidate>
+    <h2>Crear nueva contraseña</h2><p class="muted">El enlace es temporal y solo puede utilizarse una vez.</p>
+    <label for="resetPassword">Nueva contraseña</label><input id="resetPassword" type="password" autocomplete="new-password" minlength="10" maxlength="128" required>
+    <label for="resetPasswordConfirm">Repite la nueva contraseña</label><input id="resetPasswordConfirm" type="password" autocomplete="new-password" minlength="10" maxlength="128" required>
+    <button class="btn primary" type="submit">Guardar nueva contraseña</button>
+    <span id="resetPasswordMsg" class="status muted" role="status" aria-live="polite"></span>
+  </form>
+</section>
 <main id="app" class="shell" hidden>
 <div class="head"><div class="brand">NUTRETIUM <b>MI CUENTA</b></div><a class="btn" href="/">Volver a comprar</a></div>
 <div class="grid">
@@ -28,10 +46,8 @@
 <form id="giftCardForm" class="card"><h2>Consultar tarjeta regalo</h2><input id="giftCardCode" maxlength="80" placeholder="Código" required><button class="btn primary">Consultar saldo</button><div id="giftCardResult" class="muted" style="margin-top:8px"></div></form>
 <form id="b2bForm" class="card"><h2>Cuenta profesional / B2B</h2><input id="b2bCompany" maxlength="160" placeholder="Empresa" required><input id="b2bTax" maxlength="40" placeholder="NIF/CIF"><input id="b2bContact" maxlength="120" placeholder="Persona de contacto"><button class="btn primary">Solicitar alta</button><span id="b2bMsg" class="status"></span><p class="muted" style="font-size:.72rem;line-height:1.6;margin-top:10px">Responsable: BAHÍA NORTE CAPITAL, S.L. (NUTRETIUM). Derechos en <a href="mailto:nutretium@gmail.com">nutretium@gmail.com</a>. <a href="/privacidad">Política de Privacidad</a>.</p></form>
 <section class="card"><h2>Preferencias de privacidad</h2><label class="toggle"><span>Analítica</span><input id="consentAnalytics" type="checkbox"></label><label class="toggle"><span>Marketing</span><input id="consentMarketing" type="checkbox"></label><label class="toggle"><span>Personalización</span><input id="consentPersonalization" type="checkbox"></label><div class="muted">Los cambios se registran individualmente y pueden retirarse en cualquier momento.</div></section>
-<form id="passwordForm" class="card full"><h2>Seguridad</h2><div class="forms" style="margin:0"><div><input id="oldPassword" type="password" placeholder="Contraseña actual" required></div><div><input id="newPassword" type="password" placeholder="Nueva contraseña (mín. 10)" required></div></div><button class="btn primary">Cambiar contraseña</button><span id="securityMsg" class="status muted"></span></form>
+<form id="passwordForm" class="card full"><h2>Seguridad</h2><div class="forms" style="margin:0"><div><input id="oldPassword" type="password" autocomplete="current-password" placeholder="Contraseña actual" required></div><div><input id="newPassword" type="password" autocomplete="new-password" minlength="10" maxlength="128" placeholder="Nueva contraseña (mín. 10)" required></div></div><button class="btn primary">Cambiar contraseña</button><span id="securityMsg" class="status muted"></span></form>
 </div>
 </main>
 <script src="/cuenta.js"></script>
 </body></html>
-
-

@@ -1,0 +1,36 @@
+'use strict';
+const assert=require('assert');
+const growth=require('../netlify/lib/ai-growth-loop');
+
+const verified=status=>({status,records:1});
+
+const view={
+  dataQuality:{coveragePct:72},
+  sources:{
+    inventory:verified('VERIFICADO'),products:verified('VERIFICADO'),orders:verified('VERIFICADO'),
+    productCompliance:verified('VERIFICADO'),compliance:verified('PARCIAL'),analytics:verified('VERIFICADO'),reviews:verified('VERIFICADO')
+  },
+  inventory:{negativeAvailable:1,lowStock:3},
+  catalog:{missingPrice:2,inactive:4},
+  compliance:{blocked:1,pending:5},
+  orders:{records:20},
+  digital:{analyticsRecords:12},
+  customer:{reviews:{attention:2}},
+};
+
+const result=growth.evaluate(view);
+assert.equal(result.validation,'PARCIALMENTE_VALIDADO');
+assert.equal(result.coveragePct,72);
+assert.ok(result.evidence.includes('inventory'));
+assert.ok(result.risks.some(x=>x.area==='stock'&&x.priority==='CRITICA'));
+assert.ok(result.risks.some(x=>x.area==='food_safety'&&x.priority==='CRITICA'));
+assert.ok(result.recommendations.some(x=>x.area==='growth'));
+assert.ok(result.recommendations.every(x=>!String(x.message).toLowerCase().includes('comprar automáticamente')));
+assert.equal(result.rules,'Deterministic only; no paid AI; no autonomous critical actions.');
+
+const weak=growth.evaluate({dataQuality:{coveragePct:15},sources:{},inventory:{},catalog:{},compliance:{},orders:{},digital:{},customer:{reviews:{}}});
+assert.equal(weak.validation,'NO_VALIDADO');
+assert.ok(weak.risks.some(x=>x.area==='datos'));
+assert.ok(weak.recommendations.some(x=>x.area==='datos'));
+
+console.log(JSON.stringify({ok:true,validation:result.validation,risks:result.risks.length,recommendations:result.recommendations.length,weakValidation:weak.validation},null,2));

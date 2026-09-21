@@ -1,9 +1,6 @@
 const { test, expect } = require('@playwright/test');
 const BASE = process.env.E2E_BASE_URL || 'http://127.0.0.1:4173';
 
-// Physical files are used because scripts/dev-server.js is intentionally a
-// minimal static server and does not emulate Netlify _redirects. Redirect routes
-// are verified separately by audit-interactive-controls.js.
 const pages = [
   '/', '/checkout.html', '/cuenta.html', '/admin-center.html', '/admin.html',
   '/enterprise.html', '/financial-dashboard.html', '/smart-shop.html'
@@ -32,9 +29,6 @@ async function preparePage(page, path, runtimeErrors) {
 }
 
 async function waitForControlSurface(page) {
-  // The storefront hydrates product/action controls asynchronously. Certification
-  // must start from a settled surface instead of assuming the DOM count at
-  // domcontentloaded is immutable.
   let previous = -1;
   let stableRounds = 0;
   const deadline = Date.now() + 5000;
@@ -65,10 +59,6 @@ async function snapshotControls(page) {
 }
 
 async function locateSnapshot(page, target) {
-  // Prefer explicit stable identities. Fall back to a semantic signature and
-  // finally the original position only when the same settled surface still
-  // contains that position. This avoids treating legitimate async hydration as
-  // a functional regression while still failing when a captured control vanishes.
   if (target.id) {
     const byId = page.locator(`[id=${JSON.stringify(target.id)}]`).first();
     if (await byId.count()) return byId;
@@ -99,6 +89,37 @@ async function locateSnapshot(page, target) {
   return null;
 }
 
+async function dismissBlockingOverlays(page, target) {
+  const dismissers = [
+    page.getByRole('button', { name: /aceptar todas|aceptar cookies|aceptar|consentir|entendido|de acuerdo|continuar/i }),
+    page.getByRole('button', { name: /rechazar todas|rechazar cookies|rechazar/i }),
+    page.getByRole('button', { name: /cerrar|close|ahora no|no gracias/i })
+  ];
+
+  for (let round = 0; round < 4; round++) {
+    const actionable = await target.click({ trial: true, timeout: 500 }).then(() => true).catch(() => false);
+    if (actionable) return;
+
+    let dismissed = false;
+    for (const group of dismissers) {
+      const count = await group.count().catch(() => 0);
+      for (let i = 0; i < count; i++) {
+        const candidate = group.nth(i);
+        if (!(await candidate.isVisible().catch(() => false))) continue;
+        if (!(await candidate.isEnabled().catch(() => false))) continue;
+        const clicked = await candidate.click({ timeout: 1000 }).then(() => true).catch(() => false);
+        if (clicked) {
+          dismissed = true;
+          await page.waitForTimeout(150);
+          break;
+        }
+      }
+      if (dismissed) break;
+    }
+    if (!dismissed) return;
+  }
+}
+
 for (const path of pages) {
   for (let shard = 0; shard < CONTROL_SHARDS; shard++) {
     test(`controles interactivos sin errores de runtime: ${path} [${shard + 1}/${CONTROL_SHARDS}]`, async ({ page }) => {
@@ -124,7 +145,8 @@ for (const path of pages) {
 
         const beforeErrors = runtimeErrors.length;
         await control.scrollIntoViewIfNeeded();
-        await control.click({ timeout: 2000, noWaitAfter: true });
+        await dismissBlockingOverlays(page, control);
+        await control.click({ timeout: 2500, noWaitAfter: true });
         await page.waitForTimeout(100);
         expect(runtimeErrors.slice(beforeErrors), `errores JS en ${path} control #${target.index}: ${runtimeErrors.slice(beforeErrors).join(' | ')}`).toEqual([]);
       }

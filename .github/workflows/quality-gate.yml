@@ -54,6 +54,7 @@ jobs:
           node scripts/test-enterprise-workforce-runtime.js
           node scripts/test-zero-cost-policy.js
           node scripts/test-ai-federation.js
+          node scripts/test-ai-growth-loop.js
           node scripts/test-agent-safe-memory.js
           node scripts/test-agent-memory-extreme.js
       - name: Syntax hardening
@@ -74,6 +75,7 @@ jobs:
           node --check scripts/test-enterprise-workforce-runtime.js
           node --check scripts/test-zero-cost-policy.js
           node --check scripts/test-ai-federation.js
+          node --check scripts/test-ai-growth-loop.js
           node --check scripts/test-agent-safe-memory.js
           node --check scripts/test-agent-memory-extreme.js
           node --check runtime-content.js
@@ -100,6 +102,7 @@ jobs:
           node --check netlify/lib/zero-cost-policy.js
           node --check netlify/lib/federated-ai-router.js
           node --check netlify/lib/ai-memory.js
+          node --check netlify/lib/ai-growth-loop.js
           node --check netlify/lib/agent-safe-memory.js
           node --check netlify/lib/agent-safe-memory-bridge.js
           node --check netlify/lib/agent-checkpoint-backup.js
@@ -135,6 +138,7 @@ jobs:
           node --check netlify/functions/workforce-status.js
           node --check netlify/functions/workforce-run.js
           node --check netlify/functions/workforce-worker.js
+          node --check netlify/functions/ai-worker.js
           node --check netlify/functions/ai-federation.js
           node --check netlify/functions/agent-memory-status.js
       - name: Architecture and maximum security audits

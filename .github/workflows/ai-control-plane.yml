@@ -5,11 +5,14 @@ on:
     branches: [main, 'feature/**', 'security/**', 'hardening/**', 'hotfix/**']
     paths:
       - 'netlify/lib/ai-*.js'
-      - 'netlify/lib/ollama-queue.js'
+      - 'netlify/lib/ollama-*.js'
       - 'netlify/functions/ai-*.js'
       - 'scripts/ollama-runner.js'
+      - 'scripts/install-nutretium-ollama.ps1'
       - 'scripts/test-ai-*.js'
       - 'products-data.js'
+      - 'ai-corporation.html'
+      - 'ai-corporation.js'
       - '.github/workflows/ai-control-plane.yml'
       - '.env.example'
   pull_request:
@@ -39,6 +42,7 @@ jobs:
           node --check netlify/lib/ai-decision-engine.js
           node --check netlify/lib/ai-runtime.js
           node --check netlify/lib/ollama-queue.js
+          node --check netlify/lib/ollama-pairing.js
           node --check netlify/lib/ai-ollama-orchestrator.js
           node --check netlify/functions/ai-control-plane.js
           node --check netlify/functions/ai-worker.js
@@ -46,10 +50,17 @@ jobs:
           node --check scripts/ollama-runner.js
           node --check scripts/test-ai-control-plane.js
           node --check scripts/test-ai-live-ollama.js
+          node --check ai-corporation.js
       - name: AI Corporation governance regressions
         run: node scripts/test-ai-control-plane.js
-      - name: Live sources and Ollama queue regressions
+      - name: Live sources, pairing and Ollama queue regressions
         run: node scripts/test-ai-live-ollama.js
+      - name: PowerShell installer parse
+        shell: pwsh
+        run: |
+          $errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'scripts/install-nutretium-ollama.ps1'),[ref]$null,[ref]$errors)
+          if($errors.Count -gt 0){$errors | ForEach-Object { Write-Error $_ }; exit 1}
       - name: Maximum security repository gate
         run: node scripts/security-max-gate.js
       - name: Security regressions

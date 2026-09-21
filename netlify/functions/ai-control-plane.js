@@ -4,6 +4,7 @@ const enterprise=require('../lib/enterprise-store');
 const governance=require('../lib/agent-governance');
 const runtime=require('../lib/ai-runtime');
 const ollama=require('../lib/ai-ollama-orchestrator');
+const pairing=require('../lib/ollama-pairing');
 const memory=require('../lib/ai-memory');
 const audit=require('../lib/audit-log');
 const {requireStaff}=require('../lib/staff');
@@ -27,6 +28,18 @@ exports.handler=async event=>{
   if(event.httpMethod!=='POST')return json(405,{error:'Method Not Allowed'});
   let body;try{body=JSON.parse(event.body||'{}')}catch{return json(400,{error:'JSON no válido.'})}
   const action=String(body.action||'run');
+  if(action==='ollama-pair'){
+   if(!privileged(auth))return json(403,{error:'Solo propietario o administrador puede emparejar un runner Ollama.'});
+   const pair=await pairing.createPairing({createdBy:auth.email,model:String(body.model||'qwen3:4b').trim()||'qwen3:4b'});
+   await audit.append({event,actor:auth.email,action:'OLLAMA_PAIRING_CREATED',resource:'ai-corporation',outcome:'SUCCESS',metadata:{expiresAt:pair.expiresAt,model:pair.model}}).catch(()=>{});
+   return json(201,{ok:true,pairing:pair});
+  }
+  if(action==='ollama-config'){
+   if(!privileged(auth))return json(403,{error:'Solo propietario o administrador puede cambiar Ollama.'});
+   const cfg=await pairing.writeConfig({enabled:body.enabled!==false,model:String(body.model||'qwen3:4b').trim()||'qwen3:4b'});
+   await audit.append({event,actor:auth.email,action:'OLLAMA_CONFIG_UPDATED',resource:'ai-corporation',outcome:'SUCCESS',metadata:{enabled:cfg.enabled,model:cfg.model}}).catch(()=>{});
+   return json(200,{ok:true,config:cfg});
+  }
   if(action==='portfolio'){
    if(!privileged(auth))return json(403,{error:'La ejecución coordinada completa exige propietario o administrador.'});
    const result=await runtime.savePortfolio({requestedBy:auth.email});

@@ -35,7 +35,7 @@ const DIRECCION = { calle:'Calle la Albericia 1', piso:'3º B', cp:'39012', loca
   {
     const alta = await llama({action:'register',name:'Ana',surname:'García',email:CLIENTE,password:CLAVE,phone:'600 123 456',direccion:DIRECCION,role:'admin'});
     comprueba('el registro funciona', alta.estado === 201, JSON.stringify(alta.datos).slice(0,120));
-    comprueba('mandar role en el registro NO asciende a nadie', alta.datos.user.role === 'cliente', alta.datos.user.role);
+    comprueba('mandar role en el registro NO asciende a nadie', alta.datos.user.role === 'client', alta.datos.user.role);
     comprueba('el alta devuelve la dirección', alta.datos.user.direccionCompleta === true, JSON.stringify(alta.datos.user.direccion));
     token = alta.datos.user.token;
     const repetido = await llama({action:'register',name:'Otra',email:CLIENTE,password:CLAVE,direccion:DIRECCION});
@@ -55,9 +55,9 @@ const DIRECCION = { calle:'Calle la Albericia 1', piso:'3º B', cp:'39012', loca
     comprueba('el piso es opcional',sinPiso.estado===201,`${sinPiso.estado} ${sinPiso.datos.error||''}`);
   }
 
-  console.log('\n── El rol sale de ADMIN_EMAILS ──');
+  console.log('\n── El rol sale de la política de acceso ──');
   {
-    const perfil=await llama({action:'profile',token});comprueba('un cliente es "cliente"',perfil.datos.user.role==='cliente',perfil.datos.user.role);
+    const perfil=await llama({action:'profile',token});comprueba('un cliente conserva el rol canónico "client"',perfil.datos.user.role==='client',perfil.datos.user.role);
     const tokenJefa=signJWT({sub:'x',email:'jefa@nutretium.com',exp:Math.floor(Date.now()/1000)+3600});
     const suyo=await llama({action:'profile',token:tokenJefa});comprueba('quien no existe en el almacén no tiene ficha',suyo.estado===404,String(suyo.estado));
   }
@@ -75,7 +75,7 @@ const DIRECCION = { calle:'Calle la Albericia 1', piso:'3º B', cp:'39012', loca
     const dirMala=await llama({action:'update',token,name:'Ana',surname:'',phone:'',direccion:{...DIRECCION,cp:'no'}});comprueba('una dirección inválida en la edición: 400',dirMala.estado===400,`${dirMala.estado} ${dirMala.datos.error||''}`);
     const dirNueva=await llama({action:'update',token,name:'Ana',surname:'',phone:'',direccion:{...DIRECCION,localidad:'Torrelavega',cp:'39300'}});comprueba('se puede cambiar la dirección',dirNueva.estado===200&&dirNueva.datos.user.direccion.localidad==='Torrelavega',JSON.stringify(dirNueva.datos.user.direccion));
     const sinTocarla=await llama({action:'update',token,name:'Ana',surname:'',phone:''});comprueba('no mandar dirección la conserva',sinTocarla.datos.user.direccion.localidad==='Torrelavega',JSON.stringify(sinTocarla.datos.user.direccion));
-    comprueba('no se puede ascender a administrador editando la ficha',colandose.datos.user.role==='cliente',colandose.datos.user.role);comprueba('el id no se toca',colandose.datos.user.id!=='otro-id');
+    comprueba('no se puede ascender a administrador editando la ficha',colandose.datos.user.role==='client',colandose.datos.user.role);comprueba('el id no se toca',colandose.datos.user.id!=='otro-id');
     const entra=await llama({action:'login',email:CLIENTE,password:CLAVE},'127.0.0.20');comprueba('la contraseña sobrevive a editar la ficha',entra.estado===200,String(entra.estado));comprueba('el nombre editado se conserva',entra.datos.user.name==='Ana',entra.datos.user.name);
   }
 

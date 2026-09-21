@@ -40,26 +40,21 @@ function sanitizeOrder(row={}){
 function sanitizeCustomer(row={}){
  const identity=row.id||row.email||row.__sourceKey;
  return{
-  id:`customer_${hash(identity)}`,orders:num(row.orders??row.orderCount??row.totalOrders)??0,totalSpent:num(row.totalSpent??row.totalSpentCents)??0,
-  marketingConsent:Boolean(row.marketingConsent??row.marketing??row.newsletter),createdAt:row.createdAt||null,
-  updatedAt:row.updatedAt||row.lastOrderAt||row.createdAt||null,lastOrderAt:row.lastOrderAt||null,source:'auth-accounts'
+  id:`customer_${hash(identity)}`,createdAt:row.createdAt||null,updatedAt:row.updatedAt||row.createdAt||null,
+  hasPhone:Boolean(row.phone),hasAddress:Boolean(row.direccion&&Object.keys(row.direccion||{}).length),source:'users'
  };
 }
 
 function catalogRows(){
  try{
   const data=require('../../products-data.js');
-  const groups=['products','suplementos','basesSmoothie','capsulasCafe','siropesToppings'];
-  const seen=new Set(),rows=[];
-  for(const group of groups){for(const item of Array.isArray(data[group])?data[group]:[]){
-   const rawId=item.id||item.sku||item.ref||item.code||item.ean||item.name||item.nombre;if(!rawId)continue;
-   const id=text(rawId,140);if(seen.has(id))continue;seen.add(id);
-   rows.push({id,sku:text(item.sku||item.ref||item.code||item.ean||item.id,140)||null,name:text(item.name||item.nombre||item.title,180)||null,
-    category:text(item.category||item.categoria||group,100)||group,brand:text(item.brand||item.marca,100)||null,
-    price:num(item.priceCents??item.price??item.precio),stock:num(item.stock),active:item.active!==false&&item.activo!==false,
-    sourceGroup:group,source:'products-data.js'});
-  }}
-  return rows.slice(0,MAX_ROWS);
+  const source=Array.isArray(data.NUTRETIUM_PRODUCTS)?data.NUTRETIUM_PRODUCTS:[];
+  return source.slice(0,MAX_ROWS).map(item=>({
+   id:text(item.id||item.code||item.ean||item.name,140),sku:text(item.code||item.sku||item.ref||item.ean||item.id,140)||null,
+   name:text(item.name||item.nombre||item.title,180)||null,category:text(item.category||item.categoria,100)||null,
+   brand:text(item.brand||item.marca,100)||null,price:num(item.price),stock:num(item.stock),active:item.active!==false,
+   sourceFamily:text(item.sourceFamily,160)||null,source:'products-data.js'
+  }));
  }catch{return[]}
 }
 
@@ -80,7 +75,7 @@ async function analyticsRows(){
 async function enterpriseRows(collection){return enterprise.list(collection,{limit:MAX_ROWS}).catch(()=>[])}
 
 const ENTERPRISE_COLLECTIONS=Object.freeze({
- suppliers:'suppliers','purchaseOrders':'purchase-orders',compliance:'compliance-records',productCompliance:'product-compliance',incidents:'incidents',
+ suppliers:'suppliers',purchaseOrders:'purchase-orders',compliance:'compliance-records',productCompliance:'product-compliance',incidents:'incidents',
  systemIncidents:'system-incidents',shipments:'shipments',returns:'returns',reviews:'reviews',reconciliation:'reconciliation',invoices:'invoices',
  promotions:'promotions',experiments:'experiments',integrations:'integrations',automationRules:'automation-rules',staff:'staff-directory',priceHistory:'price-history',
  productCosts:'product-costs',marketplace:'marketplace-listings',subscriptions:'subscriptions',loyalty:'loyalty',crmTickets:'crm-tickets'
@@ -88,7 +83,7 @@ const ENTERPRISE_COLLECTIONS=Object.freeze({
 
 async function load(key){
  if(key==='orders')return(await listJsonStore('redsys-orders')).map(sanitizeOrder);
- if(key==='customers')return(await listJsonStore('auth-accounts')).map(sanitizeCustomer);
+ if(key==='customers')return(await listJsonStore('users')).map(sanitizeCustomer);
  if(key==='products')return catalogRows();
  if(key==='inventory')return inventoryRows();
  if(key==='analytics')return analyticsRows();
@@ -97,7 +92,7 @@ async function load(key){
 
 function sourceDescriptor(key){
  if(key==='orders')return{kind:'live_blob',source:'redsys-orders',containsPII:false,sanitized:true};
- if(key==='customers')return{kind:'live_blob',source:'auth-accounts',containsPII:false,sanitized:true};
+ if(key==='customers')return{kind:'live_blob',source:'users',containsPII:false,sanitized:true};
  if(key==='analytics')return{kind:'live_blob',source:'analytics-daily',containsPII:false,sanitized:true};
  if(key==='products'||key==='inventory')return{kind:'versioned_catalog',source:'products-data.js',containsPII:false,sanitized:true};
  return{kind:'enterprise_store',source:ENTERPRISE_COLLECTIONS[key]||key,containsPII:false,sanitized:true};

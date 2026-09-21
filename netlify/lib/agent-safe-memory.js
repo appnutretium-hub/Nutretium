@@ -65,6 +65,10 @@ async function journal(agent,event,detail={}){
 async function head(agent){return enterprise.get(DOMAINS.heads,canonicalAgent(agent)).catch(()=>null)}
 async function checkpoint(id){return enterprise.get(DOMAINS.checkpoints,String(id||'')).catch(()=>null)}
 async function currentCheckpoint(agent){const h=await head(agent);return h?.checkpointId?checkpoint(h.checkpointId):null}
+async function checkpointForShadow(shadowId,agent){
+  const a=canonicalAgent(agent),rows=await enterprise.list(DOMAINS.checkpoints,{limit:500}).catch(()=>[]);
+  return rows.find(x=>x.agent===a&&x.promotedFromShadowId===String(shadowId||''))||null;
+}
 
 async function bootstrap(agent,{state=null,reason='bootstrap',evidence=[]}={}){
   const idAgent=canonicalAgent(agent),existing=await head(idAgent);if(existing)return checkpoint(existing.checkpointId);
@@ -102,19 +106,47 @@ async function verifyShadow(id,{checks=[]}={}){
   await journal(current.agent,ok?'SHADOW_VERIFIED':'SHADOW_REJECTED',{shadowId:current.id,baseCheckpointId:base.id,checks:withIntegrity});return updated;
 }
 async function acquirePromotionLock(agent,baseCheckpointId,shadowId){
-  const id=`${canonicalAgent(agent)}:${String(baseCheckpointId)}`,record={id,agent:canonicalAgent(agent),baseCheckpointId,shadowId,createdAt:now()};
-  await enterprise.save(DOMAINS.locks,record,SYSTEM,{id,create:true,reason:'agent-promotion-lock'});return record;
+  const a=canonicalAgent(agent),id=`${a}:${String(baseCheckpointId)}`,existing=await enterprise.get(DOMAINS.locks,id).catch(()=>null);
+  if(existing){
+    if(existing.shadowId===String(shadowId))return existing;
+    const err=new Error('PROMOTION_LOCKED: otro shadow ya posee el lock de esta base.');err.code='PROMOTION_LOCKED';throw err;
+  }
+  const record={id,agent:a,baseCheckpointId,shadowId:String(shadowId),createdAt:now()};
+  try{return await enterprise.save(DOMAINS.locks,record,SYSTEM,{id,create:true,reason:'agent-promotion-lock'});}
+  catch(error){const winner=await enterprise.get(DOMAINS.locks,id).catch(()=>null);if(winner?.shadowId===String(shadowId))return winner;throw error;}
+}
+async function finalizePromotedShadow(current,saved,createdAt=now()){
+  const latest=await shadow(current.id);
+  if(latest?.status!=='promoted')await enterprise.save(DOMAINS.shadows,{...(latest||current),status:'promoted',promotedCheckpointId:saved.id,promotedAt:createdAt,updatedAt:createdAt},SYSTEM,{id:current.id,reason:'agent-shadow-promoted'});
+  return saved;
 }
 async function promoteShadow(id,{requestedBy='system'}={}){
-  const current=await shadow(id);if(!current)throw new Error('Shadow workspace no encontrado.');if(current.status!=='verified'||current.verification?.status!=='VALIDADO')throw new Error('Sólo se puede promover un shadow verificado.');
-  const h=await head(current.agent);if(!h||h.checkpointId!==current.baseCheckpointId||h.checkpointHash!==current.baseStateHash)throw new Error('STALE_SHADOW: el checkpoint base ya no es el vigente.');
+  const current=await shadow(id);if(!current)throw new Error('Shadow workspace no encontrado.');
+  if(current.status==='promoted'&&current.promotedCheckpointId){const done=await checkpoint(current.promotedCheckpointId);if(done)return done;}
+  if(current.status!=='verified'||current.verification?.status!=='VALIDADO')throw new Error('Sólo se puede promover un shadow verificado.');
+  let h=await head(current.agent);
+  if(h&&h.checkpointId!==current.baseCheckpointId){
+    const already=await checkpoint(h.checkpointId);
+    if(already?.promotedFromShadowId===current.id&&already.stateHash===current.stateHash)return finalizePromotedShadow(current,already,already.createdAt||now());
+    throw new Error('STALE_SHADOW: el checkpoint base ya no es el vigente.');
+  }
+  if(!h||h.checkpointHash!==current.baseStateHash)throw new Error('STALE_SHADOW: el checkpoint base ya no es el vigente.');
   if(current.profileHash!==profileFingerprint(current.agent))throw new Error('POLICY_DRIFT: la política del agente cambió desde que se creó el shadow.');
   await acquirePromotionLock(current.agent,current.baseCheckpointId,current.id);
-  const clean=validateState(trimPrivate(current.state)),newId=crypto.randomUUID(),createdAt=now(),nextVersion=Number(h.checkpointVersion||0)+1,record={id:newId,agent:current.agent,checkpointVersion:nextVersion,state:clean,stateHash:hash(clean),profileHash:current.profileHash,previousCheckpointId:current.baseCheckpointId,reason:`promote:${current.task}`,evidence:current.evidence||[],verification:current.verification,promotedFromShadowId:current.id,promotedBy:String(requestedBy||'system').slice(0,200),createdAt};
-  const saved=await enterprise.save(DOMAINS.checkpoints,record,SYSTEM,{id:newId,create:true,reason:'agent-checkpoint-promote'});
-  await enterprise.save(DOMAINS.heads,{id:current.agent,agent:current.agent,checkpointId:newId,checkpointHash:saved.stateHash,checkpointVersion:nextVersion,profileHash:saved.profileHash,previousCheckpointId:current.baseCheckpointId,updatedAt:createdAt},SYSTEM,{id:current.agent,reason:'agent-head-promote'});
-  await enterprise.save(DOMAINS.shadows,{...current,status:'promoted',promotedCheckpointId:newId,promotedAt:createdAt,updatedAt:createdAt},SYSTEM,{id:current.id,reason:'agent-shadow-promoted'});
-  await journal(current.agent,'CHECKPOINT_PROMOTED',{shadowId:current.id,checkpointId:newId,previousCheckpointId:current.baseCheckpointId,checkpointVersion:nextVersion,stateHash:saved.stateHash});return saved;
+  let saved=await checkpointForShadow(current.id,current.agent);
+  const createdAt=saved?.createdAt||now(),nextVersion=Number(h.checkpointVersion||0)+1;
+  if(saved){
+    if(saved.previousCheckpointId!==current.baseCheckpointId||saved.stateHash!==current.stateHash)throw new Error('PROMOTION_RECOVERY_MISMATCH');
+  }else{
+    const clean=validateState(trimPrivate(current.state)),newId=crypto.randomUUID(),record={id:newId,agent:current.agent,checkpointVersion:nextVersion,state:clean,stateHash:hash(clean),profileHash:current.profileHash,previousCheckpointId:current.baseCheckpointId,reason:`promote:${current.task}`,evidence:current.evidence||[],verification:current.verification,promotedFromShadowId:current.id,promotedBy:String(requestedBy||'system').slice(0,200),createdAt};
+    saved=await enterprise.save(DOMAINS.checkpoints,record,SYSTEM,{id:newId,create:true,reason:'agent-checkpoint-promote'});
+  }
+  h=await head(current.agent);
+  if(h?.checkpointId===current.baseCheckpointId){
+    await enterprise.save(DOMAINS.heads,{id:current.agent,agent:current.agent,checkpointId:saved.id,checkpointHash:saved.stateHash,checkpointVersion:saved.checkpointVersion,profileHash:saved.profileHash,previousCheckpointId:current.baseCheckpointId,updatedAt:createdAt},SYSTEM,{id:current.agent,reason:'agent-head-promote'});
+  }else if(h?.checkpointId!==saved.id){throw new Error('STALE_SHADOW: el head cambió durante la recuperación de promoción.');}
+  await finalizePromotedShadow(current,saved,createdAt);
+  await journal(current.agent,'CHECKPOINT_PROMOTED',{shadowId:current.id,checkpointId:saved.id,previousCheckpointId:current.baseCheckpointId,checkpointVersion:saved.checkpointVersion,stateHash:saved.stateHash});return saved;
 }
 async function rejectShadow(id,reason='rejected'){
   const current=await shadow(id);if(!current)throw new Error('Shadow workspace no encontrado.');if(current.status==='promoted')throw new Error('No se puede rechazar un shadow ya promovido.');
@@ -148,4 +180,4 @@ async function recordVerifiedRun({agent,run,requestedBy='system'}={}){
   const cp=await promoteShadow(workspace.id,{requestedBy});return{promoted:true,shadowId:workspace.id,checkpointId:cp.id,checkpointVersion:cp.checkpointVersion};
 }
 
-module.exports={SYSTEM,DOMAINS,REQUIRED_CHECKS,MAX_STATE_BYTES,MAX_PRIVATE_ITEMS,canonicalAgent,stableStringify,hash,validateState,profileFingerprint,emptyState,head,checkpoint,currentCheckpoint,bootstrap,createShadow,shadow,stageShadow,verifyShadow,promoteShadow,rejectShadow,rollback,integrity,addPrivateItem,recordVerifiedRun};
+module.exports={SYSTEM,DOMAINS,REQUIRED_CHECKS,MAX_STATE_BYTES,MAX_PRIVATE_ITEMS,canonicalAgent,stableStringify,hash,validateState,profileFingerprint,emptyState,head,checkpoint,currentCheckpoint,checkpointForShadow,bootstrap,createShadow,shadow,stageShadow,verifyShadow,acquirePromotionLock,promoteShadow,rejectShadow,rollback,integrity,addPrivateItem,recordVerifiedRun};

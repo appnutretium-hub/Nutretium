@@ -2,8 +2,6 @@
 (function () {
   'use strict';
 
-  const KEY = 'nutretium_user';
-
   function setup() {
     const forms = [document.getElementById('formAcceso'), document.getElementById('loginForm')].filter(Boolean);
 
@@ -93,7 +91,8 @@
               throw new Error(data.error || 'No se pudo entrar.');
             }
 
-            localStorage.setItem(KEY, JSON.stringify(data.user));
+            // El puente de seguridad ya ha canjeado el token efímero por una cookie HttpOnly.
+            // No persistimos credenciales ni datos de sesión interna en Web Storage.
             location.reload();
           } catch (err) {
             if (error) error.textContent = err.message;

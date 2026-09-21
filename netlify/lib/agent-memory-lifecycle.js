@@ -11,6 +11,7 @@ const DAY=86400000;
 const now=()=>new Date().toISOString();
 const ageDays=at=>{const ms=Date.now()-Date.parse(at||0);return Number.isFinite(ms)?Math.max(0,ms/DAY):9999};
 const clamp=(n,min,max)=>Math.max(min,Math.min(max,Number(n)||0));
+const signingEnv=()=>({...process.env,AGENT_MEMORY_HMAC_KEY:process.env.AGENT_MEMORY_HMAC_KEY||process.env.JWT_SECRET||''});
 
 function confidenceWeight(item){
   const base={high:1,medium:0.72,low:0.45}[String(item?.confidence||'medium').toLowerCase()]||0.6;
@@ -47,14 +48,14 @@ async function compactAgent(agent,{requestedBy='guardian',keepPerBucket=16}={}){
   const shadow=await safeMemory.createShadow({agent,task:'memory-compaction',requestedBy});
   await safeMemory.stageShadow(shadow.id,{state:compacted,changes:['memory-compaction'],evidence:[`checkpoint:${current.id}`]});
   await safeMemory.verifyShadow(shadow.id,{checks:safeMemory.REQUIRED_CHECKS.map(name=>({name,status:'PASS',evidence:['deterministic-compaction']}))});
-  const cp=await safeMemory.promoteShadow(shadow.id,{requestedBy}),signed=await security.signCheckpoint(cp),mirrored=await backup.mirrorCheckpoint(cp),integrity=await safeMemory.integrity(agent,{depth:5});
+  const cp=await safeMemory.promoteShadow(shadow.id,{requestedBy}),signed=await security.signCheckpoint(cp,signingEnv()),mirrored=await backup.mirrorCheckpoint(cp),integrity=await safeMemory.integrity(agent,{depth:5});
   if(!integrity.ok)await security.quarantine(agent,'post-compaction-integrity-failed',{evidence:integrity.errors});
   return{ok:integrity.ok,status:integrity.ok?'COMPACTED':'QUARANTINED',checkpointId:cp.id,checkpointVersion:cp.checkpointVersion,signed,mirrored,integrity};
 }
 
 async function recoveryDrill(agent){
   const current=await safeMemory.currentCheckpoint(agent);if(!current)return{ok:false,status:'NO_CHECKPOINT'};
-  const primary=await safeMemory.integrity(agent,{depth:5}),backupCheck=await backup.verifyBackup(agent),signature=await security.verifySignature(current);
+  const primary=await safeMemory.integrity(agent,{depth:5}),backupCheck=await backup.verifyBackup(agent),signature=await security.verifySignature(current,signingEnv());
   const backupRecord=await backup.readBackup({agent});
   const simulated=backupRecord?{stateHash:safeMemory.hash(backupRecord.state),matches:backupRecord.stateHash===safeMemory.hash(backupRecord.state)}:{matches:false};
   const signatureOk=signature.ok===null||signature.ok===true;
@@ -69,7 +70,7 @@ async function guardianScan({limit=250,autoCompact=false}={}){
   const registry=governance.publicRegistry(),ids=Object.keys(registry).slice(0,Math.max(1,Math.min(Number(limit)||250,500))),results=[];
   for(const agent of ids){
     const current=await safeMemory.currentCheckpoint(agent).catch(()=>null);if(!current){results.push({agent,status:'NO_CHECKPOINT'});continue;}
-    const primary=await safeMemory.integrity(agent,{depth:5}),backupCheck=await backup.verifyBackup(agent).catch(e=>({ok:false,error:String(e.message||e)})),signature=await security.verifySignature(current).catch(e=>({ok:false,status:'ERROR',error:String(e.message||e)}));
+    const primary=await safeMemory.integrity(agent,{depth:5}),backupCheck=await backup.verifyBackup(agent).catch(e=>({ok:false,error:String(e.message||e)})),signature=await security.verifySignature(current,signingEnv()).catch(e=>({ok:false,status:'ERROR',error:String(e.message||e)}));
     const signatureOk=signature.ok===null||signature.ok===true,ok=primary.ok&&backupCheck.ok&&signatureOk;
     if(!ok){await security.quarantine(agent,'guardian-integrity-failure',{evidence:[...(primary.errors||[]),backupCheck.error||null,signature.status||null].filter(Boolean)});results.push({agent,status:'QUARANTINED',primary:primary.ok,backup:backupCheck.ok,signature:signature.status});continue;}
     if(autoCompact&&ageDays(current.createdAt)>30){const compacted=await compactAgent(agent,{requestedBy:'memory-guardian'}).catch(e=>({ok:false,status:'COMPACTION_FAILED',error:String(e.message||e)}));results.push({agent,status:compacted.status||'ACTIVE',compaction:compacted});continue;}
@@ -79,4 +80,4 @@ async function guardianScan({limit=250,autoCompact=false}={}){
   return{...summary,results};
 }
 
-module.exports={SYSTEM,confidenceWeight,enrichDecay,compactState,compactAgent,recoveryDrill,guardianScan};
+module.exports={SYSTEM,signingEnv,confidenceWeight,enrichDecay,compactState,compactAgent,recoveryDrill,guardianScan};

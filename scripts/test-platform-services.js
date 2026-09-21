@@ -9,3 +9,4 @@ t('TOTP verifica su propio código',()=>{const now=1700000000000,c=totp.code('JB
 t('token invitado firmado solo valida su pedido y email',()=>{process.env.GUEST_ORDER_SECRET='secreto-invitados-de-prueba-con-32-caracteres';const token=guest.tokenFor('123456789012','ana@example.com');assert(token);assert.strictEqual(guest.verify('123456789012','ana@example.com',token),true);assert.strictEqual(guest.verify('123456789013','ana@example.com',token),false)});
 t('firma de devolución es determinista',()=>{const key=Buffer.alloc(24,1).toString('base64'),p=Buffer.from('{"x":1}').toString('base64');assert.strictEqual(refund.sign(p,key,'123456789012'),refund.sign(p,key,'123456789012'))});
 console.log(`\n${n} pruebas de servicios superadas.`);
+require('./test-tier5-incremental');

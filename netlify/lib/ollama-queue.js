@@ -42,7 +42,12 @@ async function claim({runnerId,leaseMs=DEFAULT_LEASE_MS}={}){
  const s=store(),page=await s.list().catch(()=>({blobs:[]})),now=Date.now();
  for(const blob of (page.blobs||[]).slice(0,500)){
   const entry=await s.getWithMetadata(blob.key,{type:'json',consistency:'strong'}).catch(()=>null),job=entry?.data;
-  if(!job||!entry?.etag||!runnable(job,now)||Number(job.attempts||0)>=MAX_ATTEMPTS)continue;
+  if(!job||!entry?.etag)continue;
+  if(job.status==='processing'&&leaseExpired(job,now)&&Number(job.attempts||0)>=MAX_ATTEMPTS){
+   const terminal={...job,status:'failed',failedAt:nowIso(),updatedAt:nowIso(),error:job.error||'Lease expirado tras agotar los intentos.',leaseId:null,leaseOwner:null,leaseExpiresAt:null};
+   await s.setJSON(blob.key,terminal,{onlyIfMatch:entry.etag}).catch(()=>null);continue;
+  }
+  if(!runnable(job,now)||Number(job.attempts||0)>=MAX_ATTEMPTS)continue;
   const leaseId=crypto.randomUUID(),next={...job,status:'processing',attempts:Number(job.attempts||0)+1,leaseId,leaseOwner:owner,
    leaseExpiresAt:new Date(now+Math.max(30000,Math.min(10*60*1000,Number(leaseMs)||DEFAULT_LEASE_MS))).toISOString(),updatedAt:nowIso(),error:null};
   const write=await s.setJSON(blob.key,next,{onlyIfMatch:entry.etag}).catch(()=>null);

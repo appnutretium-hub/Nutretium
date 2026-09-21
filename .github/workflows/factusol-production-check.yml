@@ -1,0 +1,25 @@
+name: FACTUSOL Production Route Check
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Verify FACTUSOL page is deployed
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://nutretium.com/factusol.html"
+          status="$(curl --silent --show-error --location --connect-timeout 10 --max-time 30 -o /tmp/factusol.html -w '%{http_code}' "$url")"
+          echo "FACTUSOL HTTP status: $status"
+          test "$status" = "200"
+          grep -qi '<title>FACTUSOL · Nutretium</title>' /tmp/factusol.html
+          grep -qi 'Sincronización ERP' /tmp/factusol.html

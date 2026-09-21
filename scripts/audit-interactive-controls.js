@@ -7,7 +7,7 @@ const ROOT=path.resolve(__dirname,'..');
 const SKIP_DIRS=new Set(['.git','node_modules','dist','.netlify','.cache','coverage','playwright-report','test-results']);
 const issues=[];
 const warnings=[];
-const stats={htmlFiles:0,buttons:0,links:0,inlineHandlers:0,handlerCalls:0,roleButtons:0,forms:0,localLinksChecked:0,unverifiedButtons:0};
+const stats={htmlFiles:0,buttons:0,links:0,inlineHandlers:0,handlerCalls:0,roleButtons:0,forms:0,localLinksChecked:0,unverifiedButtons:0,redirectRoutes:0};
 
 function rel(p){return path.relative(ROOT,p).replace(/\\/g,'/')}
 function walk(dir,out=[]){
@@ -26,11 +26,31 @@ function attrs(tag){
 }
 function cleanHref(v){return String(v||'').trim().split('#')[0].split('?')[0]}
 function isExternal(v){return /^(?:https?:|mailto:|tel:|sms:|data:|javascript:|\/\/)/i.test(v)}
+
+function loadNetlifyRoutes(){
+  const routes=new Set();
+  const redirectsFile=path.join(ROOT,'_redirects');
+  if(!fs.existsSync(redirectsFile))return routes;
+  for(const rawLine of fs.readFileSync(redirectsFile,'utf8').split(/\r?\n/)){
+    const line=rawLine.trim();
+    if(!line||line.startsWith('#'))continue;
+    const parts=line.split(/\s+/);
+    const from=parts[0];
+    if(!from||!from.startsWith('/')||from.includes('*')||from.includes(':'))continue;
+    routes.add(cleanHref(from).replace(/\/$/,'')||'/');
+  }
+  return routes;
+}
+const netlifyRoutes=loadNetlifyRoutes();
+stats.redirectRoutes=netlifyRoutes.size;
+
 function localTargetExists(htmlFile,href){
   const clean=cleanHref(href);
   if(!clean||clean==='/')return true;
   if(clean.startsWith('/.netlify/functions/'))return true;
   if(/^\/(?:producto|categoria|marca|objetivo)\//.test(clean))return true;
+  const normalized=clean.replace(/\/$/,'')||'/';
+  if(netlifyRoutes.has(normalized))return true;
   const target=clean.startsWith('/')?path.join(ROOT,clean.slice(1)):path.resolve(path.dirname(htmlFile),clean);
   if(fs.existsSync(target))return true;
   if(!path.extname(target)&&fs.existsSync(`${target}.html`))return true;

@@ -1,43 +1,19 @@
 'use strict';
 const enterprise=require('./enterprise-store');
 const effects=require('./order-effects');
-const webhooks=require('./webhooks');
 const outbox=require('./outbox');
 const {sendEmail}=require('./email');
 const {withLock}=require('./distributed-lock');
+const {kick}=require('./outbox-kick');
 const SYSTEM={email:'system@nutretium.local',role:'system'};
 async function createFulfillment(record){if(record.fulfillment==='pickup'){const id=`pickup:${record.order}`;if(!await enterprise.get('pickup-orders',id).catch(()=>null))await enterprise.save('pickup-orders',{id,orderId:record.order,customerEmail:record.email||'',customerName:record.cliente||'',phone:record.telefono||'',location:record.pickup||{name:'Nutretium Santander',address:'C/ La Albericia 1, Santander'},status:'pending'},SYSTEM,{id,create:true,reason:'payment-confirmed'});return{id,type:'pickup'}}const id=`order:${record.order}`;if(!await enterprise.get('shipments',id).catch(()=>null))await enterprise.save('shipments',{id,orderId:record.order,customerEmail:record.email||'',address:record.envio||null,status:'pending'},SYSTEM,{id,create:true,reason:'payment-confirmed'});return{id,type:'shipping'}}
 async function createReconciliation(record,source='redsys'){const id=`${source}:${record.order}`;if(!await enterprise.get('reconciliation',id).catch(()=>null))await enterprise.save('reconciliation',{id,reference:record.order,source,status:'matched',amountCents:Math.round(Number(record.amount||0)*100),currency:record.currency||'978',authCode:record.authCode||null},SYSTEM,{id,create:true,reason:'payment-confirmed'});return id}
 async function notifyCustomer(record){if(!record.email)return false;const mode=record.fulfillment==='pickup'?'recogida en tienda':'envío';const amount=Number(record.amount||0).toFixed(2);return sendEmail({to:record.email,subject:`Pedido ${record.order} confirmado — Nutretium`,html:`<div style="font-family:Arial,sans-serif"><h2>Pedido confirmado</h2><p>Hemos confirmado el pedido <strong>${String(record.order)}</strong> por <strong>${amount} €</strong>.</p><p>Modalidad: <strong>${mode}</strong>.</p><p>Te avisaremos cuando avance la preparación.</p></div>`,idempotencyKey:`nutretium-enterprise-finalize/${record.order}`})}
-async function queueCustomerEmail(record){if(!record.email)return null;return outbox.enqueue('order.customer_email',`order:${record.order}`,{order:record.order,email:record.email,amount:record.amount,fulfillment:record.fulfillment||'shipping'})}
-async function queuePaidWebhook(record){return outbox.enqueue('webhook.order_paid',`order:${record.order}`,{order:record.order,status:record.status,amount:record.amount,currency:record.currency,fulfillment:record.fulfillment||'shipping'})}
-async function queueFailedWebhook(record){return outbox.enqueue('webhook.order_payment_failed',`order:${record.order}`,{order:record.order,status:record.status,amount:record.amount,currency:record.currency})}
+async function queueCustomerEmail(record,traceId=''){if(!record.email)return null;return outbox.enqueue('order.customer_email',`order:${record.order}`,{order:record.order,email:record.email,amount:record.amount,fulfillment:record.fulfillment||'shipping',traceId})}
+async function queuePaidWebhook(record,traceId=''){return outbox.enqueue('webhook.order_paid',`order:${record.order}`,{order:record.order,status:record.status,amount:record.amount,currency:record.currency,fulfillment:record.fulfillment||'shipping',traceId})}
+async function queueFailedWebhook(record,traceId=''){return outbox.enqueue('webhook.order_payment_failed',`order:${record.order}`,{order:record.order,status:record.status,amount:record.amount,currency:record.currency,traceId})}
 async function finalizedMarker(order){return enterprise.get('commerce-settings',`finalized:${order}`).catch(()=>null)}
-async function finalizePaidUnlocked(record,{source='redsys',sendCustomerEmail=true}={}){
- const marker=`finalized:${record.order}`;if(await finalizedMarker(record.order))return{ok:true,idempotent:true};
- try{
-  await effects.commitReservations(record.order,record.reservations||[]);
-  await effects.commitBenefits(record.order,record.email,{...(record.benefits||{}),paidCents:Math.round(Number(record.amount||0)*100)});
-  await createReconciliation(record,source);
-  const fulfillment=await createFulfillment(record);
-  if(sendCustomerEmail)await queueCustomerEmail(record);
-  await queuePaidWebhook(record);
-  await enterprise.save('commerce-settings',{key:marker,status:'inactive',finalizedAt:new Date().toISOString(),orderId:record.order},SYSTEM,{id:marker,reason:'order-finalized'});
-  return{ok:true,fulfillment,externalEffects:'queued'};
- }catch(err){await enterprise.save('system-incidents',{title:`Finalización pendiente ${record.order}`,severity:'high',status:'open',orderId:record.order,error:err.message},SYSTEM,{reason:'order-finalize-failure'}).catch(()=>{});throw err}
-}
-async function finalizePaid(record,options={}){
- if(!record||record.status!=='PAID'||record.amountMismatch)return{ok:false,skipped:true};
- if(await finalizedMarker(record.order))return{ok:true,idempotent:true};
- return withLock(`finalize:${record.order}`,async()=>finalizePaidUnlocked(record,options),{ttlMs:5*60*1000});
-}
-async function finalizeFailed(record){
- if(!record?.order)return{ok:false,skipped:true};
- return withLock(`finalize:${record.order}`,async()=>{
-  if(await finalizedMarker(record.order))return{ok:true,idempotent:true};
-  await effects.releaseReservations(record.order,record.reservations||[]).catch(()=>{});
-  await queueFailedWebhook(record);
-  return{ok:true,externalEffects:'queued'};
- },{ttlMs:5*60*1000});
-}
+async function finalizePaidUnlocked(record,{source='redsys',sendCustomerEmail=true,traceId=''}={}){const marker=`finalized:${record.order}`;if(await finalizedMarker(record.order))return{ok:true,idempotent:true};try{await effects.commitReservations(record.order,record.reservations||[]);await effects.commitBenefits(record.order,record.email,{...(record.benefits||{}),paidCents:Math.round(Number(record.amount||0)*100)});await createReconciliation(record,source);const fulfillment=await createFulfillment(record);if(sendCustomerEmail)await queueCustomerEmail(record,traceId);await queuePaidWebhook(record,traceId);await enterprise.save('commerce-settings',{key:marker,status:'inactive',finalizedAt:new Date().toISOString(),orderId:record.order},SYSTEM,{id:marker,reason:'order-finalized'});await kick({traceId}).catch(()=>{});return{ok:true,fulfillment,externalEffects:'queued'};}catch(err){await enterprise.save('system-incidents',{title:`Finalización pendiente ${record.order}`,severity:'high',status:'open',orderId:record.order,error:err.message},SYSTEM,{reason:'order-finalize-failure'}).catch(()=>{});throw err}}
+async function finalizePaid(record,options={}){if(!record||record.status!=='PAID'||record.amountMismatch)return{ok:false,skipped:true};if(await finalizedMarker(record.order))return{ok:true,idempotent:true};return withLock(`finalize:${record.order}`,async()=>finalizePaidUnlocked(record,options),{ttlMs:5*60*1000});}
+async function finalizeFailed(record,options={}){if(!record?.order)return{ok:false,skipped:true};const traceId=String(options.traceId||'');return withLock(`finalize:${record.order}`,async()=>{if(await finalizedMarker(record.order))return{ok:true,idempotent:true};await effects.releaseReservations(record.order,record.reservations||[]).catch(()=>{});await queueFailedWebhook(record,traceId);await kick({traceId}).catch(()=>{});return{ok:true,externalEffects:'queued'};},{ttlMs:5*60*1000});}
 module.exports={createFulfillment,createReconciliation,notifyCustomer,queueCustomerEmail,queuePaidWebhook,queueFailedWebhook,finalizePaid,finalizeFailed,_test:{finalizePaidUnlocked,finalizedMarker}};

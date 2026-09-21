@@ -1,0 +1,9 @@
+'use strict';
+const assert=require('assert');
+process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
+process.env.JWT_SECRET='test-internal-secret-with-sufficient-length';
+const auth=require('../netlify/lib/internal-auth');
+const outbox=require('../netlify/lib/outbox');
+let passed=0;
+async function t(name,fn){await fn();passed++;console.log('✓',name)}
+(async()=>{await t('firma interna válida',()=>{const h=auth.headers('outbox-dispatch');assert.strictEqual(auth.verify({headers:{'x-nutretium-internal-timestamp':h['X-Nutretium-Internal-Timestamp'],'x-nutretium-internal-signature':h['X-Nutretium-Internal-Signature']}},'outbox-dispatch').ok,true)});await t('firma interna no sirve para otro propósito',()=>{const h=auth.headers('outbox-dispatch');assert.strictEqual(auth.verify({headers:{'x-nutretium-internal-timestamp':h['X-Nutretium-Internal-Timestamp'],'x-nutretium-internal-signature':h['X-Nutretium-Internal-Signature']}},'other-purpose').ok,false)});await t('outbox crea dead letter tras máximo de intentos y permite requeue manual',async()=>{const realNow=Date.now;let clock=1700000000000;Date.now=()=>clock;try{const job=await outbox.enqueue('webhook.order_paid','tier5-test',{order:'T1'}),path=outbox.jobKey(job.type,job.key);for(let i=0;i<outbox.MAX_ATTEMPTS;i++){const claimed=await outbox.claim(path);assert(claimed);await outbox.finish(path,claimed.claimId,{ok:false,error:'forced'});clock+=7*60*60*1000;}const failed=await outbox.getByPath(path);assert.strictEqual(failed.status,'failed');assert(failed.deadLetteredAt);assert.strictEqual((await outbox.deadLetters()).length,1);assert.strictEqual(await outbox.requeue(path),true);assert.strictEqual((await outbox.getByPath(path)).status,'pending');}finally{Date.now=realNow}});console.log(`\n${passed} pruebas Tier 5 incremental superadas.`);})().catch(err=>{console.error(err);process.exit(1)});

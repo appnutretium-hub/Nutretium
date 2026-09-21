@@ -1,0 +1,7 @@
+'use strict';
+const provider=require('./provider-client');
+const cryptoEnvelope=require('./backup-crypto');
+function yes(env,name){return String(env[name]||'').trim().toLowerCase()==='true'}
+function status(env=process.env){const required=yes(env,'REQUIRE_OFFSITE_BACKUP'),raw=String(env.BACKUP_PROVIDER_URL||'').trim();let endpoint=false;try{endpoint=new URL(raw).protocol==='https:'}catch{}const auth=Boolean(String(env.BACKUP_PROVIDER_TOKEN||env.BACKUP_PROVIDER_SECRET||'').trim()),encryption=Boolean(cryptoEnvelope.keyFrom(env.BACKUP_ENCRYPTION_KEY));const configured=Boolean(endpoint&&auth&&encryption);return{required,configured,encrypted:encryption,https:Boolean(endpoint),authenticated:auth,provider:configured?'https':null}}
+async function push(key,snapshot){const state=status();if(!state.configured){if(state.required)throw Object.assign(new Error('Backup externo obligatorio no configurado.'),{code:'OFFSITE_BACKUP_NOT_CONFIGURED'});return{ok:true,skipped:true,reason:'not-configured'}}const envelope=cryptoEnvelope.encrypt(snapshot),result=await provider.request('BACKUP_PROVIDER','backups',{key:String(key),createdAt:new Date().toISOString(),checksum:snapshot.checksum||snapshot.integrity?.checksum||null,envelope},{idempotencyKey:`backup:${key}:${snapshot.checksum||snapshot.integrity?.checksum||'unknown'}`,timeoutMs:20000});return{ok:true,skipped:false,remoteId:result.id||result.backupId||null,providerStatus:result.status||'accepted'}}
+module.exports={status,push};

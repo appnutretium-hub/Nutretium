@@ -10,3 +10,4 @@ t('token invitado firmado solo valida su pedido y email',()=>{process.env.GUEST_
 t('firma de devolución es determinista',()=>{const key=Buffer.alloc(24,1).toString('base64'),p=Buffer.from('{"x":1}').toString('base64');assert.strictEqual(refund.sign(p,key,'123456789012'),refund.sign(p,key,'123456789012'))});
 console.log(`\n${n} pruebas de servicios superadas.`);
 require('./test-tier5-incremental');
+require('./test-data-layer');

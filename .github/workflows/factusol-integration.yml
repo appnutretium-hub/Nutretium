@@ -1,0 +1,39 @@
+name: FACTUSOL Integration Gate
+on:
+  push:
+    branches:
+      - integration/factusol-live-sync
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: read
+concurrency:
+  group: factusol-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --omit=optional
+      - name: Syntax checks
+        run: |
+          node --check netlify/lib/factusol-client.js
+          node --check netlify/lib/factusol-vault.js
+          node --check netlify/lib/factusol-commerce.js
+          node --check netlify/functions/factusol-status.js
+          node --check netlify/functions/admin-factusol.js
+          node --check netlify/functions/checkout-live.js
+          node --check checkout.js
+      - name: FACTUSOL mocked contract tests
+        run: node scripts/test-factusol-integration.js
+      - name: Existing external readiness regression
+        run: npm run test:external-readiness

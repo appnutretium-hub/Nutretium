@@ -13,6 +13,7 @@ const paymentConfig = require('../lib/payment-config');
 const settings = require('../lib/settings');
 const { consume } = require('../lib/rate-limit');
 const compliance = require('../lib/compliance-gate');
+const factusolGate = require('../lib/factusol-checkout-gate');
 
 const CORS = cabecerasCORS('POST, OPTIONS');
 const URLS={test:'https://sis-t.redsys.es:25443/sis/realizarPago',production:'https://sis.redsys.es/sis/realizarPago'};
@@ -50,6 +51,8 @@ exports.handler=async function(event){
   if(!identidad){const g=guestData(body.guest);if(g.error)return json(401,{error:g.error,motivo:'guest-required'});identidad=g}
 
   const pedido=valorarCarrito(body.items);if(!pedido.ok)return json(400,{error:pedido.errores[0],detalles:pedido.errores});
+  const factusol=await factusolGate.validate(pedido.lineas).catch(error=>{console.error('[checkout] factusol gate',error);return{ok:false,statusCode:503,error:'No se puede verificar el inventario central. No se iniciará ningún cobro.',motivo:'factusol-unavailable'}});
+  if(!factusol.ok)return json(factusol.statusCode||503,{error:factusol.error,motivo:factusol.motivo,detalles:factusol.detalles});
   const complianceGate=await compliance.checkItems(pedido.lineas);if(!complianceGate.ok)return json(409,{error:'Uno o más productos no tienen la aprobación documental necesaria para su venta online.',motivo:'compliance-block',detalles:complianceGate.blocked});
   const promo=body.coupon?await promotions.calculaAsync(pedido.totalCents,body.coupon):{ok:false,subtotalCents:pedido.totalCents,discountCents:0,totalCents:pedido.totalCents};
   if(body.coupon&&!promo.ok)return json(422,{error:promo.reason==='minimum'?'El pedido no alcanza el mínimo del cupón.':'Cupón no válido o no activo.',promotion:promo});
@@ -72,7 +75,7 @@ exports.handler=async function(event){
   let payment;try{payment=redsysPayload({order,totalCents,merchant,terminal,notify,ok,ko,secret,env})}catch(e){await inventory.release(order,pedido.lineas);console.error('[checkout] firma',e);return json(500,{error:'No se pudo preparar el pago.'})}
   if(previous)return json(200,{...payment,summary:summary(pedido,promo,shipment,totalCents),idempotent:true,reservationExpiresAt:reservation.expiresAt});
 
-  const record={order,email:identidad.email,envio:identidad.envio,cliente:[identidad.comprador.name,identidad.comprador.surname].filter(Boolean).join(' '),telefono:identidad.comprador.phone||'',guest:Boolean(identidad.guest),items:pedido.lineas,subtotal:pedido.totalCents/100,discount:promo.ok?promo.discountCents/100:0,promotion:promo.ok?{code:promo.code,label:promo.label}:null,shipping:{amount:shipment.shippingCents/100,label:shipment.label,country:shipment.country,free:shipment.free},amount:totalCents/100,currency:'978',status:'PENDING',legalAcceptance:{termsVersion:'2026-09-20',acceptedAt:new Date().toISOString()},complianceCheckedAt:new Date().toISOString(),checkoutFingerprint:fp,checkoutRequestId:reqId||null,inventoryReservation:{status:'RESERVED',expiresAt:reservation.expiresAt,productIds:reservation.reservedProductIds},createdAt:new Date().toISOString()};
+  const record={order,email:identidad.email,envio:identidad.envio,cliente:[identidad.comprador.name,identidad.comprador.surname].filter(Boolean).join(' '),telefono:identidad.comprador.phone||'',guest:Boolean(identidad.guest),items:pedido.lineas,subtotal:pedido.totalCents/100,discount:promo.ok?promo.discountCents/100:0,promotion:promo.ok?{code:promo.code,label:promo.label}:null,shipping:{amount:shipment.shippingCents/100,label:shipment.label,country:shipment.country,free:shipment.free},amount:totalCents/100,currency:'978',status:'PENDING',legalAcceptance:{termsVersion:'2026-09-20',acceptedAt:new Date().toISOString()},complianceCheckedAt:new Date().toISOString(),factusolValidated:factusol.bypassed!==true,factusolValidatedAt:factusol.bypassed===true?null:new Date().toISOString(),checkoutFingerprint:fp,checkoutRequestId:reqId||null,inventoryReservation:{status:'RESERVED',expiresAt:reservation.expiresAt,productIds:reservation.reservedProductIds},createdAt:new Date().toISOString()};
   try{await store.setJSON(order,record);const verify=await store.get(order,{type:'json'}).catch(()=>null);if(!verify||verify.order!==order||verify.checkoutFingerprint!==fp||Math.round(Number(verify.amount)*100)!==totalCents)throw new Error('pedido no verificable tras persistencia');if(!identidad.guest){const idx=getBlobStore('user-orders');if(idx){const prev=(await idx.get(identidad.email,{type:'json'}).catch(()=>null))||[];await idx.setJSON(identidad.email,[order,...prev.filter(x=>x!==order)].slice(0,100));}}}catch(e){await inventory.release(order,pedido.lineas);console.error('[checkout] persistencia obligatoria',order,e);return json(503,{error:'No se ha podido guardar el pedido de forma segura. No se iniciará ningún cobro. Inténtalo de nuevo.'})}
   return json(200,{...payment,summary:summary(pedido,promo,shipment,totalCents),reservationExpiresAt:reservation.expiresAt});
 };

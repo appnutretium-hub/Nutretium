@@ -7,6 +7,7 @@ const { effectiveRoleFor } = require('../lib/staff');
 const { secretFor, verify: verifyTotp } = require('../lib/totp');
 const { cabecerasCORS } = require('../lib/cors');
 const { consume, reset } = require('../lib/rate-limit');
+const { connectBlobs } = require('../lib/netlify-blobs-runtime');
 const security=require('../lib/security-policy');
 const defense=require('../lib/security-defense');
 const mfaReplay=require('../lib/mfa-replay');
@@ -48,6 +49,7 @@ function mfaRequiredFor(role,user){return !privilegedMfaExempt(role) && (String(
 exports.handler = async event => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
   if (event.httpMethod !== 'POST') return response(405, { error: 'Method Not Allowed' });
+  connectBlobs(event);
   try { defense.assertBrowserBoundary(event); } catch (e) { return response(403, { error: e.message, code: e.code || 'REQUEST_BLOCKED' }); }
   if (!secretConfigured()) return response(503, { error: 'Sesiones no disponibles.' });
   let body;try { body = JSON.parse(event.body || '{}'); } catch { return response(400, { error: 'JSON no válido.' }); }

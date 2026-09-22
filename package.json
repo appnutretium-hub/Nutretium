@@ -4,7 +4,7 @@
   "description": "NUTRETIUM ecommerce — Netlify serverless + Redsys",
   "private": true,
   "dependencies": {
-    "@netlify/blobs": "^10.7.11"
+    "@netlify/blobs": "^11.1.0"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

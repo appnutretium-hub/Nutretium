@@ -42,6 +42,35 @@ jobs:
           grep -qi '^cross-origin-resource-policy: *same-site' /tmp/headers
           grep -qi 'Nutretium' /tmp/home
 
+      - name: Verify exact revision is published
+        id: revision
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          echo "deployed=false" >> "$GITHUB_OUTPUT"
+          base="https://nutretium.com"
+          for i in $(seq 1 18); do
+            if curl --fail --silent --show-error --location --connect-timeout 10 --max-time 20 -o /tmp/build-meta "$base/build-meta.json?check=$i"; then
+              if EXPECTED_SHA="$EXPECTED_SHA" node - <<'NODE'
+          const fs=require('fs');
+          const expected=String(process.env.EXPECTED_SHA||'').trim();
+          const meta=JSON.parse(fs.readFileSync('/tmp/build-meta','utf8'));
+          if(!/^[0-9a-f]{40}$/i.test(expected))throw new Error('EXPECTED_SHA inválido');
+          if(meta.commitRef!==expected)process.exit(2);
+          console.log('[production-smoke] revisión publicada confirmada:',meta.commitRef);
+          NODE
+              then
+                echo "deployed=true" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            fi
+            sleep 10
+          done
+          echo "La revisión esperada $EXPECTED_SHA no está publicada; no se hará rollback de una versión sana." >&2
+          exit 1
+
       - name: Verify Guardian runtime is live
         shell: bash
         run: |
@@ -101,11 +130,11 @@ jobs:
           NODE
 
       - name: Guarded automatic rollback
-        if: ${{ failure() && env.AUTO_ROLLBACK_ENABLED == 'true' && env.NETLIFY_SITE_ID != '' && env.NETLIFY_API_TOKEN != '' }}
+        if: ${{ failure() && steps.revision.outputs.deployed == 'true' && env.AUTO_ROLLBACK_ENABLED == 'true' && env.NETLIFY_SITE_ID != '' && env.NETLIFY_API_TOKEN != '' }}
         shell: bash
         run: |
           set -euo pipefail
-          echo "Production smoke failed; requesting Netlify rollback to previous deploy."
+          echo "Production smoke failed on the published candidate; requesting Netlify rollback to previous deploy."
           curl --fail --silent --show-error -X PUT \
             -H "Authorization: Bearer $NETLIFY_API_TOKEN" \
             "https://api.netlify.com/api/v1/sites/$NETLIFY_SITE_ID/rollback"
@@ -114,5 +143,9 @@ jobs:
           grep -qi 'Nutretium' /tmp/rollback-home
 
       - name: Rollback not configured warning
-        if: ${{ failure() && (env.AUTO_ROLLBACK_ENABLED != 'true' || env.NETLIFY_SITE_ID == '' || env.NETLIFY_API_TOKEN == '') }}
-        run: echo "Production smoke failed; automatic rollback is not explicitly enabled/configured."
+        if: ${{ failure() && steps.revision.outputs.deployed == 'true' && (env.AUTO_ROLLBACK_ENABLED != 'true' || env.NETLIFY_SITE_ID == '' || env.NETLIFY_API_TOKEN == '') }}
+        run: echo "Production smoke failed on the published candidate; automatic rollback is not explicitly enabled/configured."
+
+      - name: Unpublished revision safety notice
+        if: ${{ failure() && steps.revision.outputs.deployed != 'true' }}
+        run: echo "Expected main revision is not live. The previous published deploy is left untouched."

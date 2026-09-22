@@ -9,7 +9,8 @@ const pages = [
   '/enterprise.html', '/financial-dashboard.html', '/smart-shop.html'
 ];
 
-const CONTROL_SHARDS = 4;
+const DEFAULT_CONTROL_SHARDS = 4;
+const ROOT_CONTROL_SHARDS = 8;
 const CONTROL_SELECTOR = 'button:not([disabled]), [role="button"]:not([aria-disabled="true"])';
 const UI_SETTLE_MS = 100;
 const TARGET_LOAD_ATTEMPTS = 3;
@@ -70,7 +71,8 @@ async function snapshotControls(page) {
   const semanticFamilies = new Set();
   const snapshot = [];
 
-  for (const item of raw) {
+  for (let domIndex = 0; domIndex < raw.length; domIndex++) {
+    const item = raw[domIndex];
     const signature = descriptorSignature(item);
     const exact = Boolean(machineIdentity(item));
 
@@ -79,13 +81,13 @@ async function snapshotControls(page) {
     if (!exact) {
       if (semanticFamilies.has(signature)) continue;
       semanticFamilies.add(signature);
-      snapshot.push({ ...item, signature, occurrence: 0, exact: false });
+      snapshot.push({ ...item, signature, occurrence: 0, exact: false, domIndex });
       continue;
     }
 
     const occurrence = occurrences.get(signature) || 0;
     occurrences.set(signature, occurrence + 1);
-    snapshot.push({ ...item, signature, occurrence, exact: true });
+    snapshot.push({ ...item, signature, occurrence, exact: true, domIndex });
   }
 
   return snapshot;
@@ -93,18 +95,6 @@ async function snapshotControls(page) {
 
 function matchesTarget(item, target) {
   return item.signature === target.signature && (!target.exact || item.occurrence === target.occurrence);
-}
-
-async function concreteDomIndex(page, target) {
-  const raw = await readRawControls(page);
-  let exactOccurrence = 0;
-  for (let rawIndex = 0; rawIndex < raw.length; rawIndex++) {
-    const candidate = raw[rawIndex];
-    if (descriptorSignature(candidate) !== target.signature) continue;
-    if (!target.exact || exactOccurrence === target.occurrence) return rawIndex;
-    exactOccurrence += 1;
-  }
-  return -1;
 }
 
 async function reloadTarget(page, path, target) {
@@ -121,10 +111,13 @@ async function reloadTarget(page, path, target) {
     await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
     await settle(page);
 
+    // snapshotControls already retains each control's concrete DOM index. Reuse
+    // that result instead of running a second evaluateAll traversal per target;
+    // this materially reduces main-thread pressure in WebKit without changing
+    // which controls are certified.
     const current = await snapshotControls(page);
-    if (!current.some(item => matchesTarget(item, target))) continue;
-    const domIndex = await concreteDomIndex(page, target);
-    if (domIndex >= 0) return { domIndex, attempts: attempt };
+    const match = current.find(item => matchesTarget(item, target));
+    if (match) return { domIndex: match.domIndex, attempts: attempt };
   }
   return { domIndex: -1, attempts: TARGET_LOAD_ATTEMPTS };
 }
@@ -155,8 +148,12 @@ async function preparePage(page, path, runtimeErrors) {
 }
 
 for (const path of pages) {
-  for (let shard = 0; shard < CONTROL_SHARDS; shard++) {
-    test(`controles interactivos sin errores de runtime: ${path} [${shard + 1}/${CONTROL_SHARDS}]`, async ({ page }) => {
+  // The storefront root has by far the largest interactive surface. WebKit is
+  // slower traversing/reloading that DOM, so split only this surface into more
+  // shards. Total control coverage and retry policy remain unchanged.
+  const controlShards = path === '/' ? ROOT_CONTROL_SHARDS : DEFAULT_CONTROL_SHARDS;
+  for (let shard = 0; shard < controlShards; shard++) {
+    test(`controles interactivos sin errores de runtime: ${path} [${shard + 1}/${controlShards}]`, async ({ page }) => {
       test.setTimeout(120000);
       const runtimeErrors = [];
       const conditionalAbsences = [];
@@ -165,7 +162,7 @@ for (const path of pages) {
       const baseline = await snapshotControls(page);
       expect(baseline.length, `la superficie ${path} debe renderizar controles`).toBeGreaterThan(0);
 
-      for (let i = shard; i < baseline.length; i += CONTROL_SHARDS) {
+      for (let i = shard; i < baseline.length; i += controlShards) {
         if (page.isClosed()) throw new Error(`la página se cerró antes de verificar ${path} control #${i}`);
         const target = baseline[i];
         const located = await reloadTarget(page, path, target);

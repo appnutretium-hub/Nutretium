@@ -6,13 +6,14 @@ Documento actualizado tras el hardening final. Los puntos de código que ya est�
 
 - Checkout con revaloración en servidor, persistencia obligatoria e idempotencia.
 - Redsys con callback firmado como fuente de verdad de pago.
+- Redsys protege el estado terminal `PAID`, tolera callbacks válidos duplicados sin doble compromiso de inventario y separa el cobro inicial de otros tipos de operación.
 - Separación entre estado de pago y fulfilment.
 - Back Office, tracking, cuenta cliente, recompra, carrito guardado y favoritos.
 - Cambio y recuperación de contraseña, verificación de email y revocación de sesiones.
 - Seguimiento seguro para pedidos de invitado.
 - Rate limiting en endpoints sensibles.
-- Auditoría de arquitectura, seguridad y claims; suite E2E de navegador preparada en CI.
-- Quality Gates de GitHub para build y navegador.
+- Auditoría de arquitectura, seguridad y claims; suite E2E ejecutada en CI con Chromium, Firefox y WebKit.
+- Quality Gates de GitHub para build, seguridad, integridad y navegador.
 - Node 22 alineado entre CI y Netlify.
 - Points fail-closed y activación explícita.
 - Cupones y promociones sin valores inventados.
@@ -25,7 +26,7 @@ Estos puntos no deben marcarse como resueltos sin evidencia real del servicio o 
 
 ### 1. Netlify producción
 
-Confirmar que `nutretium.com` sirve exactamente el SHA de `main` que haya superado los dos Quality Gates.
+Confirmar que `nutretium.com` sirve exactamente el SHA de `main` que haya superado los gates requeridos.
 
 ### 2. Variables privadas de producción
 
@@ -107,10 +108,6 @@ Los workflows existen y pasan, pero la protección/ruleset de la rama depende de
 
 Definir qué integración necesita la web (inicio de sesión de clientes, Merchant Center, Analytics, Drive u otra). No se ha enlazado ninguna cuenta porque el proyecto no incluye credenciales OAuth ni una decisión de alcance. Configurarla solo mediante OAuth y secretos del proveedor; nunca incluir credenciales en el repositorio.
 
-### 13. E2E visual final
-
-Ejecutar en GitHub Actions la suite Playwright de 9 pruebas con Chromium. En la revisión local la descarga del navegador fue bloqueada por el CDN (timeouts/502); las pruebas no se contabilizan como superadas hasta que el workflow quede verde.
-
 ## Regla de cierre
 
-La web puede considerarse técnicamente validada cuando ambos Quality Gates estén en verde sobre el mismo SHA. La tienda puede considerarse preparada para comercio real únicamente cuando, además, `system-health` esté en verde con configuración real y se haya completado la prueba bancaria de producción.
+La web puede considerarse técnicamente validada cuando los gates requeridos estén en verde sobre el mismo SHA. La tienda puede considerarse preparada para comercio real únicamente cuando, además, `system-health` esté en verde con configuración real y se haya completado la prueba bancaria de producción.

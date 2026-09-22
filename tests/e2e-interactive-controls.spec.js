@@ -91,10 +91,6 @@ async function snapshotControls(page) {
   return snapshot;
 }
 
-function matchesTarget(item, target) {
-  return item.signature === target.signature && (!target.exact || item.occurrence === target.occurrence);
-}
-
 async function concreteDomIndex(page, target) {
   const raw = await readRawControls(page);
   let exactOccurrence = 0;
@@ -108,21 +104,16 @@ async function concreteDomIndex(page, target) {
 }
 
 async function reloadTarget(page, path, target) {
-  // Some storefront controls are intentionally conditional: product compare
-  // actions depend on the rendered card set and dock controls depend on the
-  // current UI state. A control observed in the baseline is therefore retried
-  // across bounded clean loads. Persistent absence is reported as conditional,
-  // never silently converted into a functional failure or a false PASS click.
+  // A baseline target is resolved directly against the freshly loaded DOM.
+  // Avoid rebuilding/deduplicating the complete control snapshot for every
+  // target: on Firefox that O(targets * controls) work could exhaust the test
+  // budget on large storefront pages. Full snapshotting remains the baseline
+  // source of truth; bounded clean reloads preserve conditional-control checks.
   for (let attempt = 1; attempt <= TARGET_LOAD_ATTEMPTS; attempt++) {
     await page.context().clearCookies();
-    // Always perform an explicit navigation. A previously dispatched click can
-    // leave Chromium between document attachments; page.reload() is racy in
-    // that state and can fail with "Not attached to an active page".
     await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
     await settle(page);
 
-    const current = await snapshotControls(page);
-    if (!current.some(item => matchesTarget(item, target))) continue;
     const domIndex = await concreteDomIndex(page, target);
     if (domIndex >= 0) return { domIndex, attempts: attempt };
   }

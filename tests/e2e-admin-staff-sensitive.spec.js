@@ -62,7 +62,7 @@ test('admin sesiones: solo permite cerrar sesiones ajenas y cancelar no muta',as
 
 test('admin sesiones: confirmar revocación envía una sola mutación con CSRF',async({page})=>{
  const state=await bootAdmin(page);
- page.on('dialog',async dialog=>{await dialog.accept();});
+ page.once('dialog',dialog=>dialog.accept());
  await page.locator('[data-revoke-sessions="manager@nutretium.test"]').click();
  await expect.poll(()=>state.mutations.length).toBe(1);
  expect(state.mutations[0].body.action).toBe('staff-revoke-sessions');

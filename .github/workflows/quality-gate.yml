@@ -14,7 +14,7 @@ permissions:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -162,8 +162,8 @@ jobs:
           node scripts/trust-inject.js
           node scripts/build-seo-pages.js
           node scripts/build-trust-audit.js
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install browser engines
+        run: npx playwright install --with-deps chromium firefox webkit
       - name: Start and verify static storefront
         run: |
           node scripts/dev-server.js > /tmp/nutretium-server.log 2>&1 &
@@ -176,5 +176,9 @@ jobs:
           done
           cat /tmp/nutretium-server.log
           exit 1
-      - name: Browser E2E
+      - name: Browser E2E · Chromium
         run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js tests/e2e-critical-flows.spec.js tests/e2e-interactive-controls.spec.js --browser=chromium --workers=1
+      - name: Browser E2E · Firefox
+        run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js tests/e2e-critical-flows.spec.js --browser=firefox --workers=1
+      - name: Browser E2E · WebKit
+        run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js tests/e2e-critical-flows.spec.js --browser=webkit --workers=1

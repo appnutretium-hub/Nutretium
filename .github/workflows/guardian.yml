@@ -1,0 +1,62 @@
+name: Nutretium Guardian Gate
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, 'guardian/**', 'hotfix/**']
+    paths:
+      - 'guardian-runtime.js'
+      - 'netlify/lib/guardian-policy.js'
+      - 'netlify/functions/client-error.js'
+      - 'scripts/test-guardian.js'
+      - 'tests/e2e-guardian.spec.js'
+      - 'scripts/trust-inject.js'
+      - '.github/workflows/guardian.yml'
+permissions:
+  contents: read
+concurrency:
+  group: guardian-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  guardian:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --omit=optional
+      - name: Guardian syntax and policy tests
+        run: |
+          node --check guardian-runtime.js
+          node --check netlify/lib/guardian-policy.js
+          node --check netlify/functions/client-error.js
+          node --check scripts/test-guardian.js
+          node --check tests/e2e-guardian.spec.js
+          node scripts/test-guardian.js
+      - name: Verify production injection
+        run: |
+          node scripts/trust-inject.js
+          grep -q 'src="guardian-runtime.js"' index.html
+      - name: Security gates
+        run: |
+          node scripts/security-max-gate.js
+          npm run test:security
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Start storefront
+        run: |
+          node scripts/dev-server.js > /tmp/nutretium-guardian-server.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/nutretium-guardian-server.log
+          exit 1
+      - name: Guardian browser E2E
+        run: npx playwright test tests/e2e-guardian.spec.js --browser=chromium --workers=1

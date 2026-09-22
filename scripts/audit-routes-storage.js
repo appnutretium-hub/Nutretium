@@ -6,6 +6,8 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const FUNCTIONS_DIR = path.join(ROOT, 'netlify', 'functions');
 const LIB_DIR = path.join(ROOT, 'netlify', 'lib');
+const STORAGE_FACADE = path.join(LIB_DIR, 'storage.js');
+const LEGACY_STORAGE_FACADE = path.join(LIB_DIR, 'blob-store.js');
 const problems = [];
 
 function read(file) {
@@ -49,19 +51,42 @@ for (const [file, source] of sources) {
   deps.set(file, list);
 }
 
-function isPersistenceRoot(file) {
-  const name = rel(file);
-  const source = sources.get(file) || '';
-  return name === 'netlify/lib/storage.js' ||
-    name === 'netlify/lib/blob-store.js' ||
-    source.includes("require('@netlify/blobs')") ||
-    source.includes('require("@netlify/blobs")');
+// Netlify Functions inject the Blobs runtime context automatically for getStore().
+// The repository therefore centralizes provider access in netlify/lib/storage.js.
+// The audit verifies that persistent callers reach that facade and that no module
+// bypasses it with a direct @netlify/blobs import.
+function importsNetlifyBlobs(source) {
+  return /require\(\s*['"]@netlify\/blobs['"]\s*\)/.test(source) ||
+    /from\s+['"]@netlify\/blobs['"]/.test(source);
+}
+
+if (!sources.has(STORAGE_FACADE)) {
+  problems.push('netlify/lib/storage.js: falta la fachada canónica de almacenamiento');
+} else {
+  const storageSource = sources.get(STORAGE_FACADE) || '';
+  if (!importsNetlifyBlobs(storageSource) || !/\bgetStore\b/.test(storageSource)) {
+    problems.push('netlify/lib/storage.js: la fachada no conecta con @netlify/blobs mediante getStore');
+  }
+}
+
+if (sources.has(LEGACY_STORAGE_FACADE)) {
+  const legacyDeps = deps.get(LEGACY_STORAGE_FACADE) || [];
+  if (!legacyDeps.includes(STORAGE_FACADE)) {
+    problems.push('netlify/lib/blob-store.js: la fachada legacy debe delegar en netlify/lib/storage.js');
+  }
+}
+
+const directBlobConsumers = jsFiles.filter(file => importsNetlifyBlobs(sources.get(file) || ''));
+for (const file of directBlobConsumers) {
+  if (file !== STORAGE_FACADE) {
+    problems.push(`${rel(file)}: bypass de almacenamiento; importa @netlify/blobs fuera de netlify/lib/storage.js`);
+  }
 }
 
 const persistenceMemo = new Map();
 function dependsOnPersistence(file, stack = new Set()) {
   if (persistenceMemo.has(file)) return persistenceMemo.get(file);
-  if (isPersistenceRoot(file)) {
+  if (file === STORAGE_FACADE) {
     persistenceMemo.set(file, true);
     return true;
   }
@@ -75,16 +100,6 @@ function dependsOnPersistence(file, stack = new Set()) {
 
 const functionFiles = walkJs(FUNCTIONS_DIR);
 const persistentFunctions = functionFiles.filter(file => dependsOnPersistence(file));
-for (const file of persistentFunctions) {
-  const source = sources.get(file) || '';
-  if (!/\bconnectBlobs\b/.test(source)) {
-    problems.push(`${rel(file)}: usa almacenamiento persistente pero no importa connectBlobs`);
-    continue;
-  }
-  if (!/\bconnectBlobs\s*\(\s*event\s*\)/.test(source)) {
-    problems.push(`${rel(file)}: usa almacenamiento persistente pero no ejecuta connectBlobs(event)`);
-  }
-}
 
 function parseTomlRedirects(text) {
   const rows = [];
@@ -199,6 +214,7 @@ const report = {
   functions: {
     total: functionFiles.length,
     persistenceDependent: persistentFunctions.length,
+    directBlobConsumers: directBlobConsumers.map(rel),
     scheduled: scheduled.length,
   },
   problems,

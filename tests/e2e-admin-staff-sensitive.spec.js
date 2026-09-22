@@ -24,6 +24,14 @@ async function bootAdmin(page){
  return{csrf,mutations,exchanged:()=>exchanged};
 }
 
+test('admin staff: acciones bloqueadas por backend no se ofrecen en la UI',async({page})=>{
+ await bootAdmin(page);
+ await expect(page.locator('[data-remove="owner@nutretium.test"]')).toHaveCount(0);
+ await expect(page.locator('[data-revoke-sessions="owner@nutretium.test"]')).toHaveCount(0);
+ await expect(page.locator('[data-mfa-off="owner@nutretium.test"]')).toHaveCount(0);
+ await expect(page.locator('[data-mfa-off="manager@nutretium.test"]')).toHaveCount(1);
+});
+
 test('admin staff: cancelar quitar acceso evita toda mutación',async({page})=>{
  const state=await bootAdmin(page);
  page.once('dialog',dialog=>dialog.dismiss());

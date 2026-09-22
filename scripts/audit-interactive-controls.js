@@ -7,7 +7,7 @@ const ROOT=path.resolve(__dirname,'..');
 const SKIP_DIRS=new Set(['.git','node_modules','dist','.netlify','.cache','coverage','playwright-report','test-results']);
 const issues=[];
 const warnings=[];
-const stats={htmlFiles:0,buttons:0,links:0,inlineHandlers:0,handlerCalls:0,roleButtons:0,forms:0,localLinksChecked:0,unverifiedButtons:0,redirectRoutes:0};
+const stats={htmlFiles:0,buttons:0,links:0,inlineHandlers:0,handlerCalls:0,roleButtons:0,forms:0,localLinksChecked:0,unverifiedButtons:0,redirectRoutes:0,idHelperAliases:0};
 
 function rel(p){return path.relative(ROOT,p).replace(/\\/g,'/')}
 function walk(dir,out=[]){
@@ -72,6 +72,14 @@ for(const re of [
   /(?:^|[^.\w$])([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?function\b/g,
 ]){let m;while((m=re.exec(corpus)))declared.add(m[1])}
 
+const idHelperAliases=new Set();
+for(const re of [
+  /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*[A-Za-z_$][\w$]*\s*=>\s*document\.getElementById\(\s*[A-Za-z_$][\w$]*\s*\)/g,
+  /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\(\s*[A-Za-z_$][\w$]*\s*\)\s*=>\s*document\.getElementById\(\s*[A-Za-z_$][\w$]*\s*\)/g,
+  /\bfunction\s+([A-Za-z_$][\w$]*)\s*\(\s*[A-Za-z_$][\w$]*\s*\)\s*\{\s*return\s+document\.getElementById\(\s*[A-Za-z_$][\w$]*\s*\)\s*;?\s*\}/g
+]){let m;while((m=re.exec(jsCorpus)))idHelperAliases.add(m[1])}
+stats.idHelperAliases=idHelperAliases.size;
+
 const BUILTINS=new Set([
   'if','for','while','switch','catch','function','return','typeof','void','delete','new',
   'alert','confirm','prompt','fetch','setTimeout','setInterval','clearTimeout','clearInterval',
@@ -86,12 +94,22 @@ function handlerCalls(code){
   let m;while((m=re.exec(code))){const name=m[2];if(!BUILTINS.has(name))calls.push(name)}
   return calls;
 }
+function idEvidencePatterns(id){
+  const escaped=id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const patterns=[
+    `getElementById\\(\\s*['"]${escaped}['"]\\s*\\)`,
+    `querySelector(?:All)?\\(\\s*['"]#${escaped}(?:['".#:[\\s]|$)`
+  ];
+  for(const alias of idHelperAliases){
+    const helper=alias.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    patterns.push(`${helper}\\(\\s*['"]${escaped}['"]\\s*\\)`);
+  }
+  return patterns;
+}
 function hasListenerEvidence(a){
   const id=a.id;
   if(id){
-    const escaped=id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-    if(new RegExp(`getElementById\\(\\s*['"]${escaped}['"]\\s*\\)`).test(jsCorpus))return true;
-    if(new RegExp(`querySelector(?:All)?\\(\\s*['"]#${escaped}(?:['".#:[\\s]|$)`).test(jsCorpus))return true;
+    for(const pattern of idEvidencePatterns(id))if(new RegExp(pattern).test(jsCorpus))return true;
   }
   const classes=String(a.class||'').split(/\s+/).filter(Boolean).filter(x=>/^[A-Za-z_-][A-Za-z0-9_-]*$/.test(x));
   for(const cls of classes){

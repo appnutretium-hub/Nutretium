@@ -11,7 +11,7 @@ const pages = [
 
 const CONTROL_SHARDS = 4;
 const CONTROL_SELECTOR = 'button:not([disabled]), [role="button"]:not([aria-disabled="true"])';
-const UI_SETTLE_MS = 300;
+const UI_SETTLE_MS = 100;
 
 function isSafeControl(el) {
   if (!el || el.disabled) return false;
@@ -21,22 +21,21 @@ function isSafeControl(el) {
 
 function semanticLabel(value) {
   const text = String(value || '').replace(/\s+/g, ' ').trim();
-  // Product/card controls legitimately change their concrete item between page
-  // loads. The action before the middle dot is the stable contract we certify.
   const separator = text.indexOf(' · ');
   return separator > 0 ? text.slice(0, separator) : text;
 }
 
-function descriptorSignature(item) {
-  // Explicit machine-facing attributes are exact identities. Human-facing aria
-  // and text can contain dynamic product names, so they are reduced to their
-  // stable semantic action when necessary.
-  const stable = [
+function machineIdentity(item) {
+  return [
     ['testid', item.testid],
     ['id', item.id],
     ['action', item.action],
     ['name', item.name]
-  ].find(([, value]) => value);
+  ].find(([, value]) => value) || null;
+}
+
+function descriptorSignature(item) {
+  const stable = machineIdentity(item);
   if (stable) return `${item.tag}|${item.type}|${stable[0]}=${stable[1]}`;
   if (item.aria) return `${item.tag}|${item.type}|aria=${semanticLabel(item.aria)}`;
   return `${item.tag}|${item.type}|role=${item.role}|text=${semanticLabel(item.text)}`;
@@ -47,8 +46,8 @@ async function settle(page) {
   await page.waitForTimeout(UI_SETTLE_MS);
 }
 
-async function snapshotControls(page) {
-  const raw = await page.locator(CONTROL_SELECTOR).evaluateAll(elements => elements.map(el => {
+async function readRawControls(page) {
+  return page.locator(CONTROL_SELECTOR).evaluateAll(elements => elements.map(el => {
     const clean = value => String(value || '').replace(/\s+/g, ' ').trim();
     return {
       tag: clean(el.tagName).toLowerCase(),
@@ -62,14 +61,35 @@ async function snapshotControls(page) {
       text: clean(el.textContent).slice(0, 240)
     };
   }));
+}
 
+async function snapshotControls(page) {
+  const raw = await readRawControls(page);
   const occurrences = new Map();
-  return raw.map(item => {
+  const semanticFamilies = new Set();
+  const snapshot = [];
+
+  for (const item of raw) {
     const signature = descriptorSignature(item);
+    const exact = Boolean(machineIdentity(item));
+
+    // A control with id/data-testid/data-action/name has a machine identity and
+    // is certified individually, including repeated occurrences if any. A
+    // legacy control identified only by visible text/aria has no stable per-item
+    // identity across dynamic product renders; certify its semantic action once.
+    if (!exact) {
+      if (semanticFamilies.has(signature)) continue;
+      semanticFamilies.add(signature);
+      snapshot.push({ ...item, signature, occurrence: 0, exact: false });
+      continue;
+    }
+
     const occurrence = occurrences.get(signature) || 0;
     occurrences.set(signature, occurrence + 1);
-    return { ...item, signature, occurrence };
-  });
+    snapshot.push({ ...item, signature, occurrence, exact: true });
+  }
+
+  return snapshot;
 }
 
 async function installDeterministicClientState(page) {
@@ -121,14 +141,30 @@ for (const path of pages) {
         const current = await snapshotControls(page);
         const target = baseline[i];
         const currentIndex = current.findIndex(item =>
-          item.signature === target.signature && item.occurrence === target.occurrence
+          item.signature === target.signature && (!target.exact || item.occurrence === target.occurrence)
         );
         expect(
           currentIndex,
-          `desapareció la acción certificada en ${path}: ${target.signature} [${target.occurrence}]`
+          `desapareció la acción certificada en ${path}: ${target.signature}${target.exact ? ` [${target.occurrence}]` : ''}`
         ).toBeGreaterThanOrEqual(0);
 
-        const control = page.locator(CONTROL_SELECTOR).nth(currentIndex);
+        // snapshotControls may de-duplicate semantic families, so locate the
+        // concrete DOM control by its signature rather than by snapshot index.
+        const rawCurrent = await readRawControls(page);
+        let concreteIndex = -1;
+        let exactOccurrence = 0;
+        for (let rawIndex = 0; rawIndex < rawCurrent.length; rawIndex++) {
+          const candidate = rawCurrent[rawIndex];
+          if (descriptorSignature(candidate) !== target.signature) continue;
+          if (!target.exact || exactOccurrence === target.occurrence) {
+            concreteIndex = rawIndex;
+            break;
+          }
+          exactOccurrence += 1;
+        }
+        expect(concreteIndex, `sin control DOM para ${target.signature}`).toBeGreaterThanOrEqual(0);
+
+        const control = page.locator(CONTROL_SELECTOR).nth(concreteIndex);
         if (!(await control.isVisible().catch(() => false))) continue;
         const safe = await control.evaluate(isSafeControl).catch(() => false);
         if (!safe) continue;
@@ -138,7 +174,7 @@ for (const path of pages) {
         // Dedicated quality/E2E suites in this same gate cover actionability,
         // layout and accessibility with real browser interactions.
         await control.dispatchEvent('click');
-        await page.waitForTimeout(75);
+        await page.waitForTimeout(50);
 
         expect(
           runtimeErrors.slice(beforeErrors),

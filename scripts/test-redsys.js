@@ -67,16 +67,17 @@ function paymentRequest(items, options) {
     })
   };
 }
-function bankNotification(order, amountCents, invalidSignature) {
+function bankNotification(order, amountCents, invalidSignature, options) {
+  const config = options || {};
   const params = {
     Ds_Amount: String(amountCents),
     Ds_Currency: '978',
     Ds_Order: order,
     Ds_MerchantCode: COMERCIO,
     Ds_Terminal: TERMINAL,
-    Ds_Response: '0000',
-    Ds_AuthorisationCode: '123456',
-    Ds_TransactionType: '0'
+    Ds_Response: config.responseCode || '0000',
+    Ds_AuthorisationCode: config.authorisationCode || '123456',
+    Ds_TransactionType: config.transactionType || '0'
   };
   const encoded = Buffer.from(JSON.stringify(params)).toString('base64');
   const signed = invalidSignature ? signature(encoded, '9999INVALID') : signature(encoded, order);
@@ -157,6 +158,7 @@ async function main() {
   assert.strictEqual(merchant.Ds_Merchant_Amount, String(expectedCents));
   assert.strictEqual(merchant.Ds_Merchant_MerchantCode, COMERCIO);
   assert.strictEqual(merchant.Ds_Merchant_Terminal, TERMINAL);
+  assert.strictEqual(merchant.Ds_Merchant_TransactionType, '0');
   assert.match(merchant.Ds_Merchant_Order, /^\d{4}[0-9A-Z]{8}$/);
   assert.strictEqual(payment.Ds_Signature, signature(payment.Ds_MerchantParameters, merchant.Ds_Merchant_Order));
 
@@ -180,13 +182,53 @@ async function main() {
   assert.strictEqual(accepted.statusCode, 200);
   assert.strictEqual(accepted.body, 'OK');
 
-  const store = require('../netlify/lib/blob-store.js').getBlobStore('redsys-orders');
-  const record = await store.get(payment.order, { type: 'json' });
+  const blobStore = require('../netlify/lib/blob-store.js').getBlobStore;
+  const store = blobStore('redsys-orders');
+  let record = await store.get(payment.order, { type: 'json' });
   assert.strictEqual(record.status, 'PAID');
   assert.strictEqual(record.fulfilmentStatus, 'PENDING_FULFILMENT');
   assert.strictEqual(record.inventoryReservation.status, 'COMMITTED');
 
-  console.log('OK — checkout actual, firma Redsys, precio servidor, idempotencia y notificación bancaria verificados.');
+  const inventoryStore = blobStore('inventory-state');
+  const inventoryAfterFirst = await inventoryStore.get(String(product.id), { type: 'json' });
+  const committedAfterFirst = Number(inventoryAfterFirst?.committed || 0);
+  const orderCommittedAfterFirst = Number(inventoryAfterFirst?.committedOrders?.[payment.order] || 0);
+  assert(orderCommittedAfterFirst > 0, 'La primera notificación válida debe comprometer inventario.');
+
+  const duplicate = await notify(bankNotification(payment.order, expectedCents, false));
+  assert.strictEqual(duplicate.statusCode, 200);
+  assert.strictEqual(duplicate.body, 'OK');
+  record = await store.get(payment.order, { type: 'json' });
+  assert.strictEqual(record.status, 'PAID');
+  assert.strictEqual(record.inventoryReservation.status, 'COMMITTED');
+  const inventoryAfterDuplicate = await inventoryStore.get(String(product.id), { type: 'json' });
+  assert.strictEqual(Number(inventoryAfterDuplicate?.committed || 0), committedAfterFirst);
+  assert.strictEqual(Number(inventoryAfterDuplicate?.committedOrders?.[payment.order] || 0), orderCommittedAfterFirst);
+
+  const foreignTransaction = await notify(bankNotification(payment.order, expectedCents, false, {
+    responseCode: '0900',
+    transactionType: '3'
+  }));
+  assert.strictEqual(foreignTransaction.statusCode, 200);
+  record = await store.get(payment.order, { type: 'json' });
+  assert.strictEqual(record.status, 'PAID');
+  assert.strictEqual(record.inventoryReservation.status, 'COMMITTED');
+
+  const lateFailure = await notify(bankNotification(payment.order, expectedCents, false, {
+    responseCode: '0190',
+    transactionType: '0'
+  }));
+  assert.strictEqual(lateFailure.statusCode, 200);
+  assert.strictEqual(lateFailure.body, 'OK');
+  record = await store.get(payment.order, { type: 'json' });
+  assert.strictEqual(record.status, 'PAID');
+  assert.strictEqual(record.fulfilmentStatus, 'PENDING_FULFILMENT');
+  assert.strictEqual(record.inventoryReservation.status, 'COMMITTED');
+  const inventoryAfterLateFailure = await inventoryStore.get(String(product.id), { type: 'json' });
+  assert.strictEqual(Number(inventoryAfterLateFailure?.committed || 0), committedAfterFirst);
+  assert.strictEqual(Number(inventoryAfterLateFailure?.committedOrders?.[payment.order] || 0), orderCommittedAfterFirst);
+
+  console.log('OK — checkout, firma Redsys, precio servidor, duplicados, tipo de operación y estado terminal PAID verificados.');
 }
 
 main().catch(function (error) {

@@ -6,8 +6,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  merge_group:
 concurrency:
-  group: full-quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: full-quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.event.merge_group.head_sha || github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
@@ -74,6 +75,7 @@ jobs:
           node --check scripts/test-zero-trust-security.js
           node --check scripts/test-defense-in-depth.js
           node --check scripts/audit-workflow-pinning.js
+          node --check scripts/audit-routes-storage.js
           node --check scripts/test-nexus-core.js
           node --check scripts/test-enterprise-workforce.js
           node --check scripts/test-enterprise-workforce-runtime.js
@@ -151,7 +153,9 @@ jobs:
           node --check netlify/functions/ai-federation.js
           node --check netlify/functions/agent-memory-status.js
       - name: Repository-wide programming integrity
-        run: node scripts/audit-complete-programming.js
+        run: |
+          node scripts/audit-complete-programming.js
+          node scripts/audit-routes-storage.js
       - name: Interactive controls and local navigation audit
         run: node scripts/audit-interactive-controls.js
       - name: Architecture and maximum security audits
@@ -182,6 +186,6 @@ jobs:
       - name: Browser E2E · Chromium
         run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js tests/e2e-critical-flows.spec.js tests/e2e-checkout-resilience.spec.js tests/e2e-admin-sensitive.spec.js tests/e2e-admin-staff-sensitive.spec.js tests/e2e-interactive-controls.spec.js --browser=chromium --workers=1
       - name: Browser E2E · Firefox
-        run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js tests/e2e-critical-flows.spec.js tests/e2e-checkout-resilience.spec.js tests/e2e-admin-sensitive.spec.js tests/e2e-admin-staff-sensitive.spec.js --browser=firefox --workers=1
+        run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js tests/e2e-critical-flows.spec.js tests/e2e-checkout-resilience.spec.js tests/e2e-admin-sensitive.spec.js tests/e2e-admin-staff-sensitive.spec.js tests/e2e-interactive-controls.spec.js --browser=firefox --workers=1
       - name: Browser E2E · WebKit
-        run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js tests/e2e-critical-flows.spec.js tests/e2e-checkout-resilience.spec.js tests/e2e-admin-sensitive.spec.js tests/e2e-admin-staff-sensitive.spec.js --browser=webkit --workers=1
+        run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js tests/e2e-critical-flows.spec.js tests/e2e-checkout-resilience.spec.js tests/e2e-admin-sensitive.spec.js tests/e2e-admin-staff-sensitive.spec.js tests/e2e-interactive-controls.spec.js --browser=webkit --workers=1

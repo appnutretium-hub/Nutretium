@@ -146,7 +146,21 @@ async function preparePage(page, path, runtimeErrors) {
   page.on('dialog', dialog => dialog.dismiss().catch(() => {}));
 
   await installDeterministicClientState(page);
-  await page.route('**/.netlify/functions/**', route => route.abort('blockedbyclient'));
+  await page.route('**/.netlify/functions/**', async route => {
+    const requestUrl = new URL(route.request().url());
+    if (
+      requestUrl.pathname === '/.netlify/functions/reviews'
+      && requestUrl.searchParams.get('action') === 'list'
+    ) {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'application/json; charset=utf-8' },
+        body: JSON.stringify({ reviews: [] })
+      });
+      return;
+    }
+    await route.abort('blockedbyclient');
+  });
 
   const response = await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
   expect(response, `sin respuesta para ${path}`).not.toBeNull();

@@ -3,6 +3,7 @@ const { cabecerasCORS }=require('../lib/cors');
 const { exigePermiso }=require('../lib/staff');
 const { blobStoreReady }=require('../lib/blob-store');
 const shipping=require('../lib/shipping');
+const staffMfa=require('../lib/staff-mfa-readiness');
 const { NUTRETIUM_PRODUCTS=[] }=require('../../products-data.js');
 const CORS=cabecerasCORS('GET, OPTIONS');
 function value(name){return String(process.env[name]||'').trim()}
@@ -17,8 +18,8 @@ exports.handler=async function(event){
  const admins=emails('ADMIN_EMAILS'),publicEmails=new Set([...emails('CONTACT_EMAIL'),...emails('ORDER_NOTIFICATION_EMAIL')]);
  const adminIsolation=admins.length>0&&admins.every(e=>!publicEmails.has(e));
  const sender=value('ORDER_EMAIL_FROM').toLowerCase(),emailDomain=sender.includes('@nutretium.com');
- const [blobs,shippingReady]=await Promise.all([blobStoreReady('system-health-probe'),shipping.configured().catch(()=>false)]);
- const staffMfaRequired=yes('REQUIRE_STAFF_MFA'),staffTotp=set('STAFF_TOTP_SECRETS');
+ const [blobs,shippingReady,mfa]=await Promise.all([blobStoreReady('system-health-probe'),shipping.configured().catch(()=>false),staffMfa.status().catch(()=>({required:yes('REQUIRE_STAFF_MFA'),ready:false,targets:[],missing:[]}))]);
+ const staffMfaRequired=mfa.required===true,staffTotp=mfa.ready===true;
  const checks={jwt:set('JWT_SECRET'),admin:set('ADMIN_EMAILS'),adminIsolation,staffMfaRequired,staffTotp,github:set('GITHUB_TOKEN'),blobs,redsysSecret:set('REDSYS_SECRET_KEY'),redsysMerchant:set('REDSYS_MERCHANT_CODE'),redsysProduction:value('REDSYS_ENV')==='production',commerceLive:yes('COMMERCE_LIVE'),shipping:shippingReady,emailProvider:set('RESEND_API_KEY'),emailRecipient:set('ORDER_NOTIFICATION_EMAIL'),emailFrom:set('ORDER_EMAIL_FROM'),emailDomain,staffRoles:set('STAFF_ROLES_JSON'),maintenance:yes('MAINTENANCE_MODE')};
  const platformCritical=['jwt','admin','adminIsolation','staffMfaRequired','staffTotp','github','blobs'];
  const paymentCritical=['redsysSecret','redsysMerchant','redsysProduction','commerceLive','shipping'];
@@ -29,5 +30,5 @@ exports.handler=async function(event){
  const ready=platformReady&&paymentsReady&&emailReady;
  const critical=[...platformCritical,...paymentCritical,...emailCritical];
  const missing=critical.filter(k=>!checks[k]);
- return{statusCode:200,headers:{...CORS,'Cache-Control':'no-store'},body:JSON.stringify({ready,platformReady,paymentsReady,emailReady,maintenance:checks.maintenance,environment:value('REDSYS_ENV')||'test',checks,missing,catalog:catalogAudit()})};
+ return{statusCode:200,headers:{...CORS,'Cache-Control':'no-store'},body:JSON.stringify({ready,platformReady,paymentsReady,emailReady,maintenance:checks.maintenance,environment:value('REDSYS_ENV')||'test',checks,missing,mfa:{targets:mfa.targets||[],missing:mfa.missing||[]},catalog:catalogAudit()})};
 };

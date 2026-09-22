@@ -42,6 +42,17 @@ jobs:
           grep -qi '^cross-origin-resource-policy: *same-site' /tmp/headers
           grep -qi 'Nutretium' /tmp/home
 
+      - name: Verify Guardian runtime is live
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://nutretium.com"
+          grep -qi 'guardian-runtime.js' /tmp/home
+          curl --fail --silent --show-error --location --retry 6 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 30 -o /tmp/guardian-runtime "$base/guardian-runtime.js"
+          grep -Fq 'NUTRETIUM Guardian Runtime' /tmp/guardian-runtime
+          grep -Fq 'nt:guardian:success' /tmp/guardian-runtime
+          grep -Fq '/.netlify/functions/client-error' /tmp/guardian-runtime
+
       - name: Verify responsible disclosure endpoint
         shell: bash
         run: |

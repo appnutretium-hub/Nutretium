@@ -114,7 +114,6 @@ async function reloadTarget(page, path, target) {
   // across bounded clean loads. Persistent absence is reported as conditional,
   // never silently converted into a functional failure or a false PASS click.
   for (let attempt = 1; attempt <= TARGET_LOAD_ATTEMPTS; attempt++) {
-    await page.context().clearCookies();
     if (page.url() === BASE + path) {
       await page.reload({ waitUntil: 'domcontentloaded' });
     } else {
@@ -147,7 +146,19 @@ async function preparePage(page, path, runtimeErrors) {
   page.on('dialog', dialog => dialog.dismiss().catch(() => {}));
 
   await installDeterministicClientState(page);
-  await page.route('**/.netlify/functions/**', route => route.abort('blockedbyclient'));
+  await page.route('**/.netlify/functions/**', async route => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (url.pathname === '/.netlify/functions/reviews' && request.method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ reviews: [] })
+      });
+      return;
+    }
+    await route.abort('blockedbyclient');
+  });
 
   const response = await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
   expect(response, `sin respuesta para ${path}`).not.toBeNull();

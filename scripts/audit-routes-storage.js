@@ -8,7 +8,9 @@ const FUNCTIONS_DIR = path.join(ROOT, 'netlify', 'functions');
 const LIB_DIR = path.join(ROOT, 'netlify', 'lib');
 const STORAGE_FACADE = path.join(LIB_DIR, 'storage.js');
 const LEGACY_STORAGE_FACADE = path.join(LIB_DIR, 'blob-store.js');
+const RUNTIME_ADAPTER = path.join(LIB_DIR, 'netlify-blobs-runtime.js');
 const problems = [];
+const warnings = [];
 
 function read(file) {
   return fs.readFileSync(file, 'utf8');
@@ -51,14 +53,17 @@ for (const [file, source] of sources) {
   deps.set(file, list);
 }
 
-// Netlify Functions inject the Blobs runtime context automatically for getStore().
-// The repository therefore centralizes provider access in netlify/lib/storage.js.
-// The audit verifies that persistent callers reach that facade and that no module
-// bypasses it with a direct @netlify/blobs import.
 function importsNetlifyBlobs(source) {
   return /require\(\s*['"]@netlify\/blobs['"]\s*\)/.test(source) ||
     /from\s+['"]@netlify\/blobs['"]/.test(source);
 }
+
+// Two low-level integration points are intentional:
+// 1) storage.js owns getStore()/provider selection.
+// 2) netlify-blobs-runtime.js owns connectLambda(event) for Functions running
+//    in Netlify's Lambda compatibility mode.
+// No business Function or other library may import @netlify/blobs directly.
+const allowedBlobConsumers = new Set([STORAGE_FACADE, RUNTIME_ADAPTER]);
 
 if (!sources.has(STORAGE_FACADE)) {
   problems.push('netlify/lib/storage.js: falta la fachada canónica de almacenamiento');
@@ -66,6 +71,15 @@ if (!sources.has(STORAGE_FACADE)) {
   const storageSource = sources.get(STORAGE_FACADE) || '';
   if (!importsNetlifyBlobs(storageSource) || !/\bgetStore\b/.test(storageSource)) {
     problems.push('netlify/lib/storage.js: la fachada no conecta con @netlify/blobs mediante getStore');
+  }
+}
+
+if (!sources.has(RUNTIME_ADAPTER)) {
+  problems.push('netlify/lib/netlify-blobs-runtime.js: falta el adaptador de compatibilidad Lambda');
+} else {
+  const runtimeSource = sources.get(RUNTIME_ADAPTER) || '';
+  if (!importsNetlifyBlobs(runtimeSource) || !/\bconnectLambda\b/.test(runtimeSource) || !/\bconnectBlobs\b/.test(runtimeSource)) {
+    problems.push('netlify/lib/netlify-blobs-runtime.js: adaptador Lambda incompleto; debe encapsular connectLambda mediante connectBlobs');
   }
 }
 
@@ -78,8 +92,8 @@ if (sources.has(LEGACY_STORAGE_FACADE)) {
 
 const directBlobConsumers = jsFiles.filter(file => importsNetlifyBlobs(sources.get(file) || ''));
 for (const file of directBlobConsumers) {
-  if (file !== STORAGE_FACADE) {
-    problems.push(`${rel(file)}: bypass de almacenamiento; importa @netlify/blobs fuera de netlify/lib/storage.js`);
+  if (!allowedBlobConsumers.has(file)) {
+    problems.push(`${rel(file)}: bypass de almacenamiento; importa @netlify/blobs fuera de los adaptadores autorizados`);
   }
 }
 
@@ -100,6 +114,15 @@ function dependsOnPersistence(file, stack = new Set()) {
 
 const functionFiles = walkJs(FUNCTIONS_DIR);
 const persistentFunctions = functionFiles.filter(file => dependsOnPersistence(file));
+const lambdaPersistentFunctions = persistentFunctions.filter(file => /\bexports\.handler\s*=/.test(sources.get(file) || ''));
+const lambdaWithRuntimeConnector = lambdaPersistentFunctions.filter(file => {
+  const source = sources.get(file) || '';
+  return (deps.get(file) || []).includes(RUNTIME_ADAPTER) && /\bconnectBlobs\s*\(\s*event\s*\)/.test(source);
+});
+const lambdaWithoutRuntimeConnector = lambdaPersistentFunctions.filter(file => !lambdaWithRuntimeConnector.includes(file));
+if (lambdaWithoutRuntimeConnector.length) {
+  warnings.push(`${lambdaWithoutRuntimeConnector.length} Functions Lambda persistentes no inicializan connectBlobs(event) directamente; solo son seguras si el data layer usa configuración API explícita (SITE_ID + NETLIFY_API_TOKEN).`);
+}
 
 function parseTomlRedirects(text) {
   const rows = [];
@@ -214,9 +237,13 @@ const report = {
   functions: {
     total: functionFiles.length,
     persistenceDependent: persistentFunctions.length,
+    lambdaPersistenceDependent: lambdaPersistentFunctions.length,
+    lambdaWithRuntimeConnector: lambdaWithRuntimeConnector.length,
+    lambdaWithoutRuntimeConnector: lambdaWithoutRuntimeConnector.map(rel),
     directBlobConsumers: directBlobConsumers.map(rel),
     scheduled: scheduled.length,
   },
+  warnings,
   problems,
 };
 

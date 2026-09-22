@@ -11,13 +11,29 @@ test('Guardian detecta un botón sin resultado observable',async({page})=>{
  await page.waitForFunction(()=>Boolean([...document.scripts].find(s=>String(s.src).includes('guardian-runtime.js'))));
  await page.evaluate(()=>{
   const b=document.createElement('button');
+  b.type='button';
   b.id='guardian-dead-button-test';
   b.textContent='Botón sin acción';
   b.dataset.guardianAction='guardian-dead-button-test';
   b.dataset.guardianTimeout='100';
+  // Keep the synthetic probe physically actionable even when production UI
+  // overlays (for example the cookie banner) are visible. The test must verify
+  // a real browser pointer click reaching Guardian, not bypass actionability.
+  Object.assign(b.style,{
+   position:'fixed',
+   top:'16px',
+   left:'16px',
+   zIndex:'2147483647',
+   width:'180px',
+   height:'44px',
+   opacity:'1',
+   pointerEvents:'auto'
+  });
   document.body.appendChild(b);
  });
- await page.click('#guardian-dead-button-test');
+ const probe=page.locator('#guardian-dead-button-test');
+ await expect(probe).toBeVisible();
+ await probe.click({timeout:3000});
  await expect.poll(()=>incidents.some(x=>x.kind==='functional_failure'&&x.actionId==='guardian-dead-button-test'),{timeout:3000}).toBe(true);
 });
 

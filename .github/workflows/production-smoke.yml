@@ -29,19 +29,6 @@ jobs:
       AUTO_ROLLBACK_ENABLED: ${{ secrets.AUTO_ROLLBACK_ENABLED }}
       REQUIRE_COMMERCE_LIVE_SMOKE: ${{ secrets.REQUIRE_COMMERCE_LIVE_SMOKE }}
     steps:
-      - name: Verify public storefront
-        shell: bash
-        run: |
-          set -euo pipefail
-          base="https://nutretium.com"
-          curl --fail --silent --show-error --location --retry 12 --retry-delay 10 --retry-all-errors --connect-timeout 10 --max-time 30 -D /tmp/headers -o /tmp/home "$base/"
-          grep -qi '^x-frame-options: *DENY' /tmp/headers
-          grep -qi '^x-content-type-options: *nosniff' /tmp/headers
-          grep -qi '^strict-transport-security:' /tmp/headers
-          grep -qi '^content-security-policy:' /tmp/headers
-          grep -qi '^cross-origin-resource-policy: *same-site' /tmp/headers
-          grep -qi 'Nutretium' /tmp/home
-
       - name: Verify exact revision is published
         id: revision
         shell: bash
@@ -70,6 +57,19 @@ jobs:
           done
           echo "La revisión esperada $EXPECTED_SHA no está publicada; no se hará rollback de una versión sana." >&2
           exit 1
+
+      - name: Verify public storefront
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://nutretium.com"
+          curl --fail --silent --show-error --location --retry 12 --retry-delay 10 --retry-all-errors --connect-timeout 10 --max-time 30 -D /tmp/headers -o /tmp/home "$base/"
+          grep -qi '^x-frame-options: *DENY' /tmp/headers
+          grep -qi '^x-content-type-options: *nosniff' /tmp/headers
+          grep -qi '^strict-transport-security:' /tmp/headers
+          grep -qi '^content-security-policy:' /tmp/headers
+          grep -qi '^cross-origin-resource-policy: *same-site' /tmp/headers
+          grep -qi 'Nutretium' /tmp/home
 
       - name: Verify Guardian runtime is live
         shell: bash
@@ -130,7 +130,7 @@ jobs:
           NODE
 
       - name: Guarded automatic rollback
-        if: ${{ failure() && steps.revision.outputs.deployed == 'true' && env.AUTO_ROLLBACK_ENABLED == 'true' && env.NETLIFY_SITE_ID != '' && env.NETLIFY_API_TOKEN != '' }}
+        if: ${{ failure() && github.event_name == 'workflow_run' && steps.revision.outputs.deployed == 'true' && env.AUTO_ROLLBACK_ENABLED == 'true' && env.NETLIFY_SITE_ID != '' && env.NETLIFY_API_TOKEN != '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -143,8 +143,12 @@ jobs:
           grep -qi 'Nutretium' /tmp/rollback-home
 
       - name: Rollback not configured warning
-        if: ${{ failure() && steps.revision.outputs.deployed == 'true' && (env.AUTO_ROLLBACK_ENABLED != 'true' || env.NETLIFY_SITE_ID == '' || env.NETLIFY_API_TOKEN == '') }}
+        if: ${{ failure() && github.event_name == 'workflow_run' && steps.revision.outputs.deployed == 'true' && (env.AUTO_ROLLBACK_ENABLED != 'true' || env.NETLIFY_SITE_ID == '' || env.NETLIFY_API_TOKEN == '') }}
         run: echo "Production smoke failed on the published candidate; automatic rollback is not explicitly enabled/configured."
+
+      - name: Scheduled or manual smoke failure notice
+        if: ${{ failure() && github.event_name != 'workflow_run' }}
+        run: echo "Scheduled/manual smoke failed; automatic rollback is intentionally disabled outside a validated deployment event."
 
       - name: Unpublished revision safety notice
         if: ${{ failure() && steps.revision.outputs.deployed != 'true' }}

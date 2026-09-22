@@ -2,6 +2,7 @@
 const assert = require('assert');
 const { FactusolClient, normalizeRows } = require('../netlify/lib/factusol-client');
 const { FactusolCommerce } = require('../netlify/lib/factusol-commerce');
+const publicCatalog = require('../netlify/functions/factusol-public-catalog')._test;
 const vault = require('../netlify/lib/factusol-vault');
 
 function response(body,status=200){return{ok:status>=200&&status<300,status,async json(){return body}}}
@@ -49,6 +50,30 @@ function mockApi(){
   const shortage=await commerce.validateCart([{code:'SKU1',qty:5}]);
   assert.equal(shortage.ok,false);
   assert.equal(shortage.problems[0].reason,'insufficient-stock');
+
+  const fakeProducts=[
+    {id:1,code:'SKU1',active:true,stock:7},
+    {id:2,code:'SKU2',active:true,stock:2},
+    {id:3,code:'FOOD',active:true,stock:null},
+    {id:4,code:'OFF',active:false,stock:9},
+  ];
+  assert.deepEqual(publicCatalog.trackedProducts(fakeProducts),[{id:1,code:'SKU1'},{id:2,code:'SKU2'}]);
+  assert.deepEqual(publicCatalog.parseRequestedCodes('SKU1,NOPE,SKU2',publicCatalog.trackedProducts(fakeProducts)),['SKU1','SKU2']);
+  const liveProjection=await publicCatalog.readLiveCatalog({
+    products:fakeProducts,
+    rawCodes:'SKU1,SKU2',
+    service:{
+      readiness(){return{liveCatalogReady:true}},
+      async fetchByCodes(codes){
+        assert.deepEqual(codes,['SKU1','SKU2']);
+        return [{code:'SKU1',available:3,price:18.5,blocked:false}];
+      },
+    },
+  });
+  assert.equal(liveProjection.status,'LIVE');
+  assert.equal(liveProjection.authoritative,true);
+  assert.deepEqual(liveProjection.items,[{code:'SKU1',available:3,price:18.5,blocked:false}]);
+  assert.deepEqual(liveProjection.missingCodes,['SKU2']);
 
   process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
   process.env.CONFIG_VAULT_KEY='test-key-not-production';

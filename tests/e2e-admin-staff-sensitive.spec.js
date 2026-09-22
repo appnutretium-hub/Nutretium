@@ -62,22 +62,22 @@ test('admin sesiones: solo permite cerrar sesiones ajenas y cancelar no muta',as
 
 test('admin sesiones: confirmar revocación envía una sola mutación con CSRF',async({page})=>{
  const state=await bootAdmin(page);
- const dialogs=[];
- const onDialog=async dialog=>{
-  dialogs.push(dialog.message());
-  await dialog.accept();
- };
- page.on('dialog',onDialog);
- try{
-  await page.locator('[data-revoke-sessions="manager@nutretium.test"]').click();
-  await expect.poll(()=>state.mutations.length).toBe(1);
-  expect(state.mutations[0].body.action).toBe('staff-revoke-sessions');
-  expect(state.mutations[0].body.email).toBe('manager@nutretium.test');
-  expect(state.mutations[0].csrf).toBe(state.csrf);
-  await expect.poll(()=>dialogs.some(message=>message.includes('Sesiones cerradas para manager@nutretium.test.'))).toBe(true);
- }finally{
-  page.off('dialog',onDialog);
- }
+ const confirmPromise=page.waitForEvent('dialog');
+ const clickPromise=page.locator('[data-revoke-sessions="manager@nutretium.test"]').click();
+ const confirmDialog=await confirmPromise;
+ expect(confirmDialog.type()).toBe('confirm');
+ expect(confirmDialog.message()).toContain('Cerrar todas las sesiones activas de manager@nutretium.test');
+ const successPromise=page.waitForEvent('dialog');
+ await confirmDialog.accept();
+ await expect.poll(()=>state.mutations.length).toBe(1);
+ expect(state.mutations[0].body.action).toBe('staff-revoke-sessions');
+ expect(state.mutations[0].body.email).toBe('manager@nutretium.test');
+ expect(state.mutations[0].csrf).toBe(state.csrf);
+ const successDialog=await successPromise;
+ expect(successDialog.type()).toBe('alert');
+ expect(successDialog.message()).toContain('Sesiones cerradas para manager@nutretium.test.');
+ await successDialog.accept();
+ await clickPromise;
 });
 
 test('admin MFA: cancelar regeneración evita mutación; confirmar usa CSRF',async({page})=>{

@@ -1,4 +1,4 @@
-/* NUTRETIUM — configuración pública editable desde administración */
+/* NUTRETIUM — configuración pública editable desde administración + catálogo FACTUSOL live */
 (function(){'use strict';
 const byId=id=>document.getElementById(id);
 function hideMatching(selector,visible){document.querySelectorAll(selector).forEach(el=>{el.style.display=visible?'':'none'})}
@@ -11,6 +11,84 @@ function contact(c){if(!c)return;document.querySelectorAll('a[href^="tel:"]').fo
 function features(f){if(!f)return;hideMatching('[onclick*="trainerModal"]',f.trainer!==false);hideMatching('[href="#trainer"]',f.trainer!==false);hideMatching('[onclick*="takeawayModal"]',f.takeaway!==false);hideMatching('[href="#takeaway"]',f.takeaway!==false);if(f.reviews===false)document.querySelectorAll('[id*="review" i],[class*="review" i]').forEach(x=>x.style.display='none');if(f.wishlist===false)document.querySelectorAll('[class*="wishlist" i],[data-wishlist]').forEach(x=>x.style.display='none');if(f.compare===false)document.querySelectorAll('[class*="compare" i],[data-compare]').forEach(x=>x.style.display='none');if(f.search===false){['navSearchWrapDesktop','mobileSearchInput'].forEach(id=>{const el=byId(id);if(el)(el.closest('div')||el).style.display='none'})}}
 function footer(c){const footer=document.querySelector('footer');if(!footer||!c.footerAbout)return;const p=[...footer.querySelectorAll('p')].find(x=>/En Nutretium/i.test(x.textContent||''));if(p)p.textContent=c.footerAbout}
 function payment(p){const btn=byId('redsysBtn'),label=byId('redsysBtnText');if(label&&p?.label)label.textContent=p.enabled===false?'Pago online no disponible':p.label;if(btn&&p?.enabled===false){btn.disabled=true;btn.setAttribute('aria-disabled','true')}}
-async function init(){try{const r=await fetch('/.netlify/functions/site-config',{cache:'no-store'});if(!r.ok)return;const d=await r.json();const c=d.content||{};managedBanner(c);infoBar(c);hero(c);navigation(d.navigation);contact(d.contact);features(d.features);footer(c);payment(d.payment);if(d.seo?.siteTitle)document.title=d.seo.siteTitle;if(d.seo?.metaDescription)ensureMeta('description').content=d.seo.metaDescription;window.NUTRETIUM_SITE_CONFIG=d;document.dispatchEvent(new CustomEvent('nutretium:site-config',{detail:d}))}catch(err){console.warn('[runtime-content] configuración no disponible',err?.message||err)}}
+
+/* FACTUSOL es la fuente autoritativa de precio/stock cuando el modo live está listo.
+   products-data.js sigue siendo el fallback visual si el ERP no está disponible;
+   el checkout permanece fail-closed y vuelve a validar contra FACTUSOL antes de cobrar. */
+const FACTUSOL_ENDPOINT='/.netlify/functions/factusol-public-catalog';
+const FACTUSOL_REFRESH_MS=60*1000;
+let factusolTimer=null;
+let factusolMap=new Map();
+function catalogProducts(){return Array.isArray(window.NUTRETIUM_PRODUCTS)?window.NUTRETIUM_PRODUCTS:[]}
+function factusolTracked(){return catalogProducts().filter(p=>p&&p.active!==false&&p.code&&typeof p.stock==='number')}
+function overlayProduct(product){
+  if(!product||!product.code)return product;
+  const live=factusolMap.get(String(product.code));
+  if(!live)return product;
+  const available=Math.max(0,Number(live.available)||0);
+  const price=Number(live.price);
+  product.stock=live.blocked===true?0:available;
+  if(Number.isFinite(price)&&price>=0)product.price=price;
+  product._stockSource='factusol-live';
+  product._stockCheckedAt=window.NUTRETIUM_FACTUSOL_LIVE_STATE?.checkedAt||null;
+  return product;
+}
+function installFactusolHooks(){
+  if(window.__NUTRETIUM_FACTUSOL_HOOKS__)return;
+  window.__NUTRETIUM_FACTUSOL_HOOKS__=true;
+  const originalInStock=window.inStock;
+  if(typeof originalInStock==='function'){
+    window.inStock=function(product){overlayProduct(product);return originalInStock(product)};
+  }
+  const originalRender=window.renderProducts;
+  if(typeof originalRender==='function'){
+    window.renderProducts=function(list){if(Array.isArray(list))list.forEach(overlayProduct);return originalRender.apply(this,arguments)};
+  }
+  const originalMini=window.miniCard;
+  if(typeof originalMini==='function'){
+    window.miniCard=function(product){overlayProduct(product);return originalMini.apply(this,arguments)};
+  }
+  const originalAdd=window.addToCart;
+  if(typeof originalAdd==='function'){
+    window.addToCart=function(productId){
+      const product=catalogProducts().find(p=>Number(p.id)===Number(productId));
+      if(product){overlayProduct(product);const live=factusolMap.get(String(product.code));if(live&&((live.blocked===true)||Number(live.available)<=0)){if(typeof window.showToast==='function')window.showToast(`${product.name} está agotado`);return}}
+      return originalAdd.apply(this,arguments);
+    };
+  }
+}
+function applyFactusolPayload(data){
+  window.NUTRETIUM_FACTUSOL_LIVE_STATE=data||null;
+  if(!data||data.status!=='LIVE'||data.live!==true||data.authoritative!==true)return false;
+  factusolMap=new Map((Array.isArray(data.items)?data.items:[]).map(item=>[String(item.code),item]));
+  const missing=new Set(Array.isArray(data.missingCodes)?data.missingCodes.map(String):[]);
+  for(const product of factusolTracked()){
+    const live=factusolMap.get(String(product.code));
+    if(live)overlayProduct(product);
+    else if(missing.has(String(product.code))){product.stock=0;product._stockSource='factusol-live-missing';product._stockCheckedAt=data.checkedAt||null}
+  }
+  installFactusolHooks();
+  try{if(typeof window.applyFilters==='function')window.applyFilters();else if(typeof window.renderProducts==='function')window.renderProducts(catalogProducts().filter(p=>p.active!==false))}catch(_){ }
+  try{if(typeof window.renderNovedades==='function')window.renderNovedades()}catch(_){ }
+  try{if(typeof window.renderRecomendados==='function')window.renderRecomendados()}catch(_){ }
+  try{if(typeof window.updateCartUI==='function')window.updateCartUI()}catch(_){ }
+  window.dispatchEvent(new CustomEvent('nutretium:factusol-stock-updated',{detail:data}));
+  return true;
+}
+async function refreshFactusol(){
+  const codes=factusolTracked().map(p=>String(p.code));
+  if(!codes.length)return;
+  try{
+    const r=await fetch(FACTUSOL_ENDPOINT+'?codes='+encodeURIComponent(codes.join(',')),{cache:'no-store',headers:{Accept:'application/json'}});
+    const data=await r.json().catch(()=>null);
+    if(r.ok&&data)applyFactusolPayload(data);
+  }catch(err){window.NUTRETIUM_FACTUSOL_LIVE_STATE={live:false,authoritative:false,status:'UNREACHABLE',checkedAt:new Date().toISOString()};console.warn('[FACTUSOL] disponibilidad live no accesible',err?.message||err)}
+}
+function startFactusol(){installFactusolHooks();refreshFactusol();clearInterval(factusolTimer);factusolTimer=setInterval(refreshFactusol,FACTUSOL_REFRESH_MS);window.addEventListener('focus',refreshFactusol);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshFactusol()})}
+window.NUTRETIUM_FACTUSOL_REFRESH=refreshFactusol;
+
+async function init(){
+  startFactusol();
+  try{const r=await fetch('/.netlify/functions/site-config',{cache:'no-store'});if(!r.ok)return;const d=await r.json();const c=d.content||{};managedBanner(c);infoBar(c);hero(c);navigation(d.navigation);contact(d.contact);features(d.features);footer(c);payment(d.payment);if(d.seo?.siteTitle)document.title=d.seo.siteTitle;if(d.seo?.metaDescription)ensureMeta('description').content=d.seo.metaDescription;window.NUTRETIUM_SITE_CONFIG=d;document.dispatchEvent(new CustomEvent('nutretium:site-config',{detail:d}))}catch(err){console.warn('[runtime-content] configuración no disponible',err?.message||err)}}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();

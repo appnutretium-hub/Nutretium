@@ -29,9 +29,14 @@ jobs:
           node --check netlify/lib/factusol-client.js
           node --check netlify/lib/factusol-vault.js
           node --check netlify/lib/factusol-commerce.js
+          node --check netlify/lib/factusol-checkout-gate.js
           node --check netlify/functions/factusol-status.js
+          node --check netlify/functions/factusol-public-catalog.js
+          node --check netlify/functions/factusol-live-status.js
           node --check netlify/functions/admin-factusol.js
           node --check netlify/functions/checkout-live.js
+          node --check runtime-content.js
+          node --check product-engagement.js
           node --check checkout.js
       - name: FACTUSOL mocked contract tests
         run: node scripts/test-factusol-integration.js

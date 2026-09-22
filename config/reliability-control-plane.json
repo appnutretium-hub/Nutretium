@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "name": "Nutretium Reliability Control Plane",
+  "mode": "zero-cost",
+  "principles": {
+    "failClosedOnCriticalGates": true,
+    "automaticSourceCodeMutation": false,
+    "automaticProductionRollback": "explicit-opt-in-only",
+    "paidExternalServicesRequired": false,
+    "duplicatePeriodicMonitoring": false
+  },
+  "layers": {
+    "changeGate": {
+      "workflow": ".github/workflows/quality-gate.yml",
+      "required": true
+    },
+    "guardian": {
+      "workflow": ".github/workflows/guardian.yml",
+      "required": true
+    },
+    "preproduction": {
+      "workflow": ".github/workflows/preproduction-gate.yml",
+      "required": true
+    },
+    "productionSmoke": {
+      "workflow": ".github/workflows/production-smoke.yml",
+      "required": true,
+      "maxScheduledIntervalHours": 6
+    },
+    "productionSentinel": {
+      "function": "netlify/functions/production-sentinel.js",
+      "required": true,
+      "schedule": "*/30 * * * *"
+    },
+    "runtimeGuardian": {
+      "script": "guardian-runtime.js",
+      "required": true
+    },
+    "mainIntegrity": {
+      "workflow": ".github/workflows/main-integrity.yml",
+      "required": true
+    },
+    "security": {
+      "workflow": ".github/workflows/security-max.yml",
+      "required": true
+    },
+    "zeroCost": {
+      "library": "netlify/lib/zero-cost-policy.js",
+      "test": "scripts/test-zero-cost-policy.js",
+      "required": true
+    }
+  },
+  "criticalProductionContracts": [
+    "https://nutretium.com/",
+    "https://nutretium.com/guardian-runtime.js",
+    "https://nutretium.com/.well-known/security.txt",
+    "https://nutretium.com/.netlify/functions/site-status"
+  ],
+  "authorizedAutomaticRemediation": [
+    "retry_transient_http_checks",
+    "cancel_superseded_ci_runs",
+    "netlify_rollback_when_explicitly_enabled"
+  ],
+  "forbiddenAutomaticRemediation": [
+    "direct_source_code_edit_in_production",
+    "automatic_secret_rotation_without_operator",
+    "automatic_payment_configuration_change",
+    "automatic_security_control_disable",
+    "automatic_paid_service_enablement"
+  ]
+}

@@ -1,0 +1,56 @@
+name: Nutretium Reliability Control Plane
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'config/reliability-control-plane.json'
+      - 'scripts/audit-reliability-control-plane.js'
+      - '.github/workflows/**'
+      - 'netlify.toml'
+      - 'netlify/functions/production-sentinel.js'
+      - 'guardian-runtime.js'
+      - 'netlify/lib/zero-cost-policy.js'
+      - 'scripts/test-zero-cost-policy.js'
+  push:
+    branches: [main]
+    paths:
+      - 'config/reliability-control-plane.json'
+      - 'scripts/audit-reliability-control-plane.js'
+      - '.github/workflows/**'
+      - 'netlify.toml'
+      - 'netlify/functions/production-sentinel.js'
+      - 'guardian-runtime.js'
+      - 'netlify/lib/zero-cost-policy.js'
+      - 'scripts/test-zero-cost-policy.js'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reliability-control-plane-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integrity:
+    name: Reliability architecture integrity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout immutable revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+      - name: Validate control-plane syntax
+        run: node --check scripts/audit-reliability-control-plane.js
+      - name: Enforce zero-cost reliability architecture
+        run: node scripts/audit-reliability-control-plane.js
+      - name: Enforce zero-cost policy regression
+        run: node scripts/test-zero-cost-policy.js
+      - name: Verify workflow supply-chain pinning
+        run: node scripts/audit-workflow-pinning.js

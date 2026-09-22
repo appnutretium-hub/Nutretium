@@ -22,12 +22,6 @@ jobs:
     env:
       NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
       NETLIFY_API_TOKEN: ${{ secrets.NETLIFY_API_TOKEN }}
-      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-      ORDER_EMAIL_FROM: ${{ secrets.ORDER_EMAIL_FROM }}
-      TPVSOL_SYNC_MODE: ${{ secrets.TPVSOL_SYNC_MODE }}
-      TPVSOL_SYNC_ENDPOINT: ${{ secrets.TPVSOL_SYNC_ENDPOINT }}
-      TPVSOL_SYNC_TOKEN: ${{ secrets.TPVSOL_SYNC_TOKEN }}
-      TPVSOL_CONNECTION_VALIDATED: ${{ secrets.TPVSOL_CONNECTION_VALIDATED }}
     steps:
       - name: Require certification from main
         shell: bash
@@ -39,23 +33,18 @@ jobs:
           fi
           echo "[certification] SHA objetivo: $GITHUB_SHA"
 
-      - name: Require external certification credentials
+      - name: Require deployment certification credentials
         shell: bash
         run: |
           set -euo pipefail
           missing=()
           [[ -n "$NETLIFY_SITE_ID" ]] || missing+=(NETLIFY_SITE_ID)
           [[ -n "$NETLIFY_API_TOKEN" ]] || missing+=(NETLIFY_API_TOKEN)
-          [[ -n "$RESEND_API_KEY" ]] || missing+=(RESEND_API_KEY)
-          [[ -n "$ORDER_EMAIL_FROM" ]] || missing+=(ORDER_EMAIL_FROM)
-          [[ -n "$TPVSOL_SYNC_MODE" ]] || missing+=(TPVSOL_SYNC_MODE)
-          [[ -n "$TPVSOL_SYNC_ENDPOINT" ]] || missing+=(TPVSOL_SYNC_ENDPOINT)
-          [[ -n "$TPVSOL_SYNC_TOKEN" ]] || missing+=(TPVSOL_SYNC_TOKEN)
-          [[ -n "$TPVSOL_CONNECTION_VALIDATED" ]] || missing+=(TPVSOL_CONNECTION_VALIDATED)
           if (( ${#missing[@]} > 0 )); then
-            printf 'NO VALIDADO: faltan secretos de certificación: %s\n' "${missing[*]}" >&2
+            printf 'NO VALIDADO: faltan secretos raíz de despliegue: %s\n' "${missing[*]}" >&2
             exit 1
           fi
+          echo '[certification] las credenciales operativas de Redsys, Resend y TPVsol se validan en runtime desde la bóveda administrada; no se duplican en GitHub.'
 
       - name: Wait for exact Netlify production deploy
         shell: bash
@@ -104,7 +93,7 @@ jobs:
           grep -qi '^Contact: mailto:' /tmp/security-txt
           grep -qi '^Canonical: https://nutretium.com/.well-known/security.txt' /tmp/security-txt
 
-      - name: Require real commerce readiness
+      - name: Read managed production readiness
         shell: bash
         run: |
           set -euo pipefail
@@ -121,52 +110,10 @@ jobs:
           if(s.payment?.environment!=='production') failures.push('Redsys debe estar en production');
           if(s.payment?.commerceLive!==true) failures.push('COMMERCE_LIVE debe ser true');
           if(s.payment?.credentialsConfigured!==true) failures.push('credenciales de pago no validadas');
-          if(failures.length){
-            console.error('NO VALIDADO:',failures.join(' | '));
-            process.exit(1);
-          }
-          console.log('[certification] storefront + shipping + pago real preparados');
-          NODE
-
-      - name: Verify Resend sender domain
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl --fail --silent --show-error \
-            -H "Authorization: Bearer $RESEND_API_KEY" \
-            "https://api.resend.com/domains" > /tmp/resend-domains.json
-          node - <<'NODE'
-          const fs=require('fs');
-          const sender=String(process.env.ORDER_EMAIL_FROM||'');
-          const match=sender.match(/@([^>\s]+)>?$/);
-          const domain=(match?.[1]||'').toLowerCase();
-          if(!domain){console.error('NO VALIDADO: ORDER_EMAIL_FROM no contiene un dominio válido.');process.exit(1)}
-          const body=JSON.parse(fs.readFileSync('/tmp/resend-domains.json','utf8'));
-          const domains=Array.isArray(body.data)?body.data:[];
-          const record=domains.find(x=>String(x?.name||'').toLowerCase()===domain);
-          if(!record || String(record.status||'').toLowerCase()!=='verified'){
-            console.error(`NO VALIDADO: dominio Resend ${domain} no figura como verified.`);
-            process.exit(1);
-          }
-          console.log(`[certification] Resend ${domain}: verified`);
-          NODE
-
-      - name: Require validated TPVsol channel
-        shell: bash
-        run: |
-          set -euo pipefail
-          node - <<'NODE'
-          const mode=String(process.env.TPVSOL_SYNC_MODE||'').toLowerCase();
-          const endpoint=String(process.env.TPVSOL_SYNC_ENDPOINT||'');
-          const token=String(process.env.TPVSOL_SYNC_TOKEN||'');
-          const validated=String(process.env.TPVSOL_CONNECTION_VALIDATED||'').toLowerCase()==='true';
-          const failures=[];
-          if(!['api','middleware'].includes(mode)) failures.push('TPVSOL_SYNC_MODE debe ser api o middleware');
-          if(!/^https:\/\//i.test(endpoint)) failures.push('TPVSOL_SYNC_ENDPOINT debe ser HTTPS');
-          if(!token) failures.push('TPVSOL_SYNC_TOKEN ausente');
-          if(!validated) failures.push('TPVSOL_CONNECTION_VALIDATED debe ser true');
+          if(s.integrations?.email?.ready!==true) failures.push(`Resend no validado (${s.integrations?.email?.reason||'sin estado'})`);
+          if(s.integrations?.tpvsol?.ready!==true) failures.push(`TPVsol no validado (${s.integrations?.tpvsol?.reason||'sin estado'})`);
           if(failures.length){console.error('NO VALIDADO:',failures.join(' | '));process.exit(1)}
-          console.log('[certification] canal TPVsol declarado y validado');
+          console.log(`[certification] comercio + shipping + Redsys + Resend(${s.integrations.email.domain||'dominio'}) + TPVsol(${s.integrations.tpvsol.mode||'modo'}) preparados`);
           NODE
 
       - name: Publish certification summary
@@ -181,8 +128,8 @@ jobs:
             echo '- Netlify exact SHA: PASS'
             echo '- Storefront/security smoke: PASS'
             echo '- Commerce live + shipping + payment: PASS'
-            echo '- Resend domain: PASS'
-            echo '- TPVsol declared channel: PASS'
+            echo '- Resend gestionado/validado desde panel: PASS'
+            echo '- TPVsol gestionado/validado desde panel: PASS'
             echo
             echo '## Resultado'
             echo '**PRODUCTION CERTIFIED — controles automáticos cerrados en verde.**'

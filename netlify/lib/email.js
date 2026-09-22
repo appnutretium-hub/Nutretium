@@ -6,17 +6,21 @@
 const direccion = require('./direccion');
 const { tokenFor } = require('./guest-access');
 const { conFirmaLegal } = require('./legal');
+const integrationConfig = require('./integration-config');
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 async function sendEmail({ to, subject, html, idempotencyKey }) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = String(process.env.ORDER_EMAIL_FROM || '').trim();
-  if (!apiKey) { console.warn('[email] Falta RESEND_API_KEY; correo no enviado:', subject); return { ok:false, reason:'missing-api-key' }; }
-  if (!from) { console.warn('[email] Falta ORDER_EMAIL_FROM; correo no enviado:', subject); return { ok:false, reason:'missing-from' }; }
-  if (!to) { console.warn('[email] Sin destinatario; correo no enviado:', subject); return { ok:false, reason:'missing-recipient' }; }
+  const cfg = await integrationConfig.email().catch(()=>({}));
+  const apiKey = String(cfg.apiKey || '').trim();
+  const from = String(cfg.from || '').trim();
+  if (cfg.enabled === false) { console.warn('[email] Correo transaccional desactivado; correo no enviado:', subject); return { ok:false, reason:'disabled' }; }
+  if (!apiKey) { console.warn('[email] Falta credencial Resend; correo no enviado:', subject); return { ok:false, reason:'missing-api-key' }; }
+  if (!from) { console.warn('[email] Falta remitente; correo no enviado:', subject); return { ok:false, reason:'missing-from' }; }
+  const recipient = String(to || cfg.orderNotificationEmail || '').trim();
+  if (!recipient) { console.warn('[email] Sin destinatario; correo no enviado:', subject); return { ok:false, reason:'missing-recipient' }; }
   try {
     const headers = { Authorization:`Bearer ${apiKey}`, 'Content-Type':'application/json' };
     if (idempotencyKey) headers['Idempotency-Key'] = String(idempotencyKey).slice(0,256);
-    const res = await fetch(RESEND_ENDPOINT,{method:'POST',headers,body:JSON.stringify({from,to:[to],subject,html:conFirmaLegal(html)})});
+    const res = await fetch(RESEND_ENDPOINT,{method:'POST',headers,body:JSON.stringify({from,to:[recipient],subject,html:conFirmaLegal(html)})});
     const payload = await res.json().catch(()=>({}));
     if (!res.ok) { console.error('[email] Resend devolvió',res.status,JSON.stringify(payload).slice(0,400)); return {ok:false,reason:'provider-error',status:res.status}; }
     return {ok:true,id:payload.id||null};

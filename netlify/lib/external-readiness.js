@@ -1,5 +1,5 @@
 'use strict';
-
+const integrationConfig=require('./integration-config');
 function asBool(value){return String(value||'').trim().toLowerCase()==='true'}
 function clean(value){return String(value||'').trim()}
 function senderDomain(value){
@@ -10,8 +10,9 @@ function senderDomain(value){
  return at>0?address.slice(at+1):'';
 }
 function shippingState(shipping={}){
- const managed=shipping.managed===true,enabled=shipping.enabled===true,rate=shipping.rateCents;
- const ready=managed&&enabled&&Number.isInteger(rate)&&rate>=0;
+ const managed=shipping.managed===true,enabled=shipping.enabled===true,rate=shipping.rateCents,methods=Array.isArray(shipping.methods)?shipping.methods:[];
+ const methodReady=methods.some(m=>m?.enabled&&Number.isInteger(m.rateCents)&&m.rateCents>=0);
+ const ready=managed&&enabled&&((Number.isInteger(rate)&&rate>=0)||methodReady);
  return{ready,managed,enabled,reason:ready?'configured':!managed?'not-managed':!enabled?'disabled':'missing-valid-rate'};
 }
 function paymentsState(env={}){
@@ -21,15 +22,15 @@ function paymentsState(env={}){
  const ready=mode==='production'&&live&&credentials;
  return{ready,mode,live,credentialsConfigured:credentials,reason:ready?'production-ready':mode!=='production'?'test-mode':!live?'commerce-live-disabled':'missing-credentials'};
 }
-function tpvState(env={}){
- const mode=clean(env.TPVSOL_SYNC_MODE).toLowerCase();
- const endpoint=clean(env.TPVSOL_SYNC_ENDPOINT),token=Boolean(clean(env.TPVSOL_SYNC_TOKEN));
- const validated=asBool(env.TPVSOL_CONNECTION_VALIDATED);
+function tpvState(env={},override=null){
+ const mode=clean(override?.mode??env.TPVSOL_SYNC_MODE).toLowerCase();
+ const endpoint=clean(override?.endpoint??env.TPVSOL_SYNC_ENDPOINT),token=Boolean(clean(override?.token??env.TPVSOL_SYNC_TOKEN));
+ const validated=override?Boolean(override.validated):asBool(env.TPVSOL_CONNECTION_VALIDATED),enabled=override?override.enabled!==false:true,dedicated=override?override.dedicatedVaultKey!==false:true;
  let endpointConfigured=false;try{endpointConfigured=Boolean(endpoint&&new URL(endpoint).protocol==='https:')}catch{}
  const supported=new Set(['api','middleware']);
- const ready=validated&&supported.has(mode)&&endpointConfigured&&token;
- const reason=ready?'validated-transport':!supported.has(mode)?'unsupported-transport':!endpointConfigured?'missing-https-endpoint':!token?'missing-token':!validated?'transport-not-validated':'not-ready';
- return{ready,mode:mode||null,validated,endpointConfigured,tokenConfigured:token,reason};
+ const ready=enabled&&validated&&supported.has(mode)&&endpointConfigured&&token&&dedicated;
+ const reason=ready?'validated-transport':!enabled?'disabled':!supported.has(mode)?'unsupported-transport':!endpointConfigured?'missing-https-endpoint':!token?'missing-token':!dedicated?'missing-dedicated-vault-key':!validated?'transport-not-validated':'not-ready';
+ return{ready,mode:mode||null,validated,endpointConfigured,tokenConfigured:token,dedicatedVaultKey:dedicated,reason};
 }
 async function fetchJson(url,{headers={},timeoutMs=5000}={},fetchImpl=global.fetch){
  if(typeof fetchImpl!=='function')throw new Error('fetch unavailable');
@@ -58,9 +59,11 @@ async function githubDeploymentState(env={},fetchImpl=global.fetch){
   return{ready:production&&exact,reason:production?(exact?'exact-main-sha':'sha-mismatch'):'not-production-main',context:context||null,branch:branch||null,deployedSha,mainSha:mainSha||null,exact};
  }catch(error){return{ready:false,reason:'github-check-failed',context:context||null,branch:branch||null,deployedSha,error:String(error.message||'error').slice(0,120)}}
 }
-async function resendState(env={},fetchImpl=global.fetch){
- const key=clean(env.RESEND_API_KEY),domain=senderDomain(env.ORDER_EMAIL_FROM);
+async function resendState(env={},fetchImpl=global.fetch,override=null){
+ const key=clean(override?.apiKey??env.RESEND_API_KEY),from=clean(override?.from??env.ORDER_EMAIL_FROM),domain=senderDomain(from),enabled=override?override.enabled!==false:true,dedicated=override?override.dedicatedVaultKey!==false:true;
+ if(!enabled)return{ready:false,reason:'disabled',domain:domain||null};
  if(!key)return{ready:false,reason:'missing-resend-key',domain:domain||null};
+ if(!dedicated)return{ready:false,reason:'missing-dedicated-vault-key',domain:domain||null};
  if(!domain)return{ready:false,reason:'invalid-sender-domain',domain:null};
  try{
   const data=await fetchJson('https://api.resend.com/domains?limit=100',{headers:{Authorization:`Bearer ${key}`,Accept:'application/json'}},fetchImpl);
@@ -70,11 +73,12 @@ async function resendState(env={},fetchImpl=global.fetch){
   return{ready:status==='verified',reason:status==='verified'?'verified':match?'domain-not-verified':'domain-not-found',domain,status:status||null};
  }catch(error){return{ready:false,reason:'resend-check-failed',domain,error:String(error.message||'error').slice(0,120)}}
 }
+async function managedIntegrationStates({env=process.env,fetchImpl=global.fetch}={}){const [mailCfg,tpvCfg]=await Promise.all([integrationConfig.email(env),integrationConfig.tpvsol(env)]);const [email,tpv]=await Promise.all([resendState(env,fetchImpl,mailCfg),Promise.resolve(tpvState(env,tpvCfg))]);return{email,tpv}}
 async function assessExternalReadiness({env=process.env,shipping={},fetchImpl=global.fetch}={}){
- const [deployment,email]=await Promise.all([githubDeploymentState(env,fetchImpl),resendState(env,fetchImpl)]);
- const payments=paymentsState(env),delivery=shippingState(shipping),tpv=tpvState(env);
+ const [deployment,integrations]=await Promise.all([githubDeploymentState(env,fetchImpl),managedIntegrationStates({env,fetchImpl})]);
+ const payments=paymentsState(env),delivery=shippingState(shipping),email=integrations.email,tpv=integrations.tpv;
  const checks={deployment,email,payments,shipping:delivery,tpv};
  const blockers=Object.entries(checks).filter(([,value])=>!value.ready).map(([key,value])=>({key,reason:value.reason}));
  return{ready:blockers.length===0,checks,blockers,checkedAt:new Date().toISOString()};
 }
-module.exports={asBool,senderDomain,shippingState,paymentsState,tpvState,githubDeploymentState,resendState,assessExternalReadiness};
+module.exports={asBool,senderDomain,shippingState,paymentsState,tpvState,githubDeploymentState,resendState,managedIntegrationStates,assessExternalReadiness};

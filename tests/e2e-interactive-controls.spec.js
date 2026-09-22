@@ -9,10 +9,9 @@ const pages = [
   '/enterprise.html', '/financial-dashboard.html', '/smart-shop.html'
 ];
 
-// Split every page into independent shards. This keeps exhaustive browser
-// coverage without a single monolithic test owning the full execution budget.
 const CONTROL_SHARDS = 4;
 const CONTROL_SELECTOR = 'button:not([disabled]), [role="button"]:not([aria-disabled="true"])';
+const UI_SETTLE_MS = 300;
 
 function isSafeControl(el) {
   if (!el || el.disabled) return false;
@@ -20,18 +19,32 @@ function isSafeControl(el) {
   return !/(delete|eliminar|borrar|remove|refund|reembolso|logout|cerrar sesi|restaurar|restore|pagar|comprar|confirmar pedido|salir)/.test(text);
 }
 
+function semanticLabel(value) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  // Product/card controls legitimately change their concrete item between page
+  // loads. The action before the middle dot is the stable contract we certify.
+  const separator = text.indexOf(' · ');
+  return separator > 0 ? text.slice(0, separator) : text;
+}
+
 function descriptorSignature(item) {
-  // Prefer explicit stable identity. Text is only the final fallback for legacy
-  // controls that do not yet expose an id/test id/action/name/aria label.
+  // Explicit machine-facing attributes are exact identities. Human-facing aria
+  // and text can contain dynamic product names, so they are reduced to their
+  // stable semantic action when necessary.
   const stable = [
     ['testid', item.testid],
     ['id', item.id],
     ['action', item.action],
-    ['name', item.name],
-    ['aria', item.aria]
+    ['name', item.name]
   ].find(([, value]) => value);
   if (stable) return `${item.tag}|${item.type}|${stable[0]}=${stable[1]}`;
-  return `${item.tag}|${item.type}|role=${item.role}|text=${item.text}`;
+  if (item.aria) return `${item.tag}|${item.type}|aria=${semanticLabel(item.aria)}`;
+  return `${item.tag}|${item.type}|role=${item.role}|text=${semanticLabel(item.text)}`;
+}
+
+async function settle(page) {
+  await page.waitForLoadState('load').catch(() => {});
+  await page.waitForTimeout(UI_SETTLE_MS);
 }
 
 async function snapshotControls(page) {
@@ -60,9 +73,6 @@ async function snapshotControls(page) {
 }
 
 async function installDeterministicClientState(page) {
-  // Generic control certification must not allow a previous click to alter the
-  // next control's initial state. Clear browser-only state before every document
-  // is evaluated. Backend mutations are blocked separately below.
   await page.addInitScript(() => {
     try { window.localStorage.clear(); } catch (_) {}
     try { window.sessionStorage.clear(); } catch (_) {}
@@ -73,23 +83,18 @@ async function installDeterministicClientState(page) {
 async function preparePage(page, path, runtimeErrors) {
   page.on('pageerror', err => {
     const message = String(err && err.message || err);
-    // Generic UI coverage runs against a static CI server. Network failures
-    // caused only by unavailable serverless endpoints are expected here and
-    // are validated in their endpoint-specific suites instead.
     if (/failed to fetch|networkerror|load failed/i.test(message)) return;
     runtimeErrors.push(message);
   });
   page.on('dialog', dialog => dialog.dismiss().catch(() => {}));
 
   await installDeterministicClientState(page);
-
-  // Do not fake backend contracts in a generic UI test. Abort Functions and
-  // validate their real contracts in the dedicated API/flow suites.
   await page.route('**/.netlify/functions/**', route => route.abort('blockedbyclient'));
 
   const response = await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
   expect(response, `sin respuesta para ${path}`).not.toBeNull();
   expect(response.status(), `HTTP inválido en ${path}`).toBeLessThan(400);
+  await settle(page);
 }
 
 for (const path of pages) {
@@ -102,11 +107,6 @@ for (const path of pages) {
       const baseline = await snapshotControls(page);
       expect(baseline.length, `la superficie ${path} debe renderizar controles`).toBeGreaterThan(0);
 
-      // Snapshot stable control identities once. Subsequent reloads are allowed
-      // to add/remove legitimate conditional controls, but every control from
-      // the certified baseline must still be individually locatable. This avoids
-      // the former brittle global-count assertion while preserving exhaustive
-      // coverage of the original rendered surface.
       for (let i = shard; i < baseline.length; i += CONTROL_SHARDS) {
         if (page.isClosed()) throw new Error(`la página se cerró antes de verificar ${path} control #${i}`);
 
@@ -116,6 +116,7 @@ for (const path of pages) {
         } else if (i !== shard) {
           await page.reload({ waitUntil: 'domcontentloaded' });
         }
+        await settle(page);
 
         const current = await snapshotControls(page);
         const target = baseline[i];
@@ -124,7 +125,7 @@ for (const path of pages) {
         );
         expect(
           currentIndex,
-          `desapareció el control certificado en ${path}: ${target.signature} [${target.occurrence}]`
+          `desapareció la acción certificada en ${path}: ${target.signature} [${target.occurrence}]`
         ).toBeGreaterThanOrEqual(0);
 
         const control = page.locator(CONTROL_SELECTOR).nth(currentIndex);
@@ -133,11 +134,9 @@ for (const path of pages) {
         if (!safe) continue;
 
         const beforeErrors = runtimeErrors.length;
-        // This suite certifies wiring/runtime behavior, not z-index geometry.
-        // Dispatch the DOM click directly so transient consent banners and fixed
-        // launchers cannot create false negatives. Real pointer actionability,
-        // layout and accessibility are covered by the dedicated E2E/quality
-        // suites that run in the same Full Quality Gate.
+        // Runtime wiring is certified independently from pointer geometry.
+        // Dedicated quality/E2E suites in this same gate cover actionability,
+        // layout and accessibility with real browser interactions.
         await control.dispatchEvent('click');
         await page.waitForTimeout(75);
 
@@ -156,6 +155,7 @@ for (const path of pages) {
   test(`formularios y enlaces sin pseudo-acciones javascript: ${path}`, async ({ page }) => {
     const response = await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
     expect(response && response.status(), `HTTP inválido en ${path}`).toBeLessThan(400);
+    await settle(page);
     const invalid = await page.locator('a[href="javascript:void(0)"], a[href="javascript:;"], form[action="javascript:void(0)"], form[action="javascript:;"]').count();
     expect(invalid, `pseudo-acciones inválidas en ${path}`).toBe(0);
   });

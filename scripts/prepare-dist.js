@@ -1,6 +1,7 @@
 'use strict';
 const fs=require('fs');
 const path=require('path');
+const {writeBuildMeta}=require('./write-build-meta');
 
 const ROOT=process.cwd();
 const DIST=path.join(ROOT,'dist');
@@ -56,6 +57,10 @@ function audit(dir,relative=''){
 }
 audit(DIST);
 if(forbidden.length)throw new Error(`El artefacto público contiene archivos internos: ${forbidden.join(', ')}`);
+
+// Metadato público mínimo para que el smoke de producción pueda demostrar qué
+// commit está realmente publicado. No incluye secretos ni configuración interna.
+writeBuildMeta();
 
 let files=0,bytes=0;
 (function count(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const full=path.join(dir,entry.name);if(entry.isDirectory())count(full);else{files++;bytes+=fs.statSync(full).size}}})(DIST);

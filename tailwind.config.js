@@ -8,6 +8,17 @@
  * `content` le dice a Tailwind dónde buscar clases: si añades un archivo nuevo
  * con clases de Tailwind, inclúyelo aquí o sus estilos no se generarán.
  */
+'use strict';
+const path = require('path');
+const { execFileSync } = require('child_process');
+
+// Primer punto ejecutable del build de Netlify. En local/CI normal el guard se
+// auto-desactiva; en un deploy de producción valida el origen antes de compilar.
+execFileSync(process.execPath, [path.join(__dirname, 'scripts', 'verify-production-deploy-origin.js')], {
+  stdio: 'inherit',
+  env: process.env
+});
+
 module.exports = {
   // products-data.js entra aquí porque el campo badgeColor de cada producto es
   // una clase de Tailwind: si algún día se pone una etiqueta a un producto, su

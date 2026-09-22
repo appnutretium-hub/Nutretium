@@ -9,6 +9,11 @@
     "paidExternalServicesRequired": false,
     "duplicatePeriodicMonitoring": false
   },
+  "productionTrust": {
+    "productionUrl": "https://nutretium.com",
+    "bootstrapSha": "c5a2a2cfd59c99b2f31dba2cce1f0ff660099543",
+    "policy": "merged-pr-or-atomic-catalog-only"
+  },
   "layers": {
     "changeGate": {
       "workflow": ".github/workflows/quality-gate.yml",
@@ -32,6 +37,18 @@
       "required": true,
       "schedule": "*/30 * * * *"
     },
+    "productionDeployOriginGuard": {
+      "script": "scripts/verify-production-deploy-origin.js",
+      "required": true
+    },
+    "productionRevisionMetadata": {
+      "script": "scripts/write-build-meta.js",
+      "required": true
+    },
+    "mainOriginPolicy": {
+      "library": "netlify/lib/main-origin-policy.js",
+      "required": true
+    },
     "runtimeGuardian": {
       "script": "guardian-runtime.js",
       "required": true
@@ -52,6 +69,7 @@
   },
   "criticalProductionContracts": [
     "https://nutretium.com/",
+    "https://nutretium.com/build-meta.json",
     "https://nutretium.com/guardian-runtime.js",
     "https://nutretium.com/.well-known/security.txt",
     "https://nutretium.com/.netlify/functions/site-status"

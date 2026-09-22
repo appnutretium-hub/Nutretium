@@ -39,6 +39,9 @@ if (config.version !== 1) fail('Versión de configuración no soportada.');
 if (config.mode !== 'zero-cost') fail('El modo debe permanecer en zero-cost.');
 if (config.principles?.automaticSourceCodeMutation !== false) fail('La mutación automática de código debe permanecer desactivada.');
 if (config.principles?.paidExternalServicesRequired !== false) fail('No se permiten dependencias obligatorias de pago.');
+if (!/^https:\/\//.test(String(config.productionTrust?.productionUrl || ''))) fail('productionTrust.productionUrl debe usar HTTPS.');
+if (!/^[0-9a-f]{40}$/i.test(String(config.productionTrust?.bootstrapSha || ''))) fail('productionTrust.bootstrapSha debe ser un SHA completo.');
+if (config.productionTrust?.policy !== 'merged-pr-or-atomic-catalog-only') fail('La política de origen de producción no puede relajarse.');
 
 for (const [name, layer] of Object.entries(config.layers || {})) {
   if (layer.required !== true) fail(`La capa crítica ${name} no está marcada como obligatoria.`);
@@ -72,9 +75,36 @@ requireText('.github/workflows/production-smoke.yml', [
   'schedule:',
   '0 */6 * * *',
   'Verify public storefront',
+  'Verify exact revision is published',
+  'build-meta.json',
+  "steps.revision.outputs.deployed == 'true'",
   'Verify Guardian runtime is live',
   'Guarded automatic rollback',
   "AUTO_ROLLBACK_ENABLED == 'true'"
+]);
+
+requireText('tailwind.config.js', [
+  'verify-production-deploy-origin.js',
+  'execFileSync'
+]);
+
+requireText('scripts/prepare-dist.js', [
+  "require('./write-build-meta')",
+  'writeBuildMeta()'
+]);
+
+requireText('scripts/verify-production-deploy-origin.js', [
+  'bootstrap-trust-anchor',
+  'published-build-meta',
+  'Commit no autorizado en la cadena de producción',
+  'candidateCommits',
+  'GITHUB_TOKEN'
+]);
+
+requireText('netlify/lib/main-origin-policy.js', [
+  'merged-pr',
+  'catalog-panel',
+  'unauthorized-direct'
 ]);
 
 requireText('netlify.toml', [
@@ -98,8 +128,14 @@ requireText('guardian-runtime.js', [
 
 requireText('.github/workflows/main-integrity.yml', [
   'Verify main commit origin',
-  'fromMergedPr',
-  'allowedCatalogCommit'
+  "require('./netlify/lib/main-origin-policy')",
+  'classifyCommit'
+]);
+
+requireText('scripts/test-production-deploy-guard.js', [
+  'production-deploy-guard',
+  'Commit no autorizado',
+  'bootstrap-trust-anchor'
 ]);
 
 requireText('scripts/test-zero-cost-policy.js', [
@@ -127,6 +163,7 @@ console.log(JSON.stringify({
   controlPlane: config.name,
   mode: config.mode,
   layers: Object.keys(config.layers || {}),
+  productionTrust: config.productionTrust,
   automaticSourceCodeMutation: false,
   paidExternalServicesRequired: false
 }, null, 2));

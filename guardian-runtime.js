@@ -4,7 +4,7 @@ const sent=new Set(),retried=new WeakSet();
 const nativeFetch=window.fetch.bind(window);
 let networkSeq=0,lastRuntimeErrorAt=0,successSeq=0,lastSuccessAction='';
 function localUrl(v){try{const u=new URL(String(v||''),location.href);return u.origin===location.origin?u:null}catch{return null}}
-function sensitive(v){return /\b(?:checkout|pago|payment|refund|reembolso|admin|staff|pedido-final|order-finalize)\b/i.test(String(v||''))}
+function sensitive(v){return /\b(?:checkout|pago|payment|redsys|refund|reembolso|delete|borrar|remove-account|password|contrase(?:n|ñ)a|mfa|totp|admin|staff|permission|role|secret|token|dns|migration|migraci(?:o|ó)n|pedido-final|order-finalize)\b/i.test(String(v||''))}
 function actionId(el){return String(el?.dataset?.guardianAction||el?.id||el?.getAttribute?.('aria-label')||el?.name||el?.textContent||el?.className||'control').replace(/\s+/g,' ').trim().slice(0,160)}
 function controlState(el){if(!el)return'';try{return JSON.stringify({text:String(el.textContent||'').replace(/\s+/g,' ').trim().slice(0,180),value:'value'in el?String(el.value||'').slice(0,180):'',className:String(el.className||'').slice(0,240),disabled:Boolean(el.disabled),ariaDisabled:el.getAttribute?.('aria-disabled')||'',ariaBusy:el.getAttribute?.('aria-busy')||'',ariaPressed:el.getAttribute?.('aria-pressed')||'',ariaExpanded:el.getAttribute?.('aria-expanded')||'',hidden:Boolean(el.hidden)})}catch{return''}}
 function report(kind,message,extra={}){try{

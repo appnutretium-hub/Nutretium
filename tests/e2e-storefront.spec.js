@@ -1,7 +1,7 @@
 const {test,expect}=require('@playwright/test');
 const BASE=process.env.E2E_BASE_URL||'http://127.0.0.1:4173';
 async function collectErrors(page){const errors=[];page.on('pageerror',e=>errors.push(String(e.message||e)));return errors}
-for(const device of [{name:'mobile',width:390,height:844},{name:'desktop',width:1440,height:900}]){
+for(const device of [{name:'mobile',width:390,height:844},{name:'tablet',width:768,height:1024},{name:'desktop',width:1440,height:900}]){
  test(`${device.name}: catálogo, SKU, carrito y layout`,async({page})=>{
   await page.setViewportSize({width:device.width,height:device.height});await page.emulateMedia({reducedMotion:'reduce'});const errors=await collectErrors(page);
   await page.goto(BASE,{waitUntil:'domcontentloaded'});await page.waitForSelector('#productGrid .product-card',{timeout:15000});await page.waitForTimeout(900);

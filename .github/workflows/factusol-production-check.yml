@@ -23,3 +23,19 @@ jobs:
           test "$status" = "200"
           grep -qi '<title>FACTUSOL · Nutretium</title>' /tmp/factusol.html
           grep -qi 'Sincronización ERP' /tmp/factusol.html
+
+      - name: Report FACTUSOL live stock readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --connect-timeout 10 --max-time 45 \
+            -o /tmp/factusol-live.json \
+            "https://nutretium.com/.netlify/functions/factusol-live-status"
+          node - <<'NODE'
+          const fs=require('fs');
+          const body=JSON.parse(fs.readFileSync('/tmp/factusol-live.json','utf8'));
+          console.log('[factusol-live]', JSON.stringify(body));
+          if(!['LIVE','NOT_READY','DEGRADED','UNREACHABLE'].includes(body.status)) {
+            throw new Error('Diagnóstico FACTUSOL inválido');
+          }
+          NODE

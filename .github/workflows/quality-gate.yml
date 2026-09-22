@@ -1,5 +1,6 @@
 name: Nutretium Full Quality Gate
 on:
+  workflow_call:
   push:
     # Solo main: alimenta el workflow_run del que depende production-smoke.
     branches: [main]

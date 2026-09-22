@@ -115,11 +115,10 @@ async function reloadTarget(page, path, target) {
   // never silently converted into a functional failure or a false PASS click.
   for (let attempt = 1; attempt <= TARGET_LOAD_ATTEMPTS; attempt++) {
     await page.context().clearCookies();
-    if (page.url() === BASE + path) {
-      await page.reload({ waitUntil: 'domcontentloaded' });
-    } else {
-      await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
-    }
+    // Always perform an explicit navigation. A previously dispatched click can
+    // leave Chromium between document attachments; page.reload() is racy in
+    // that state and can fail with "Not attached to an active page".
+    await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
     await settle(page);
 
     const current = await snapshotControls(page);

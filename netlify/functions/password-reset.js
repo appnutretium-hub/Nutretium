@@ -1,6 +1,7 @@
 'use strict';
 const crypto=require('crypto');
 const {getBlobStore}=require('../lib/blob-store');
+const {connectBlobs}=require('../lib/netlify-blobs-runtime');
 const usuarios=require('../lib/usuarios');
 const {hashPassword}=require('../lib/passwords');
 const {sendEmail}=require('../lib/email');
@@ -34,6 +35,7 @@ async function finishClaim(store,key,claimId,used=true){
 exports.handler=async event=>{
  if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
  if(event.httpMethod!=='POST')return response(405,{error:'Method Not Allowed'});
+ connectBlobs(event);
  let body;try{body=JSON.parse(event.body||'{}')}catch{return response(400,{error:'JSON no válido.'})}
  const store=getBlobStore('password-reset-v1');if(!store||typeof store.getWithMetadata!=='function')return response(503,{error:'Recuperación de contraseña no disponible.'});
  if(body.action==='request'){

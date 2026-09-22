@@ -2,6 +2,7 @@
 const { cabecerasCORS }=require('../lib/cors');
 const { exigePermiso }=require('../lib/staff');
 const { blobStoreReady }=require('../lib/blob-store');
+const { connectBlobs }=require('../lib/netlify-blobs-runtime');
 const shipping=require('../lib/shipping');
 const staffMfa=require('../lib/staff-mfa-readiness');
 const { NUTRETIUM_PRODUCTS=[] }=require('../../products-data.js');
@@ -14,6 +15,7 @@ function catalogAudit(){const active=NUTRETIUM_PRODUCTS.filter(p=>p&&p.active!==
 exports.handler=async function(event){
  if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
  if(event.httpMethod!=='GET')return{statusCode:405,headers:CORS,body:JSON.stringify({error:'Method Not Allowed'})};
+ connectBlobs(event);
  const staff=await exigePermiso(event,'analytics.read');if(!staff.ok)return{statusCode:staff.statusCode,headers:CORS,body:JSON.stringify({error:staff.error})};
  const admins=emails('ADMIN_EMAILS'),publicEmails=new Set([...emails('CONTACT_EMAIL'),...emails('ORDER_NOTIFICATION_EMAIL')]);
  const adminIsolation=admins.length>0&&admins.every(e=>!publicEmails.has(e));

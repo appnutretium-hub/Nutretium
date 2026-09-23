@@ -4,7 +4,7 @@ const usuarios = require('../lib/usuarios');
 const { hashPassword, verifyPassword: verifyPasswordRecord } = require('../lib/passwords');
 const { signJWT, secretConfigured } = require('../lib/jwt');
 const { effectiveRoleFor } = require('../lib/staff');
-const { secretFor, verify: verifyTotp } = require('../lib/totp');
+const { secretFor, verify: verifyTotp, generateSecret, sealSecret, provisioningUri } = require('../lib/totp');
 const { cabecerasCORS } = require('../lib/cors');
 const { consume, reset } = require('../lib/rate-limit');
 const { connectBlobs } = require('../lib/netlify-blobs-runtime');
@@ -45,6 +45,38 @@ async function clearAttempts(event,email,kind){
 }
 function privilegedMfaExempt(role){return String(role||'')==='owner'}
 function mfaRequiredFor(role,user){return !privilegedMfaExempt(role) && (String(role||'')==='admin'||security.staffMfaRequired()||user?.mfaEnabled===true)}
+function mfaSetupBody(email,secret){
+  return {
+    error:'Configura MFA para continuar. Añade la clave a tu aplicación de autenticación e introduce el código de 6 dígitos.',
+    mfaRequired:true,
+    mfaSetupRequired:true,
+    mfa:{setupSecret:secret,provisioningUri:provisioningUri(email,secret),oneTimeDisplay:false},
+  };
+}
+async function beginMfaSelfSetup(email,user){
+  const existing=secretFor(email,user);
+  if(existing&&user?.mfaSelfSetupPendingAt)return{secret:existing,created:false};
+  if(existing)return{secret:existing,created:false,managedElsewhere:true};
+  const secret=generateSecret(),sealed=sealSecret(secret),now=new Date().toISOString();
+  const updated=await usuarios.muta(email,current=>{
+    const currentSecret=secretFor(email,current);
+    if(currentSecret)return current;
+    return {...current,mfaEnabled:true,mfaSecretEncrypted:sealed,mfaSelfSetupPendingAt:now,mfaUpdatedAt:now,updatedAt:now};
+  });
+  if(!updated)throw new Error('No se pudo preparar MFA para esta cuenta.');
+  const effective=secretFor(email,updated);
+  if(!effective)throw new Error('No se pudo preparar MFA para esta cuenta.');
+  return{secret:effective,created:true,pending:Boolean(updated.mfaSelfSetupPendingAt)};
+}
+async function completeMfaSelfSetup(email){
+  const now=new Date().toISOString();
+  return usuarios.muta(email,current=>{
+    if(!current.mfaSelfSetupPendingAt)return current;
+    const next={...current,mfaEnabled:true,mfaConfiguredAt:current.mfaConfiguredAt||now,mfaVerifiedAt:now,mfaUpdatedAt:now,updatedAt:now};
+    delete next.mfaSelfSetupPendingAt;
+    return next;
+  });
+}
 
 exports.handler = async event => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
@@ -69,14 +101,23 @@ exports.handler = async event => {
   const requireMfa = mfaRequiredFor(role,user);
   let mfaVerified = false;
   if (requireMfa) {
-    const secret = secretFor(email,user);
-    if(!secret)return response(503,{error:'MFA no está configurado para esta cuenta. Contacta con el propietario.'});
+    let secret = secretFor(email,user);
+    if(!secret){
+      let setup;try{setup=await beginMfaSelfSetup(email,user)}catch{return response(503,{error:'No se pudo preparar MFA para esta cuenta. Contacta con el propietario.'})}
+      secret=setup.secret;
+      return response(401,mfaSetupBody(email,secret));
+    }
+    if(user?.mfaSelfSetupPendingAt&&!mfaCode)return response(401,mfaSetupBody(email,secret));
     if (!mfaCode) return response(401, {error: 'Introduce el código de 6 dígitos de tu aplicación de autenticación.',mfaRequired: true});
     const mfaGate=await checkThrottle(event,email,'mfa');
     if(!mfaGate.ok)return response(401,{error:'Código MFA incorrecto.',mfaRequired:true});
     if (!verifyTotp(secret, mfaCode)) return response(401, { error: 'Código MFA incorrecto.', mfaRequired: true });
     const once=await mfaReplay.consume(email,mfaCode);
     if(!once.ok)return response(once.code==='MFA_REPLAY_GUARD_UNAVAILABLE'?503:409,{error:once.error,code:once.code,mfaRequired:true});
+    if(user?.mfaSelfSetupPendingAt){
+      const completed=await completeMfaSelfSetup(email).catch(()=>null);
+      if(!completed)return response(503,{error:'MFA fue verificado, pero no se pudo finalizar su configuración. Inténtalo de nuevo.'});
+    }
     await clearAttempts(event,email,'mfa');
     mfaVerified = true;
   }
@@ -87,4 +128,4 @@ exports.handler = async event => {
   const token = signJWT({sub: user.id,email,role,kind: 'staff-login',mfa: mfaVerified,sv: Number(user.sessionVersion || 0),fp:binding.fp,jti:binding.jti,exp: Math.floor(Date.now() / 1000) + security.STAFF_LOGIN_TTL_SECONDS});
   return response(200, {user: {id: user.id,name: user.name,surname: user.surname,email: user.email,phone: user.phone,role,token,mfa: mfaVerified,mfaRequired:requireMfa,expiresIn:security.STAFF_LOGIN_TTL_SECONDS}});
 };
-exports._test = { verifyPassword, upgradeHashIfNeeded, checkThrottle, clearAttempts, privilegedMfaExempt, mfaRequiredFor };
+exports._test = { verifyPassword, upgradeHashIfNeeded, checkThrottle, clearAttempts, privilegedMfaExempt, mfaRequiredFor, mfaSetupBody, beginMfaSelfSetup, completeMfaSelfSetup };

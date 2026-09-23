@@ -26,3 +26,7 @@ test('orden recurrente es determinista y válida', () => { const a = subscriptio
 test('solo renueva suscripción activa vencida', () => { assert.strictEqual(subscriptions.due({ status: 'active', nextAt: '2026-01-01T00:00:00Z' }, Date.parse('2026-02-01T00:00:00Z')), true); assert.strictEqual(subscriptions.due({ status: 'paused', nextAt: '2026-01-01T00:00:00Z' }, Date.parse('2026-02-01T00:00:00Z')), false); });
 
 console.log(`\n${count} pruebas de cierre superadas.`);
+
+// Regresión obligatoria del camino pago → reserva → commit. Este require ejecuta
+// la suite dedicada dentro de test:enterprise, evitando que quede como test huérfano.
+require('./test-inventory-reservation');

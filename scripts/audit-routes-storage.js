@@ -58,12 +58,14 @@ function importsNetlifyBlobs(source) {
     /from\s+['"]@netlify\/blobs['"]/.test(source);
 }
 
-// Two low-level integration points are intentional:
-// 1) storage.js owns getStore()/provider selection.
-// 2) netlify-blobs-runtime.js owns connectLambda(event) for Functions running
-//    in Netlify's Lambda compatibility mode.
-// No business Function or other library may import @netlify/blobs directly.
+// La persistencia se concentra deliberadamente en dos puntos de integración:
+// 1) storage.js selecciona proveedor y crea stores con getStore().
+// 2) netlify-blobs-runtime.js encapsula connectLambda(event) cuando una Function
+//    concreta necesita el adaptador de compatibilidad Lambda.
+// Las Functions de negocio no deben importar @netlify/blobs directamente.
 const allowedBlobConsumers = new Set([STORAGE_FACADE, RUNTIME_ADAPTER]);
+let storageImplicitRuntimeContext = false;
+let storageExplicitApiContext = false;
 
 if (!sources.has(STORAGE_FACADE)) {
   problems.push('netlify/lib/storage.js: falta la fachada canónica de almacenamiento');
@@ -71,6 +73,11 @@ if (!sources.has(STORAGE_FACADE)) {
   const storageSource = sources.get(STORAGE_FACADE) || '';
   if (!importsNetlifyBlobs(storageSource) || !/\bgetStore\b/.test(storageSource)) {
     problems.push('netlify/lib/storage.js: la fachada no conecta con @netlify/blobs mediante getStore');
+  }
+  storageImplicitRuntimeContext = /\bgetStore\s*\(\s*name\s*\)/.test(storageSource);
+  storageExplicitApiContext = /\bgetStore\s*\(\s*\{[^}]*\bname\b[^}]*\bsiteID\b[^}]*\btoken\b[^}]*\}\s*\)/s.test(storageSource);
+  if (!storageImplicitRuntimeContext && !storageExplicitApiContext) {
+    problems.push('netlify/lib/storage.js: getStore no dispone de contexto runtime implícito ni configuración API explícita');
   }
 }
 
@@ -119,10 +126,7 @@ const lambdaWithRuntimeConnector = lambdaPersistentFunctions.filter(file => {
   const source = sources.get(file) || '';
   return (deps.get(file) || []).includes(RUNTIME_ADAPTER) && /\bconnectBlobs\s*\(\s*event\s*\)/.test(source);
 });
-const lambdaWithoutRuntimeConnector = lambdaPersistentFunctions.filter(file => !lambdaWithRuntimeConnector.includes(file));
-if (lambdaWithoutRuntimeConnector.length) {
-  warnings.push(`${lambdaWithoutRuntimeConnector.length} Functions Lambda persistentes no inicializan connectBlobs(event) directamente; solo son seguras si el data layer usa configuración API explícita (SITE_ID + NETLIFY_API_TOKEN).`);
-}
+const lambdaUsingStorageFacade = lambdaPersistentFunctions.filter(file => dependsOnPersistence(file));
 
 function parseTomlRedirects(text) {
   const rows = [];
@@ -234,12 +238,16 @@ const report = {
     toml: tomlRoutes.length,
     redirectsFile: fileRoutes.length,
   },
+  storageContext: {
+    implicitNetlifyRuntime: storageImplicitRuntimeContext,
+    explicitApiCredentials: storageExplicitApiContext,
+  },
   functions: {
     total: functionFiles.length,
     persistenceDependent: persistentFunctions.length,
     lambdaPersistenceDependent: lambdaPersistentFunctions.length,
+    lambdaUsingStorageFacade: lambdaUsingStorageFacade.length,
     lambdaWithRuntimeConnector: lambdaWithRuntimeConnector.length,
-    lambdaWithoutRuntimeConnector: lambdaWithoutRuntimeConnector.map(rel),
     directBlobConsumers: directBlobConsumers.map(rel),
     scheduled: scheduled.length,
   },

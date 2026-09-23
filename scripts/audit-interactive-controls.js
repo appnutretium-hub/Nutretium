@@ -7,7 +7,7 @@ const ROOT=path.resolve(__dirname,'..');
 const SKIP_DIRS=new Set(['.git','node_modules','dist','.netlify','.cache','coverage','playwright-report','test-results']);
 const issues=[];
 const warnings=[];
-const stats={htmlFiles:0,buttons:0,links:0,inlineHandlers:0,handlerCalls:0,roleButtons:0,forms:0,localLinksChecked:0,unverifiedButtons:0,redirectRoutes:0,idHelperAliases:0};
+const stats={htmlFiles:0,buttons:0,links:0,inlineHandlers:0,handlerCalls:0,roleButtons:0,forms:0,formActionsChecked:0,formSubmitButtons:0,localLinksChecked:0,unverifiedButtons:0,redirectRoutes:0,idHelperAliases:0};
 
 function rel(p){return path.relative(ROOT,p).replace(/\\/g,'/')}
 function walk(dir,out=[]){
@@ -122,7 +122,22 @@ function hasListenerEvidence(a){
 for(const file of htmlFiles){
   stats.htmlFiles++;
   const src=fs.readFileSync(file,'utf8');
-  stats.forms+=(src.match(/<form\b/gi)||[]).length;
+  const formRanges=[];
+  const formIds=new Set();
+  for(const formMatch of src.matchAll(/<form\b[^>]*>[\s\S]*?<\/form\s*>/gi)){
+    const opening=(formMatch[0].match(/^<form\b[^>]*>/i)||[])[0]||'<form>';
+    const formAttrs=attrs(opening);
+    const start=formMatch.index||0,end=start+formMatch[0].length;
+    formRanges.push({start,end,id:String(formAttrs.id||'')});
+    if(formAttrs.id)formIds.add(String(formAttrs.id));
+    stats.forms++;
+    const action=String(formAttrs.action||'').trim();
+    if(action){
+      stats.formActionsChecked++;
+      if(/^javascript:/i.test(action))issues.push(`${rel(file)}: formulario con pseudo-acción javascript: ${action}`);
+      else if(!isExternal(action)&&!localTargetExists(file,action))issues.push(`${rel(file)}: formulario con action local sin destino: ${action}`);
+    }
+  }
 
   const interactive=[...src.matchAll(/<(button|a)\b[^>]*>/gi)];
   for(const match of interactive){
@@ -151,7 +166,13 @@ for(const file of htmlFiles){
     const disabled=Object.prototype.hasOwnProperty.call(a,'disabled');
     const type=String(a.type||'').toLowerCase();
     const direct=Object.keys(a).some(k=>/^on(?:click|change|input|submit|keydown|keyup)$/.test(k));
-    const semantic=type==='submit'||type==='reset';
+    const position=match.index||0;
+    const insideForm=formRanges.some(range=>position>range.start&&position<range.end);
+    const explicitForm=String(a.form||'');
+    if(explicitForm&&!formIds.has(explicitForm))issues.push(`${rel(file)}: botón referencia form inexistente #${explicitForm}`);
+    const hasFormOwner=insideForm||Boolean(explicitForm&&formIds.has(explicitForm));
+    const semantic=type==='submit'||type==='reset'||(!type&&hasFormOwner);
+    if((type==='submit'||(!type&&hasFormOwner))&&!disabled)stats.formSubmitButtons++;
     if(!disabled&&!direct&&!semantic&&!hasListenerEvidence(a)){
       stats.unverifiedButtons++;
       const label=(tag.match(/aria-label\s*=\s*["']([^"']+)/i)||[])[1]||a.id||String(a.class||'').split(/\s+/).slice(0,3).join('.');

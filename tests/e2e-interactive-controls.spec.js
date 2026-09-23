@@ -70,7 +70,7 @@ async function readRawControls(page) {
       type: clean(el.getAttribute('type')),
       text: clean(el.textContent).slice(0, 240)
     };
-  }), selector);
+  }), CONTROL_SELECTOR);
 }
 
 async function snapshotControls(page) {

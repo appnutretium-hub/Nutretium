@@ -15,7 +15,7 @@ function yes(name){return value(name).toLowerCase()==='true'}
 function emails(name){return value(name).split(/[,;\s]+/).map(x=>x.trim().toLowerCase()).filter(Boolean)}
 function catalogAudit(){const active=NUTRETIUM_PRODUCTS.filter(p=>p&&p.active!==false);return{active:active.length,missingImage:active.filter(p=>!p.image).length,unknownStock:active.filter(p=>p.stock===null||p.stock===undefined).length,missingDescription:active.filter(p=>!String(p.description||'').trim()).length}}
 function paymentChecks(payment={}){return{paymentManaged:payment.managed===true,paymentEnabled:payment.enabled===true,redsysSecret:Boolean(String(payment.secretKey||'').trim()),redsysMerchant:Boolean(String(payment.merchantCode||'').trim()),redsysProduction:payment.environment==='production',commerceLive:payment.commerceLive===true,paymentDedicatedVault:payment.managed!==true||payment.dedicatedVaultKey===true}}
-function emailChecks(email={}){return{emailManaged:email.managed===true,emailProvider:email.credentialsConfigured===true,emailRecipient:Boolean(String(email.orderNotificationEmail||'').trim()),emailFrom:Boolean(String(email.from||'').trim()),emailDomain:String(email.domain||'').toLowerCase()==='nutretium.com',emailDedicatedVault:email.managed!==true||email.dedicatedVaultKey===true}}
+function emailChecks(email={}){return{emailManaged:email.managed===true,emailEnabled:email.enabled===true,emailProvider:email.credentialsConfigured===true,emailRecipient:Boolean(String(email.orderNotificationEmail||'').trim()),emailFrom:Boolean(String(email.from||'').trim()),emailDomain:String(email.domain||'').toLowerCase()==='nutretium.com',emailDedicatedVault:email.managed!==true||email.dedicatedVaultKey===true}}
 exports.handler=async function(event){
  if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};
  if(event.httpMethod!=='GET')return{statusCode:405,headers:CORS,body:JSON.stringify({error:'Method Not Allowed'})};
@@ -34,7 +34,7 @@ exports.handler=async function(event){
  const checks={jwt:set('JWT_SECRET'),admin:set('ADMIN_EMAILS'),adminIsolation,staffMfaRequired,staffTotp,github:set('GITHUB_TOKEN'),blobs,...paymentChecks(payment),shipping:shippingReady,...emailChecks(email),staffRoles:set('STAFF_ROLES_JSON'),maintenance:yes('MAINTENANCE_MODE')};
  const platformCritical=['jwt','admin','adminIsolation','staffMfaRequired','staffTotp','github','blobs'];
  const paymentCritical=['paymentEnabled','redsysSecret','redsysMerchant','redsysProduction','commerceLive','paymentDedicatedVault','shipping'];
- const emailCritical=['emailProvider','emailRecipient','emailFrom','emailDomain','emailDedicatedVault'];
+ const emailCritical=['emailEnabled','emailProvider','emailRecipient','emailFrom','emailDomain','emailDedicatedVault'];
  const platformReady=platformCritical.every(k=>checks[k]);
  const paymentsReady=paymentCritical.every(k=>checks[k])&&!checks.maintenance;
  const emailReady=emailCritical.every(k=>checks[k]);

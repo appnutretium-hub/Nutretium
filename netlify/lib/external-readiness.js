@@ -12,15 +12,22 @@ function senderDomain(value){
 function shippingState(shipping={}){
  const managed=shipping.managed===true,enabled=shipping.enabled===true,rate=shipping.rateCents,methods=Array.isArray(shipping.methods)?shipping.methods:[];
  const methodReady=methods.some(m=>m?.enabled&&Number.isInteger(m.rateCents)&&m.rateCents>=0);
- const ready=managed&&enabled&&((Number.isInteger(rate)&&rate>=0)||methodReady);
- return{ready,managed,enabled,reason:ready?'configured':!managed?'not-managed':!enabled?'disabled':'missing-valid-rate'};
+ const rateReady=Number.isInteger(rate)&&rate>=0;
+ const ready=enabled&&(rateReady||methodReady);
+ return{ready,managed,enabled,reason:ready?'configured':!enabled?'disabled':'missing-valid-rate'};
 }
-function paymentsState(env={}){
- const mode=clean(env.REDSYS_ENV||'test').toLowerCase();
- const live=asBool(env.COMMERCE_LIVE);
- const credentials=Boolean(clean(env.REDSYS_SECRET_KEY)&&clean(env.REDSYS_MERCHANT_CODE));
- const ready=mode==='production'&&live&&credentials;
- return{ready,mode,live,credentialsConfigured:credentials,reason:ready?'production-ready':mode!=='production'?'test-mode':!live?'commerce-live-disabled':'missing-credentials'};
+function paymentsState(env={},override=null){
+ const managed=override?.managed===true;
+ const enabled=override?override.enabled===true:true;
+ const mode=clean(override?.environment??env.REDSYS_ENV??'test').toLowerCase();
+ const live=override?override.commerceLive===true:asBool(env.COMMERCE_LIVE);
+ const credentials=override
+  ? Boolean(override.credentialsConfigured??(clean(override.secretKey)&&clean(override.merchantCode)))
+  : Boolean(clean(env.REDSYS_SECRET_KEY)&&clean(env.REDSYS_MERCHANT_CODE));
+ const dedicated=managed?override?.dedicatedVaultKey===true:true;
+ const ready=enabled&&mode==='production'&&live&&credentials&&dedicated;
+ const reason=ready?'production-ready':!enabled?'disabled':mode!=='production'?'test-mode':!live?'commerce-live-disabled':!credentials?'missing-credentials':!dedicated?'missing-dedicated-vault-key':'not-ready';
+ return{ready,managed,enabled,mode,live,credentialsConfigured:credentials,dedicatedVaultKey:dedicated,reason};
 }
 function tpvState(env={},override=null){
  const mode=clean(override?.mode??env.TPVSOL_SYNC_MODE).toLowerCase();
@@ -74,9 +81,9 @@ async function resendState(env={},fetchImpl=global.fetch,override=null){
  }catch(error){return{ready:false,reason:'resend-check-failed',domain,error:String(error.message||'error').slice(0,120)}}
 }
 async function managedIntegrationStates({env=process.env,fetchImpl=global.fetch}={}){const [mailCfg,tpvCfg]=await Promise.all([integrationConfig.email(env),integrationConfig.tpvsol(env)]);const [email,tpv]=await Promise.all([resendState(env,fetchImpl,mailCfg),Promise.resolve(tpvState(env,tpvCfg))]);return{email,tpv}}
-async function assessExternalReadiness({env=process.env,shipping={},fetchImpl=global.fetch}={}){
+async function assessExternalReadiness({env=process.env,shipping={},payment=null,fetchImpl=global.fetch}={}){
  const [deployment,integrations]=await Promise.all([githubDeploymentState(env,fetchImpl),managedIntegrationStates({env,fetchImpl})]);
- const payments=paymentsState(env),delivery=shippingState(shipping),email=integrations.email,tpv=integrations.tpv;
+ const payments=paymentsState(env,payment),delivery=shippingState(shipping),email=integrations.email,tpv=integrations.tpv;
  const checks={deployment,email,payments,shipping:delivery,tpv};
  const blockers=Object.entries(checks).filter(([,value])=>!value.ready).map(([key,value])=>({key,reason:value.reason}));
  return{ready:blockers.length===0,checks,blockers,checkedAt:new Date().toISOString()};

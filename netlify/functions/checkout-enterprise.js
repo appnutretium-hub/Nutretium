@@ -18,10 +18,16 @@ exports.handler=async function(event){
   const host=event.headers?.['x-forwarded-host']||event.headers?.host||'';
   const gate=paymentHostAllowed(host,payment);
   if(!gate.ok&&gate.reason==='unconfigured')return response(503,{error:'La pasarela de pago no está configurada.'});
+  if(!gate.ok&&gate.reason==='invalid-production-host')return response(403,{error:'El cobro real solo está permitido desde el dominio oficial.'});
   if(!gate.ok&&gate.reason==='live-not-authorized')return response(503,{error:'Los cobros reales están bloqueados hasta autorizar COMMERCE_LIVE desde Administración.'});
   if(payment.environment==='production'&&payment.dedicatedVaultKey!==true&&payment.managed)return response(503,{error:'La bóveda de pagos de producción no tiene una clave dedicada configurada.'});
  }
  return core.handler(event,{payment});
 };
-function paymentHostAllowed(host,payment){if(!payment?.enabled||!payment?.credentialsConfigured)return{ok:false,reason:'unconfigured'};if(payment.environment==='production'&&payment.commerceLive!==true)return{ok:false,reason:'live-not-authorized'};return{ok:true,mode:payment.environment==='production'?'live':'test'};}
+function paymentHostAllowed(host,payment){
+ if(!payment?.enabled||!payment?.credentialsConfigured)return{ok:false,reason:'unconfigured'};
+ if(payment.environment==='production'&&!publicProductionHost(host))return{ok:false,reason:'invalid-production-host'};
+ if(payment.environment==='production'&&payment.commerceLive!==true)return{ok:false,reason:'live-not-authorized'};
+ return{ok:true,mode:payment.environment==='production'?'live':'test'};
+}
 exports._test={publicProductionHost,paymentHostAllowed};

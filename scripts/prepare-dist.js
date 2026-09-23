@@ -3,10 +3,17 @@ const fs=require('fs');
 const path=require('path');
 const {writeBuildMeta}=require('./write-build-meta');
 
-// Cierre HTML obligatorio antes de construir el artefacto público. Si la
-// reparación o cualquiera de sus validaciones falla, el build se detiene y no
-// se publica un index.html incompleto.
-require('./repair-index-html');
+// El artefacto público solo puede construirse desde HTML ya corregido y
+// versionado. El build valida en modo fail-closed y nunca repara silenciosamente
+// el source antes de desplegarlo.
+const previousRepairMode=process.env.NUTRETIUM_HTML_REPAIR_MODE;
+process.env.NUTRETIUM_HTML_REPAIR_MODE='check';
+try{
+ require('./repair-index-html');
+}finally{
+ if(previousRepairMode===undefined)delete process.env.NUTRETIUM_HTML_REPAIR_MODE;
+ else process.env.NUTRETIUM_HTML_REPAIR_MODE=previousRepairMode;
+}
 
 const ROOT=process.cwd();
 const DIST=path.join(ROOT,'dist');

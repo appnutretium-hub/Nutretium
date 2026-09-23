@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: final-production-certification
@@ -23,6 +24,11 @@ jobs:
       NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
       NETLIFY_API_TOKEN: ${{ secrets.NETLIFY_API_TOKEN }}
     steps:
+      - name: Checkout exact certification revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
       - name: Require certification from main
         shell: bash
         run: |
@@ -32,6 +38,32 @@ jobs:
             exit 1
           fi
           echo "[certification] SHA objetivo: $GITHUB_SHA"
+
+      - name: Verify authorized production commit origin
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          NUTRETIUM_CERT_SHA: ${{ github.sha }}
+          NUTRETIUM_CERT_REPO: ${{ github.repository }}
+        run: |
+          node - <<'NODE'
+          const {guardProductionDeploy}=require('./scripts/verify-production-deploy-origin');
+          const env={
+            ...process.env,
+            NETLIFY:'true',
+            CONTEXT:'production',
+            BRANCH:'main',
+            GITHUB_BRANCH:'main',
+            COMMIT_REF:process.env.NUTRETIUM_CERT_SHA,
+            GITHUB_REPO:process.env.NUTRETIUM_CERT_REPO,
+          };
+          guardProductionDeploy({env}).then(result=>{
+            if(!result?.allowed)throw new Error('El origen del commit no está autorizado para producción.');
+            console.log('[certification] origen autorizado:',JSON.stringify(result));
+          }).catch(error=>{
+            console.error('NO VALIDADO: origen de commit no autorizado:',error.message||error);
+            process.exit(1);
+          });
+          NODE
 
       - name: Require deployment certification credentials
         shell: bash
@@ -124,6 +156,7 @@ jobs:
             echo '# Nutretium Production Certification'
             echo
             echo "- SHA certificado: \`$GITHUB_SHA\`"
+            echo '- Commit origin autorizado: PASS'
             echo '- Full Quality Gate: PASS'
             echo '- Netlify exact SHA: PASS'
             echo '- Storefront/security smoke: PASS'

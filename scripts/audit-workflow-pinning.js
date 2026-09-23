@@ -12,10 +12,6 @@ const expected = {
 const failures = [];
 
 function validateLocalUse(workflowName, spec) {
-  // Local actions and reusable workflows are loaded from the exact repository
-  // revision checked out for the run. They do not use @ref syntax. Keep the
-  // exemption narrow: repo-relative only, no traversal outside the checkout,
-  // and the referenced path must exist in this same revision.
   if (!spec.startsWith('./')) return false;
   const resolved = path.resolve(repoRoot, spec);
   const rootPrefix = `${path.resolve(repoRoot)}${path.sep}`;
@@ -31,6 +27,14 @@ function validateLocalUse(workflowName, spec) {
 
 for (const name of fs.readdirSync(workflowDir).filter((f) => /\.ya?ml$/i.test(f)).sort()) {
   const source = fs.readFileSync(path.join(workflowDir, name), 'utf8');
+
+  // El control plane declara automaticSourceCodeMutation=false y la política de
+  // origen de main solo permite PR fusionado o commits atómicos de catálogo.
+  // Ningún workflow de CI puede saltarse esa frontera haciendo push directo.
+  if (/\bgit\s+push\b[^\n]*(?:HEAD:main|(?:origin\s+)?main)(?:\s|$)/im.test(source)) {
+    failures.push(`${name}: push directo automático a main prohibido; los cambios de source deben pasar por PR.`);
+  }
+
   for (const match of source.matchAll(/\buses:\s*([^\s#]+)(?:\s*#.*)?$/gm)) {
     const spec = match[1];
     if (validateLocalUse(name, spec)) continue;
@@ -52,4 +56,4 @@ if (failures.length) {
   failures.forEach((item) => console.error(` - ${item}`));
   process.exit(1);
 }
-console.log('[workflow-pinning] OK · acciones externas fijadas por SHA; referencias locales confinadas al mismo commit');
+console.log('[workflow-pinning] OK · acciones externas fijadas por SHA; referencias locales confinadas; sin pushes CI directos a main');

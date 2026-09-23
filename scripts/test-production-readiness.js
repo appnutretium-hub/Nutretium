@@ -2,6 +2,7 @@
 const assert=require('assert');
 const sentinel=require('../netlify/functions/production-sentinel')._test;
 const siteStatus=require('../netlify/functions/site-status')._test;
+const systemHealth=require('../netlify/functions/system-health')._test;
 const totp=require('../netlify/lib/totp');
 const mfaReadiness=require('../netlify/lib/staff-mfa-readiness')._test;
 
@@ -64,6 +65,13 @@ assert.deepStrictEqual(
  'mantenimiento/storefront y pago deshabilitado deben quedar diagnosticados'
 );
 
+const healthPayment=systemHealth.paymentChecks({managed:true,enabled:true,environment:'production',commerceLive:true,merchantCode:'merchant',secretKey:'secret',dedicatedVaultKey:true});
+assert.deepStrictEqual(healthPayment,{paymentManaged:true,paymentEnabled:true,redsysSecret:true,redsysMerchant:true,redsysProduction:true,commerceLive:true,paymentDedicatedVault:true},'system-health debe evaluar el mismo pago gestionado que checkout');
+assert.strictEqual(systemHealth.paymentChecks({...healthPayment,managed:true,dedicatedVaultKey:false}).paymentDedicatedVault,false,'system-health no puede dar verde a una bóveda gestionada compartida');
+const healthEmail=systemHealth.emailChecks({managed:true,credentialsConfigured:true,orderNotificationEmail:'pedidos@nutretium.com',from:'Nutretium <pedidos@nutretium.com>',domain:'nutretium.com',dedicatedVaultKey:true});
+assert.deepStrictEqual(healthEmail,{emailManaged:true,emailProvider:true,emailRecipient:true,emailFrom:true,emailDomain:true,emailDedicatedVault:true},'system-health debe usar la configuración efectiva de email');
+assert.strictEqual(systemHealth.emailChecks({...healthEmail,managed:true,dedicatedVaultKey:false}).emailDedicatedVault,false,'email gestionado exige bóveda dedicada');
+
 assert.strictEqual(mfaReadiness.validSecret(validTotp),true,'un secreto TOTP base32 válido debe aceptarse');
 assert.strictEqual(mfaReadiness.validSecret('not-a-secret'),false,'un valor arbitrario no debe contar como TOTP válido');
 assert.strictEqual(mfaReadiness.envSecretFor('owner-private@nutretium.com',base),validTotp,'el mapa JSON legacy válido debe seguir siendo compatible');
@@ -89,4 +97,4 @@ assert.strictEqual(
  'la firma debe ser estable independientemente del orden'
 );
 
-console.log('[test-production-readiness] OK · MFA efectivo · aislamiento admin · Redsys producción · bóveda dedicada · diagnóstico commerceReady · mantenimiento · firma estable');
+console.log('[test-production-readiness] OK · fuentes efectivas payment/email · diagnóstico commerceReady · MFA · aislamiento admin · mantenimiento · firma estable');

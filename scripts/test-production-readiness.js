@@ -39,10 +39,15 @@ assert.strictEqual(testBank.redsysProduction,false,'producción no puede declara
 const maintenance=sentinel.evaluateEnv({...base,MAINTENANCE_MODE:'true'});
 assert.strictEqual(maintenance.maintenanceOff,false,'mantenimiento bloquea readiness');
 
-const managedPayment=sentinel.paymentChecks({managed:true,environment:'production',commerceLive:true,merchantCode:'x',secretKey:'x',dedicatedVaultKey:true});
-assert.deepStrictEqual(sentinel.missingFrom(managedPayment),[],'Redsys gestionado requiere credenciales, producción, live y bóveda dedicada');
-const sharedKey=sentinel.paymentChecks({managed:true,environment:'production',commerceLive:true,merchantCode:'x',secretKey:'x',dedicatedVaultKey:false});
+const managedPayment=sentinel.paymentChecks({managed:true,enabled:true,environment:'production',commerceLive:true,merchantCode:'x',secretKey:'x',dedicatedVaultKey:true});
+assert.deepStrictEqual(sentinel.missingFrom(managedPayment),[],'Redsys gestionado requiere enabled, credenciales, producción, live y bóveda dedicada');
+const disabledPayment=sentinel.paymentChecks({managed:true,enabled:false,environment:'production',commerceLive:true,merchantCode:'x',secretKey:'x',dedicatedVaultKey:true});
+assert.strictEqual(disabledPayment.paymentEnabled,false,'un pago gestionado desactivado no puede quedar ready por conservar credenciales');
+const sharedKey=sentinel.paymentChecks({managed:true,enabled:true,environment:'production',commerceLive:true,merchantCode:'x',secretKey:'x',dedicatedVaultKey:false});
 assert.strictEqual(sharedKey.dedicatedVaultKey,false,'una bóveda gestionada de producción no puede reutilizar otra clave');
+const managedMail=sentinel.emailChecks(base,{managed:true,enabled:true,credentialsConfigured:true,dedicatedVaultKey:true,orderNotificationEmail:'pedidos@nutretium.com',from:'Nutretium <pedidos@nutretium.com>',domain:'nutretium.com'});
+assert.strictEqual(managedMail.emailEnabled,true,'email gestionado habilitado debe conservar estado enabled');
+assert.strictEqual(sentinel.emailChecks(base,{managed:true,enabled:false,credentialsConfigured:true,dedicatedVaultKey:true,orderNotificationEmail:'pedidos@nutretium.com',from:'Nutretium <pedidos@nutretium.com>',domain:'nutretium.com'}).emailEnabled,false,'email gestionado desactivado no puede quedar ready por conservar credenciales');
 
 const commercePayment={managed:true,enabled:true,environment:'production',commerceLive:true,credentialsConfigured:true,dedicatedVaultKey:true};
 assert.deepStrictEqual(
@@ -65,12 +70,16 @@ assert.deepStrictEqual(
  'mantenimiento/storefront y pago deshabilitado deben quedar diagnosticados'
 );
 
-const healthPayment=systemHealth.paymentChecks({managed:true,enabled:true,environment:'production',commerceLive:true,merchantCode:'merchant',secretKey:'secret',dedicatedVaultKey:true});
+const healthPaymentInput={managed:true,enabled:true,environment:'production',commerceLive:true,merchantCode:'merchant',secretKey:'secret',dedicatedVaultKey:true};
+const healthPayment=systemHealth.paymentChecks(healthPaymentInput);
 assert.deepStrictEqual(healthPayment,{paymentManaged:true,paymentEnabled:true,redsysSecret:true,redsysMerchant:true,redsysProduction:true,commerceLive:true,paymentDedicatedVault:true},'system-health debe evaluar el mismo pago gestionado que checkout');
-assert.strictEqual(systemHealth.paymentChecks({...healthPayment,managed:true,dedicatedVaultKey:false}).paymentDedicatedVault,false,'system-health no puede dar verde a una bóveda gestionada compartida');
-const healthEmail=systemHealth.emailChecks({managed:true,credentialsConfigured:true,orderNotificationEmail:'pedidos@nutretium.com',from:'Nutretium <pedidos@nutretium.com>',domain:'nutretium.com',dedicatedVaultKey:true});
-assert.deepStrictEqual(healthEmail,{emailManaged:true,emailProvider:true,emailRecipient:true,emailFrom:true,emailDomain:true,emailDedicatedVault:true},'system-health debe usar la configuración efectiva de email');
-assert.strictEqual(systemHealth.emailChecks({...healthEmail,managed:true,dedicatedVaultKey:false}).emailDedicatedVault,false,'email gestionado exige bóveda dedicada');
+assert.strictEqual(systemHealth.paymentChecks({...healthPaymentInput,dedicatedVaultKey:false}).paymentDedicatedVault,false,'system-health no puede dar verde a una bóveda gestionada compartida');
+assert.strictEqual(systemHealth.paymentChecks({...healthPaymentInput,enabled:false}).paymentEnabled,false,'system-health debe respetar pago gestionado desactivado');
+const healthEmailInput={managed:true,enabled:true,credentialsConfigured:true,orderNotificationEmail:'pedidos@nutretium.com',from:'Nutretium <pedidos@nutretium.com>',domain:'nutretium.com',dedicatedVaultKey:true};
+const healthEmail=systemHealth.emailChecks(healthEmailInput);
+assert.deepStrictEqual(healthEmail,{emailManaged:true,emailEnabled:true,emailProvider:true,emailRecipient:true,emailFrom:true,emailDomain:true,emailDedicatedVault:true},'system-health debe usar la configuración efectiva de email');
+assert.strictEqual(systemHealth.emailChecks({...healthEmailInput,dedicatedVaultKey:false}).emailDedicatedVault,false,'email gestionado exige bóveda dedicada');
+assert.strictEqual(systemHealth.emailChecks({...healthEmailInput,enabled:false}).emailEnabled,false,'system-health debe respetar email gestionado desactivado');
 
 assert.strictEqual(mfaReadiness.validSecret(validTotp),true,'un secreto TOTP base32 válido debe aceptarse');
 assert.strictEqual(mfaReadiness.validSecret('not-a-secret'),false,'un valor arbitrario no debe contar como TOTP válido');
@@ -97,4 +106,4 @@ assert.strictEqual(
  'la firma debe ser estable independientemente del orden'
 );
 
-console.log('[test-production-readiness] OK · fuentes efectivas payment/email · diagnóstico commerceReady · MFA · aislamiento admin · mantenimiento · firma estable');
+console.log('[test-production-readiness] OK · enable flags · fuentes efectivas payment/email · diagnóstico commerceReady · MFA · aislamiento admin · mantenimiento · firma estable');

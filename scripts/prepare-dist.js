@@ -3,6 +3,11 @@ const fs=require('fs');
 const path=require('path');
 const {writeBuildMeta}=require('./write-build-meta');
 
+// Cierre HTML obligatorio antes de construir el artefacto público. Si la
+// reparación o cualquiera de sus validaciones falla, el build se detiene y no
+// se publica un index.html incompleto.
+require('./repair-index-html');
+
 const ROOT=process.cwd();
 const DIST=path.join(ROOT,'dist');
 const PUBLIC_FILES=new Set(['_headers','_redirects','manifest.webmanifest','robots.txt','favicon.ico',path.join('.well-known','security.txt')]);

@@ -1,41 +1,52 @@
-name: HTML Production Repair
+name: HTML Production Compliance
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'scripts/repair-index-html.js'
+      - 'scripts/prepare-dist.js'
+      - '.github/workflows/html-production-repair.yml'
   push:
     branches: [main]
     paths:
+      - 'index.html'
       - 'scripts/repair-index-html.js'
+      - 'scripts/prepare-dist.js'
       - '.github/workflows/html-production-repair.yml'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: html-production-repair
-  cancel-in-progress: false
+  group: html-production-compliance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  repair-and-validate:
+  validate-html:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '22'
           cache: npm
 
-      - name: Install dependencies
+      - name: Install locked dependencies
         run: npm ci --ignore-scripts
 
-      - name: Repair index.html
+      - name: Verify index.html requires no automatic repair
+        env:
+          NUTRETIUM_HTML_REPAIR_MODE: check
         run: node scripts/repair-index-html.js
 
       - name: Static accessibility audit
@@ -47,20 +58,7 @@ jobs:
       - name: JavaScript release check
         run: node scripts/check-release-js.js
 
-      - name: Verify resulting diff
+      - name: Verify repository remains unchanged
         run: |
           git diff --check
-          git diff -- index.html
-
-      - name: Commit repaired HTML
-        if: ${{ success() }}
-        run: |
-          if git diff --quiet -- index.html; then
-            echo 'index.html already compliant; no commit required.'
-            exit 0
-          fi
-          git config user.name 'nutretium-ci'
-          git config user.email 'actions@users.noreply.github.com'
-          git add index.html
-          git commit -m 'fix: harden HTML semantics accessibility and SEO'
-          git push origin HEAD:main
+          git diff --exit-code -- index.html

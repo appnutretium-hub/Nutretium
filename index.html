@@ -1,12 +1,14 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es" class="scroll-smooth">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nutretium | Nutrición deportiva y alimentación saludable en Santander</title>
   <meta name="description" content="Nutretium en Santander: suplementación deportiva, açaí, smoothies y alimentación saludable. Explora el catálogo online y consulta al equipo si necesitas ayuda para elegir.">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
   <link rel="canonical" href="https://nutretium.com/" />
-  <meta property="og:type" content="website" />
+    <meta property="og:locale" content="es_ES" />
+<meta property="og:type" content="website" />
   <meta property="og:site_name" content="Nutretium" />
   <meta property="og:title" content="Nutretium | Nutrición y rendimiento en Santander" />
   <meta property="og:description" content="Suplementación deportiva, alimentación saludable, açaí y smoothies en Santander." />
@@ -365,6 +367,7 @@
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"SportingGoodsStore","name":"Nutretium","url":"https://nutretium.com/","telephone":"+34633753517","address":{"@type":"PostalAddress","streetAddress":"Calle La Albericia 1","addressLocality":"Santander","addressRegion":"Cantabria","addressCountry":"ES"},"openingHoursSpecification":[{"@type":"OpeningHoursSpecification","dayOfWeek":["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],"opens":"09:30","closes":"22:00"}]}</script>
 </head>
 <body class="font-sans antialiased">
+  <a href="#mainContent" class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:bg-brand-gold focus:text-black focus:px-4 focus:py-2 focus:rounded-lg focus:font-bold">Saltar al contenido principal</a>
 
   <!-- TOAST NOTIFICATION -->
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -382,7 +385,7 @@
   >
     <div class="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-brand-border">
       <h2 class="text-lg sm:text-xl font-bold tracking-wide">Tu Carrito</h2>
-      <button
+      <button type="button"
         onclick="closeCart()"
         class="text-brand-muted hover:text-white transition-colors text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5"
         aria-label="Cerrar carrito"
@@ -398,7 +401,7 @@
         <span class="text-brand-muted font-semibold">Total</span>
         <span id="cartTotal" class="text-white text-2xl font-black">€0.00</span>
       </div>
-      <button
+      <button type="button"
         id="redsysBtn"
         onclick="initiateRedsysPayment()"
         class="btn-redsys w-full py-4 rounded-xl text-white font-bold text-base flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -421,6 +424,7 @@
     <input type="hidden" name="Ds_Signature" id="rf_signature" />
   </form>
 
+  <header>
   <!-- ══════════════════════════════════════════
        TOP PROMO BANNER (CINTA DE ANUNCIOS)
   ══════════════════════════════════════════ -->
@@ -431,7 +435,7 @@
         <span class="hidden xs:inline mx-2 opacity-50">|</span>
         <br class="xs:hidden"/>
         Crea tu cuenta para guardar pedidos y favoritos
-        <button onclick="openModal('registerModal')" class="underline font-black hover:text-white transition-colors">¡Regístrate ahora!</button>
+        <button type="button" onclick="openModal('registerModal')" class="underline font-black hover:text-white transition-colors">¡Regístrate ahora!</button>
       </p>
     </div>
   </div>
@@ -468,7 +472,7 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
 
       <!-- Logo -->
-      <a href="#" class="flex items-center gap-2 flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded-lg" aria-label="NUTRETIUM inicio">
+      <a  href="/" class="flex items-center gap-2 flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded-lg" aria-label="NUTRETIUM inicio">
         <span class="text-brand-gold font-black text-xl sm:text-2xl tracking-tighter gold-text">NUTRE<span class="text-white">TIUM</span></span>
       </a>
 
@@ -486,7 +490,7 @@
             aria-label="Buscar productos"
             class="w-full bg-transparent text-white placeholder-brand-muted pl-11 pr-32 py-3 text-sm rounded-xl focus:outline-none"
           />
-          <button
+          <button type="button"
             onclick="toggleAdvFilters()"
             id="advFilterBtn"
             class="absolute right-1.5 flex items-center gap-1.5 bg-brand-gold text-black text-xs font-bold px-3 py-2 rounded-lg hover:bg-brand-goldlight transition-colors"
@@ -503,9 +507,9 @@
             <div class="mb-4">
               <p class="text-xs font-bold text-brand-muted uppercase tracking-wider mb-2">Precio</p>
               <div class="flex flex-wrap gap-2">
-                <button onclick="setPriceFilter(this,0,20)" class="adv-chip">Menos de 20€</button>
-                <button onclick="setPriceFilter(this,20,40)" class="adv-chip">20€ – 40€</button>
-                <button onclick="setPriceFilter(this,40,9999)" class="adv-chip">Más de 40€</button>
+                <button type="button" onclick="setPriceFilter(this,0,20)" class="adv-chip">Menos de 20€</button>
+                <button type="button" onclick="setPriceFilter(this,20,40)" class="adv-chip">20€ – 40€</button>
+                <button type="button" onclick="setPriceFilter(this,40,9999)" class="adv-chip">Más de 40€</button>
               </div>
             </div>
             <!-- Marca -->
@@ -517,12 +521,12 @@
             </div>
             <!-- Ofertas + Packs -->
             <div class="flex flex-wrap gap-2 mb-4">
-              <button onclick="toggleOffersFilter(this)" class="adv-chip">🏷️ Solo ofertas</button>
-              <button onclick="togglePacksFilter(this)" class="adv-chip">📦 Solo packs</button>
+              <button type="button" onclick="toggleOffersFilter(this)" class="adv-chip">🏷️ Solo ofertas</button>
+              <button type="button" onclick="togglePacksFilter(this)" class="adv-chip">📦 Solo packs</button>
             </div>
             <div class="flex gap-2 pt-3 border-t border-brand-border">
-              <button onclick="applyAdvFilters()" class="flex-1 bg-brand-gold text-black font-bold text-sm py-2.5 rounded-lg hover:bg-brand-goldlight transition-colors">Aplicar filtros</button>
-              <button onclick="resetAdvFilters()" class="px-4 bg-brand-dark border border-brand-border text-brand-muted font-semibold text-sm py-2.5 rounded-lg hover:text-white transition-colors">Limpiar</button>
+              <button type="button" onclick="applyAdvFilters()" class="flex-1 bg-brand-gold text-black font-bold text-sm py-2.5 rounded-lg hover:bg-brand-goldlight transition-colors">Aplicar filtros</button>
+              <button type="button" onclick="resetAdvFilters()" class="px-4 bg-brand-dark border border-brand-border text-brand-muted font-semibold text-sm py-2.5 rounded-lg hover:text-white transition-colors">Limpiar</button>
             </div>
           </div>
         </div>
@@ -532,7 +536,7 @@
       <div class="flex items-center gap-2 flex-shrink-0">
 
         <!-- Personal Trainer quick access (desktop) -->
-        <button
+        <button type="button"
           onclick="openModal('trainerModal')"
           class="hidden lg:inline-flex nav-link px-3 py-2 rounded-lg font-bold whitespace-nowrap transition-colors text-brand-gold border border-brand-gold/30 hover:bg-brand-gold hover:text-black text-sm"
         >
@@ -541,13 +545,13 @@
 
         <!-- Auth buttons (desktop) -->
         <div id="authButtons" class="hidden lg:flex items-center gap-2">
-          <button onclick="openModal('loginModal')" class="text-sm font-semibold text-brand-muted hover:text-white px-4 py-2 rounded-lg hover:bg-white/5 transition-colors whitespace-nowrap">Iniciar sesión</button>
-          <button onclick="openModal('registerModal')" class="text-sm font-bold bg-brand-gold text-black px-4 py-2 rounded-lg hover:bg-brand-goldlight transition-colors whitespace-nowrap">Registrarse</button>
+          <button type="button" onclick="openModal('loginModal')" class="text-sm font-semibold text-brand-muted hover:text-white px-4 py-2 rounded-lg hover:bg-white/5 transition-colors whitespace-nowrap">Iniciar sesión</button>
+          <button type="button" onclick="openModal('registerModal')" class="text-sm font-bold bg-brand-gold text-black px-4 py-2 rounded-lg hover:bg-brand-goldlight transition-colors whitespace-nowrap">Registrarse</button>
         </div>
 
         <!-- Profile menu (shown when logged in) -->
         <div id="profileMenu" class="hidden relative">
-          <button
+          <button type="button"
             onclick="toggleProfileDropdown()"
             class="flex items-center gap-2 bg-brand-card border border-brand-border hover:border-brand-gold px-3 py-2 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
             aria-haspopup="true"
@@ -564,18 +568,18 @@
             class="profile-dropdown absolute right-0 mt-2 w-48 bg-brand-card border border-brand-border rounded-xl shadow-2xl py-1 z-50"
             role="menu"
           >
-            <a href="#" onclick="showSection('profile')" class="block px-4 py-2.5 text-sm text-brand-muted hover:text-white hover:bg-white/5 transition-colors" role="menuitem">Mi perfil</a>
-            <a href="#" onclick="showSection('orders')"  class="block px-4 py-2.5 text-sm text-brand-muted hover:text-white hover:bg-white/5 transition-colors" role="menuitem">Mis pedidos</a>
+            <button type="button" onclick="showSection('profile')" class="block px-4 py-2.5 text-sm text-brand-muted hover:text-white hover:bg-white/5 transition-colors">Mi perfil</button>
+            <button type="button" onclick="showSection('orders')"  class="block px-4 py-2.5 text-sm text-brand-muted hover:text-white hover:bg-white/5 transition-colors">Mis pedidos</button>
             <!-- Solo se enseña a la cuenta de administrador (updateAuthUI en app.js).
                  Enseñarlo no da acceso: quien decide es admin-catalogo.js. -->
             <a href="/admin.html" id="enlacePanel" class="hidden block px-4 py-2.5 text-sm text-brand-gold hover:text-white hover:bg-white/5 transition-colors" role="menuitem">Panel de catálogo</a>
             <hr class="border-brand-border my-1"/>
-            <a href="#" onclick="logout()" class="block px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-white/5 transition-colors" role="menuitem">Cerrar sesión</a>
+            <button type="button" onclick="logout()" class="block px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-white/5 transition-colors">Cerrar sesión</button>
           </div>
         </div>
 
         <!-- Cart button -->
-        <button
+        <button type="button"
           onclick="openCart()"
           class="relative flex items-center gap-2 bg-brand-card border border-brand-border hover:border-brand-gold px-3 sm:px-4 py-2 rounded-lg transition-colors group focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
           aria-label="Abrir carrito"
@@ -588,7 +592,7 @@
         </button>
 
         <!-- Hamburger (tablet + mobile) -->
-        <button
+        <button type="button"
           onclick="toggleMobileMenu()"
           class="lg:hidden flex flex-col justify-center gap-1.5 p-2 rounded-lg hover:bg-white/5 transition-colors w-10 h-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold"
           aria-label="Abrir menú"
@@ -616,7 +620,7 @@
           aria-label="Buscar productos"
           class="w-full bg-transparent text-white placeholder-brand-muted pl-9 pr-20 py-2.5 text-sm rounded-xl focus:outline-none"
         />
-        <button onclick="toggleAdvFilters()" class="absolute right-1.5 flex items-center gap-1 bg-brand-gold text-black text-xs font-bold px-2.5 py-1.5 rounded-lg">
+        <button type="button" onclick="toggleAdvFilters()" class="absolute right-1.5 flex items-center gap-1 bg-brand-gold text-black text-xs font-bold px-2.5 py-1.5 rounded-lg">
           <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L14 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 018 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
           Filtros
         </button>
@@ -631,71 +635,71 @@
 
         <!-- Bowls y heladería -->
         <div class="mega group relative">
-          <button class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-muted hover:text-brand-gold transition-colors">
+          <button type="button" class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-muted hover:text-brand-gold transition-colors">
             Bowls y heladería
             <svg class="w-3.5 h-3.5 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
           </button>
           <div class="mega-panel absolute left-0 top-full w-64 bg-brand-card border border-brand-border rounded-b-xl shadow-2xl p-2 z-50">
-            <a onclick="filterByCategory('Bowls')" class="mega-link" role="button" tabindex="0">🍧 Bowls</a>
-            <a onclick="filterByCategory('Helados')" class="mega-link" role="button" tabindex="0">🍦 Helados</a>
-            <a onclick="filterByCategory('Yogures')" class="mega-link" role="button" tabindex="0">🥛 Yogures</a>
-            <a onclick="filterByCategory('Smoothies y batidos')" class="mega-link" role="button" tabindex="0">🥤 Smoothies y batidos</a>
-            <a onclick="filterByCategory('Waffles y caprichos')" class="mega-link" role="button" tabindex="0">🧇 Waffles y caprichos</a>
-            <a onclick="filterByCategory('Café y matcha')" class="mega-link" role="button" tabindex="0">☕ Café y matcha</a>
+            <button type="button" onclick="filterByCategory('Bowls')" class="mega-link">🍧 Bowls</button>
+            <button type="button" onclick="filterByCategory('Helados')" class="mega-link">🍦 Helados</button>
+            <button type="button" onclick="filterByCategory('Yogures')" class="mega-link">🥛 Yogures</button>
+            <button type="button" onclick="filterByCategory('Smoothies y batidos')" class="mega-link">🥤 Smoothies y batidos</button>
+            <button type="button" onclick="filterByCategory('Waffles y caprichos')" class="mega-link">🧇 Waffles y caprichos</button>
+            <button type="button" onclick="filterByCategory('Café y matcha')" class="mega-link">☕ Café y matcha</button>
           </div>
         </div>
 
         <!-- Nutrición deportiva -->
         <div class="mega group relative">
-          <button class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-muted hover:text-brand-gold transition-colors">
+          <button type="button" class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-muted hover:text-brand-gold transition-colors">
             Nutrición deportiva
             <svg class="w-3.5 h-3.5 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
           </button>
           <div class="mega-panel absolute left-0 top-full w-64 bg-brand-card border border-brand-border rounded-b-xl shadow-2xl p-2 z-50">
-            <a onclick="filterByCategory('Proteínas')" class="mega-link" role="button" tabindex="0">🥛 Proteínas</a>
-            <a onclick="filterByCategory('Creatinas')" class="mega-link" role="button" tabindex="0">💪 Creatinas</a>
-            <a onclick="filterByCategory('Pre-entrenos')" class="mega-link" role="button" tabindex="0">⚡ Pre-entrenos</a>
-            <a onclick="filterByCategory('Alimentación proteica')" class="mega-link" role="button" tabindex="0">🥣 Alimentación proteica</a>
+            <button type="button" onclick="filterByCategory('Proteínas')" class="mega-link">🥛 Proteínas</button>
+            <button type="button" onclick="filterByCategory('Creatinas')" class="mega-link">💪 Creatinas</button>
+            <button type="button" onclick="filterByCategory('Pre-entrenos')" class="mega-link">⚡ Pre-entrenos</button>
+            <button type="button" onclick="filterByCategory('Alimentación proteica')" class="mega-link">🥣 Alimentación proteica</button>
           </div>
         </div>
 
         <!-- Salud y bienestar -->
         <div class="mega group relative">
-          <button class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-muted hover:text-brand-gold transition-colors">
+          <button type="button" class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-muted hover:text-brand-gold transition-colors">
             Salud y bienestar
             <svg class="w-3.5 h-3.5 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
           </button>
           <div class="mega-panel absolute left-0 top-full w-64 bg-brand-card border border-brand-border rounded-b-xl shadow-2xl p-2 z-50">
-            <a onclick="filterByCategory('Vitaminas y salud')" class="mega-link" role="button" tabindex="0">🌿 Vitaminas y salud</a>
-            <a onclick="filterByCategory('Colágeno y bienestar')" class="mega-link" role="button" tabindex="0">✨ Colágeno y bienestar</a>
+            <button type="button" onclick="filterByCategory('Vitaminas y salud')" class="mega-link">🌿 Vitaminas y salud</button>
+            <button type="button" onclick="filterByCategory('Colágeno y bienestar')" class="mega-link">✨ Colágeno y bienestar</button>
           </div>
         </div>
 
         <!-- Snacks, bebidas y accesorios -->
         <div class="mega group relative">
-          <button class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-muted hover:text-brand-gold transition-colors">
+          <button type="button" class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-muted hover:text-brand-gold transition-colors">
             Snacks y bebidas
             <svg class="w-3.5 h-3.5 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
           </button>
           <div class="mega-panel absolute left-0 top-full w-64 bg-brand-card border border-brand-border rounded-b-xl shadow-2xl p-2 z-50">
-            <a onclick="filterByCategory('Barritas y snacks')" class="mega-link" role="button" tabindex="0">🍫 Barritas y snacks</a>
-            <a onclick="filterByCategory('Bebidas')" class="mega-link" role="button" tabindex="0">🥤 Bebidas</a>
-            <a onclick="filterByCategory('Accesorios gym')" class="mega-link" role="button" tabindex="0">🎒 Accesorios gym</a>
+            <button type="button" onclick="filterByCategory('Barritas y snacks')" class="mega-link">🍫 Barritas y snacks</button>
+            <button type="button" onclick="filterByCategory('Bebidas')" class="mega-link">🥤 Bebidas</button>
+            <button type="button" onclick="filterByCategory('Accesorios gym')" class="mega-link">🎒 Accesorios gym</button>
           </div>
         </div>
 
         <!-- Objetivos -->
         <div class="mega group relative">
-          <button class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-gold hover:text-brand-goldlight transition-colors">
+          <button type="button" class="mega-trigger flex items-center gap-1.5 px-4 py-3 text-sm font-bold text-brand-gold hover:text-brand-goldlight transition-colors">
             🎯 Objetivos
             <svg class="w-3.5 h-3.5 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
           </button>
           <div class="mega-panel absolute right-0 top-full w-64 bg-brand-card border border-brand-border rounded-b-xl shadow-2xl p-2 z-50">
-            <a onclick="filterByGoal('Pérdida de grasa')" class="mega-link" role="button" tabindex="0">🔥 Pérdida de grasa</a>
-            <a onclick="filterByGoal('Mayor rendimiento')" class="mega-link" role="button" tabindex="0">⚡ Mayor rendimiento</a>
-            <a onclick="filterByGoal('Recuperación')" class="mega-link" role="button" tabindex="0">🔄 Recuperación</a>
-            <a onclick="filterByGoal('Desarrollo muscular')" class="mega-link" role="button" tabindex="0">💪 Desarrollo muscular</a>
-            <a onclick="filterByGoal('Salud y bienestar')" class="mega-link" role="button" tabindex="0">🌿 Salud y bienestar</a>
+            <button type="button" onclick="filterByGoal('Pérdida de grasa')" class="mega-link">🔥 Pérdida de grasa</button>
+            <button type="button" onclick="filterByGoal('Mayor rendimiento')" class="mega-link">⚡ Mayor rendimiento</button>
+            <button type="button" onclick="filterByGoal('Recuperación')" class="mega-link">🔄 Recuperación</button>
+            <button type="button" onclick="filterByGoal('Desarrollo muscular')" class="mega-link">💪 Desarrollo muscular</button>
+            <button type="button" onclick="filterByGoal('Salud y bienestar')" class="mega-link">🌿 Salud y bienestar</button>
           </div>
         </div>
 
@@ -711,63 +715,63 @@
     <div id="mobileMenu" class="mobile-menu lg:hidden border-t border-brand-border bg-brand-dark px-4 py-3 space-y-1">
       <!-- Mobile category accordions (categorías reales del listado oficial) -->
       <div class="mobile-acc">
-        <button onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">
+        <button type="button" onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">
           Bowls y heladería
           <svg class="mobile-acc-chevron w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
         </button>
         <div class="mobile-acc-panel pl-4 pb-2 space-y-1">
-          <a onclick="filterByCategory('Bowls'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Bowls</a>
-          <a onclick="filterByCategory('Helados'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Helados</a>
-          <a onclick="filterByCategory('Yogures'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Yogures</a>
-          <a onclick="filterByCategory('Smoothies y batidos'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Smoothies y batidos</a>
-          <a onclick="filterByCategory('Waffles y caprichos'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Waffles y caprichos</a>
-          <a onclick="filterByCategory('Café y matcha'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Café y matcha</a>
+          <button type="button" onclick="filterByCategory('Bowls'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Bowls</button>
+          <button type="button" onclick="filterByCategory('Helados'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Helados</button>
+          <button type="button" onclick="filterByCategory('Yogures'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Yogures</button>
+          <button type="button" onclick="filterByCategory('Smoothies y batidos'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Smoothies y batidos</button>
+          <button type="button" onclick="filterByCategory('Waffles y caprichos'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Waffles y caprichos</button>
+          <button type="button" onclick="filterByCategory('Café y matcha'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Café y matcha</button>
         </div>
       </div>
       <div class="mobile-acc">
-        <button onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">
+        <button type="button" onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">
           Nutrición deportiva
           <svg class="mobile-acc-chevron w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
         </button>
         <div class="mobile-acc-panel pl-4 pb-2 space-y-1">
-          <a onclick="filterByCategory('Proteínas'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Proteínas</a>
-          <a onclick="filterByCategory('Creatinas'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Creatinas</a>
-          <a onclick="filterByCategory('Pre-entrenos'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Pre-entrenos</a>
-          <a onclick="filterByCategory('Alimentación proteica'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Alimentación proteica</a>
+          <button type="button" onclick="filterByCategory('Proteínas'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Proteínas</button>
+          <button type="button" onclick="filterByCategory('Creatinas'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Creatinas</button>
+          <button type="button" onclick="filterByCategory('Pre-entrenos'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Pre-entrenos</button>
+          <button type="button" onclick="filterByCategory('Alimentación proteica'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Alimentación proteica</button>
         </div>
       </div>
       <div class="mobile-acc">
-        <button onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">
+        <button type="button" onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">
           Salud y bienestar
           <svg class="mobile-acc-chevron w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
         </button>
         <div class="mobile-acc-panel pl-4 pb-2 space-y-1">
-          <a onclick="filterByCategory('Vitaminas y salud'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Vitaminas y salud</a>
-          <a onclick="filterByCategory('Colágeno y bienestar'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Colágeno y bienestar</a>
+          <button type="button" onclick="filterByCategory('Vitaminas y salud'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Vitaminas y salud</button>
+          <button type="button" onclick="filterByCategory('Colágeno y bienestar'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Colágeno y bienestar</button>
         </div>
       </div>
       <div class="mobile-acc">
-        <button onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">
+        <button type="button" onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">
           Snacks y bebidas
           <svg class="mobile-acc-chevron w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
         </button>
         <div class="mobile-acc-panel pl-4 pb-2 space-y-1">
-          <a onclick="filterByCategory('Barritas y snacks'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Barritas y snacks</a>
-          <a onclick="filterByCategory('Bebidas'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Bebidas</a>
-          <a onclick="filterByCategory('Accesorios gym'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Accesorios gym</a>
+          <button type="button" onclick="filterByCategory('Barritas y snacks'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Barritas y snacks</button>
+          <button type="button" onclick="filterByCategory('Bebidas'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Bebidas</button>
+          <button type="button" onclick="filterByCategory('Accesorios gym'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Accesorios gym</button>
         </div>
       </div>
       <div class="mobile-acc">
-        <button onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-gold hover:bg-brand-gold/10 font-bold transition-colors">
+        <button type="button" onclick="toggleMobileAcc(this)" class="w-full flex items-center justify-between px-4 py-3 rounded-lg text-brand-gold hover:bg-brand-gold/10 font-bold transition-colors">
           🎯 Objetivos
           <svg class="mobile-acc-chevron w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
         </button>
         <div class="mobile-acc-panel pl-4 pb-2 space-y-1">
-          <a onclick="filterByGoal('Pérdida de grasa'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Pérdida de grasa</a>
-          <a onclick="filterByGoal('Mayor rendimiento'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Mayor rendimiento</a>
-          <a onclick="filterByGoal('Recuperación'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Recuperación</a>
-          <a onclick="filterByGoal('Desarrollo muscular'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Desarrollo muscular</a>
-          <a onclick="filterByGoal('Salud y bienestar'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold" role="button" tabindex="0">Salud y bienestar</a>
+          <button type="button" onclick="filterByGoal('Pérdida de grasa'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Pérdida de grasa</button>
+          <button type="button" onclick="filterByGoal('Mayor rendimiento'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Mayor rendimiento</button>
+          <button type="button" onclick="filterByGoal('Recuperación'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Recuperación</button>
+          <button type="button" onclick="filterByGoal('Desarrollo muscular'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Desarrollo muscular</button>
+          <button type="button" onclick="filterByGoal('Salud y bienestar'); toggleMobileMenu()" class="block px-4 py-2 rounded-lg text-sm text-brand-muted hover:text-brand-gold">Salud y bienestar</button>
         </div>
       </div>
       <a href="#takeaway" onclick="toggleMobileMenu()" class="flex items-center gap-2 px-4 py-3 mt-1 rounded-lg bg-brand-gold text-black font-black transition-colors">🥤 Take Away</a>
@@ -775,7 +779,7 @@
       <a href="#products"   onclick="toggleMobileMenu()" class="block px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">Productos</a>
       <a href="#about"      onclick="toggleMobileMenu()" class="block px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">Nosotros</a>
       <a href="#contact"    onclick="toggleMobileMenu()" class="block px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">Contacto</a>
-      <button
+      <button type="button"
         onclick="toggleMobileMenu(); openModal('trainerModal')"
         class="w-full text-left px-4 py-3 rounded-lg font-bold text-brand-gold hover:bg-brand-gold/10 transition-colors"
       >
@@ -783,8 +787,8 @@
       </button>
       <hr class="border-brand-border my-2"/>
       <div id="mobileAuthButtons">
-        <button onclick="toggleMobileMenu(); openModal('loginModal')" class="block w-full text-left px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">Iniciar sesión</button>
-        <button onclick="toggleMobileMenu(); openModal('registerModal')" class="block w-full text-left px-4 py-3 rounded-lg text-brand-gold font-bold transition-colors">Registrarse</button>
+        <button type="button" onclick="toggleMobileMenu(); openModal('loginModal')" class="block w-full text-left px-4 py-3 rounded-lg text-brand-muted hover:text-white hover:bg-white/5 font-semibold transition-colors">Iniciar sesión</button>
+        <button type="button" onclick="toggleMobileMenu(); openModal('registerModal')" class="block w-full text-left px-4 py-3 rounded-lg text-brand-gold font-bold transition-colors">Registrarse</button>
       </div>
       <!-- Mobile contact info -->
       <hr class="border-brand-border my-2"/>
@@ -804,6 +808,7 @@
       </div>
     </div>
   </nav>
+  </header>
 
   <main id="mainContent">
 
@@ -870,30 +875,30 @@
       <p class="text-brand-muted mt-2 text-sm sm:text-base">Encuentra exactamente lo que necesitas para tu entrenamiento y bienestar.</p>
     </div>
     <div class="category-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Bowls')" role="button" tabindex="0" aria-label="Bowls">
+      <button type="button" class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Bowls')" aria-label="Bowls">
         <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🍧</span>
         <span class="text-sm font-bold text-center">Bowls</span>
-      </div>
-      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Bebidas')" role="button" tabindex="0" aria-label="Bebidas">
+      </button>
+      <button type="button" class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Bebidas')" aria-label="Bebidas">
         <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🥤</span>
         <span class="text-sm font-bold text-center">Bebidas</span>
-      </div>
-      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Helados')" role="button" tabindex="0" aria-label="Helados">
+      </button>
+      <button type="button" class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Helados')" aria-label="Helados">
         <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🍦</span>
         <span class="text-sm font-bold text-center">Helados</span>
-      </div>
-      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Alimentación proteica')" role="button" tabindex="0" aria-label="Alimentación proteica">
+      </button>
+      <button type="button" class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Alimentación proteica')" aria-label="Alimentación proteica">
         <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🥣</span>
         <span class="text-sm font-bold text-center">Alimentación proteica</span>
-      </div>
-      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Proteínas')" role="button" tabindex="0" aria-label="Proteínas">
+      </button>
+      <button type="button" class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Proteínas')" aria-label="Proteínas">
         <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🥛</span>
         <span class="text-sm font-bold text-center">Proteínas</span>
-      </div>
-      <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Barritas y snacks')" role="button" tabindex="0" aria-label="Barritas y snacks">
+      </button>
+      <button type="button" class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Barritas y snacks')" aria-label="Barritas y snacks">
         <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🍫</span>
         <span class="text-sm font-bold text-center">Barritas y snacks</span>
-      </div>
+      </button>
     </div>
   </section>
 
@@ -1002,22 +1007,22 @@
       </div>
       <!-- Filter chips — scrollable on mobile (categorías reales del listado oficial) -->
       <div class="filter-scroll flex gap-2 pb-1">
-        <button onclick="setFilter('Todos')" class="filter-btn active flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Todos">Todos</button>
-        <button onclick="setFilter('Bowls')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Bowls">Bowls</button>
-        <button onclick="setFilter('Bebidas')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Bebidas">Bebidas</button>
-        <button onclick="setFilter('Alimentación proteica')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Alimentación proteica">Alimentación proteica</button>
-        <button onclick="setFilter('Helados')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Helados">Helados</button>
-        <button onclick="setFilter('Proteínas')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Proteínas">Proteínas</button>
-        <button onclick="setFilter('Barritas y snacks')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Barritas y snacks">Barritas y snacks</button>
-        <button onclick="setFilter('Café y matcha')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Café y matcha">Café y matcha</button>
-        <button onclick="setFilter('Vitaminas y salud')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Vitaminas y salud">Vitaminas y salud</button>
-        <button onclick="setFilter('Smoothies y batidos')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Smoothies y batidos">Smoothies y batidos</button>
-        <button onclick="setFilter('Waffles y caprichos')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Waffles y caprichos">Waffles y caprichos</button>
-        <button onclick="setFilter('Creatinas')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Creatinas">Creatinas</button>
-        <button onclick="setFilter('Yogures')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Yogures">Yogures</button>
-        <button onclick="setFilter('Colágeno y bienestar')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Colágeno y bienestar">Colágeno y bienestar</button>
-        <button onclick="setFilter('Accesorios gym')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Accesorios gym">Accesorios gym</button>
-        <button onclick="setFilter('Pre-entrenos')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Pre-entrenos">Pre-entrenos</button>
+        <button type="button" onclick="setFilter('Todos')" class="filter-btn active flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Todos">Todos</button>
+        <button type="button" onclick="setFilter('Bowls')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Bowls">Bowls</button>
+        <button type="button" onclick="setFilter('Bebidas')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Bebidas">Bebidas</button>
+        <button type="button" onclick="setFilter('Alimentación proteica')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Alimentación proteica">Alimentación proteica</button>
+        <button type="button" onclick="setFilter('Helados')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Helados">Helados</button>
+        <button type="button" onclick="setFilter('Proteínas')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Proteínas">Proteínas</button>
+        <button type="button" onclick="setFilter('Barritas y snacks')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Barritas y snacks">Barritas y snacks</button>
+        <button type="button" onclick="setFilter('Café y matcha')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Café y matcha">Café y matcha</button>
+        <button type="button" onclick="setFilter('Vitaminas y salud')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Vitaminas y salud">Vitaminas y salud</button>
+        <button type="button" onclick="setFilter('Smoothies y batidos')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Smoothies y batidos">Smoothies y batidos</button>
+        <button type="button" onclick="setFilter('Waffles y caprichos')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Waffles y caprichos">Waffles y caprichos</button>
+        <button type="button" onclick="setFilter('Creatinas')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Creatinas">Creatinas</button>
+        <button type="button" onclick="setFilter('Yogures')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Yogures">Yogures</button>
+        <button type="button" onclick="setFilter('Colágeno y bienestar')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Colágeno y bienestar">Colágeno y bienestar</button>
+        <button type="button" onclick="setFilter('Accesorios gym')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Accesorios gym">Accesorios gym</button>
+        <button type="button" onclick="setFilter('Pre-entrenos')" class="filter-btn flex-shrink-0 text-xs font-bold px-3 sm:px-4 py-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted transition-colors" data-filter="Pre-entrenos">Pre-entrenos</button>
       </div>
     </div>
 
@@ -1055,7 +1060,7 @@
         </div>
       </div>
       <div class="text-center">
-        <button onclick="openModal('trainerModal')" class="inline-flex items-center gap-2 bg-brand-gold text-black font-black px-8 py-4 rounded-xl text-sm sm:text-base hover:bg-brand-goldlight transition-colors">
+        <button type="button" onclick="openModal('trainerModal')" class="inline-flex items-center gap-2 bg-brand-gold text-black font-black px-8 py-4 rounded-xl text-sm sm:text-base hover:bg-brand-goldlight transition-colors">
           💪 Solicita tu plan personalizado
         </button>
         <p class="text-xs text-brand-muted mt-3">El equipo confirmará disponibilidad y condiciones del servicio.</p>
@@ -1079,7 +1084,7 @@
           <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg">✓</span> Batidos y bowls recién hechos</li>
           <li class="flex items-center gap-3 text-sm"><span class="text-brand-gold font-black text-lg">✓</span> Condiciones de pago según el pedido confirmado</li>
         </ul>
-        <button onclick="openModal('takeawayModal')" class="inline-flex items-center gap-2 bg-brand-gold text-black font-black px-7 py-3.5 rounded-xl text-sm hover:bg-brand-goldlight transition-colors">
+        <button type="button" onclick="openModal('takeawayModal')" class="inline-flex items-center gap-2 bg-brand-gold text-black font-black px-7 py-3.5 rounded-xl text-sm hover:bg-brand-goldlight transition-colors">
           🥤 Pedir para recoger
         </button>
       </div>
@@ -1124,7 +1129,7 @@
         </div>
       </div>
       <div class="flex items-center gap-3 w-full sm:w-auto">
-        <button onclick="toggleRadio()" id="radioBtn" class="flex items-center justify-center gap-2 bg-brand-gold text-black font-bold px-6 py-3 rounded-xl hover:bg-brand-goldlight transition-colors w-full sm:w-auto">
+        <button type="button" onclick="toggleRadio()" id="radioBtn" class="flex items-center justify-center gap-2 bg-brand-gold text-black font-bold px-6 py-3 rounded-xl hover:bg-brand-goldlight transition-colors w-full sm:w-auto">
           <span id="radioIcon">▶</span> <span id="radioLabel">Escuchar</span>
         </button>
       </div>
@@ -1144,7 +1149,7 @@
         <h2 class="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight">Lo que dicen nuestros clientes</h2>
         <p class="text-brand-muted mt-2 text-sm sm:text-base">Opiniones publicadas tras revisión.</p>
       </div>
-      <button onclick="openModal('reviewModal')" class="flex-shrink-0 bg-brand-gold text-black font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-brand-goldlight transition-colors self-start sm:self-auto">
+      <button type="button" onclick="openModal('reviewModal')" class="flex-shrink-0 bg-brand-gold text-black font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-brand-goldlight transition-colors self-start sm:self-auto">
         + Dejar reseña
       </button>
     </div>
@@ -1222,7 +1227,7 @@
         <textarea id="contactMessage" rows="4" placeholder="Escribe tu mensaje aquí..."
           class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors resize-none"></textarea>
       </div>
-      <button onclick="submitContact()" class="w-full bg-brand-gold text-black font-bold py-3 rounded-xl hover:bg-brand-goldlight transition-colors text-sm sm:text-base">
+      <button type="button" onclick="submitContact()" class="w-full bg-brand-gold text-black font-bold py-3 rounded-xl hover:bg-brand-goldlight transition-colors text-sm sm:text-base">
         Enviar mensaje
       </button>
       <p class="text-xs text-brand-muted leading-relaxed">Responsable: BAHÍA NORTE CAPITAL, S.L. (NUTRETIUM). Finalidad: atender tu solicitud. Derechos: acceso, rectificación, supresión y demás derechos en <a href="mailto:nutretium@gmail.com" class="text-brand-gold hover:underline">nutretium@gmail.com</a>. <a href="/privacidad" class="text-brand-gold hover:underline">Política de Privacidad</a>.</p>
@@ -1357,7 +1362,7 @@
             <li><a href="#about"      class="hover:text-brand-gold transition-colors">Nosotros</a></li>
             <li><a href="#contact"    class="hover:text-brand-gold transition-colors">Contacto</a></li>
             <li>
-              <button
+              <button type="button"
                 onclick="openModal('careersModal')"
                 class="hover:text-brand-gold transition-colors text-left flex items-center gap-1.5 group"
               >
@@ -1372,11 +1377,11 @@
         <div>
           <h4 class="text-white font-bold text-sm uppercase tracking-wider mb-4">Enlaces de interés</h4>
           <ul class="space-y-2 text-sm text-brand-muted">
-            <li><button onclick="openInfo('afiliacion')" class="hover:text-brand-gold transition-colors text-left">Programa de afiliación y fidelización</button></li>
-            <li><button onclick="openInfo('faqs')" class="hover:text-brand-gold transition-colors text-left">Preguntas frecuentes (FAQs)</button></li>
-            <li><button onclick="openModal('trainerModal')" class="hover:text-brand-gold transition-colors text-left">Entrenador personal</button></li>
-            <li><button onclick="openModal('takeawayModal')" class="hover:text-brand-gold transition-colors text-left">Take Away</button></li>
-            <li><button onclick="openModal('careersModal')" class="hover:text-brand-gold transition-colors text-left">Trabaja con nosotros</button></li>
+            <li><button type="button" onclick="openInfo('afiliacion')" class="hover:text-brand-gold transition-colors text-left">Programa de afiliación y fidelización</button></li>
+            <li><button type="button" onclick="openInfo('faqs')" class="hover:text-brand-gold transition-colors text-left">Preguntas frecuentes (FAQs)</button></li>
+            <li><button type="button" onclick="openModal('trainerModal')" class="hover:text-brand-gold transition-colors text-left">Entrenador personal</button></li>
+            <li><button type="button" onclick="openModal('takeawayModal')" class="hover:text-brand-gold transition-colors text-left">Take Away</button></li>
+            <li><button type="button" onclick="openModal('careersModal')" class="hover:text-brand-gold transition-colors text-left">Trabaja con nosotros</button></li>
           </ul>
         </div>
 
@@ -1403,13 +1408,13 @@
       <!-- Legal & políticas -->
       <div class="border-t border-brand-border pt-6">
         <div class="flex flex-wrap gap-x-5 gap-y-2 mb-4 text-xs text-brand-muted">
-          <button onclick="openInfo('envios')" class="hover:text-brand-gold transition-colors">Información de envíos</button>
+          <button type="button" onclick="openInfo('envios')" class="hover:text-brand-gold transition-colors">Información de envíos</button>
           <a href="/condiciones" class="hover:text-brand-gold transition-colors">Condiciones generales</a>
           <a href="/privacidad" class="hover:text-brand-gold transition-colors">Política de privacidad</a>
-          <button onclick="openInfo('cookies')" class="hover:text-brand-gold transition-colors">Uso de cookies</button>
+          <button type="button" onclick="openInfo('cookies')" class="hover:text-brand-gold transition-colors">Uso de cookies</button>
           <!-- Retirar el consentimiento tiene que ser tan fácil como darlo. -->
-          <button onclick="NUTRETIUM_CONSENT.revisa()" class="hover:text-brand-gold transition-colors">Configurar cookies</button>
-          <button onclick="openInfo('aviso')" class="hover:text-brand-gold transition-colors">Aviso legal</button>
+          <button type="button" onclick="NUTRETIUM_CONSENT.revisa()" class="hover:text-brand-gold transition-colors">Configurar cookies</button>
+          <button type="button" onclick="openInfo('aviso')" class="hover:text-brand-gold transition-colors">Aviso legal</button>
         </div>
         <div class="flex flex-col sm:flex-row justify-between items-center gap-3">
           <p class="text-brand-muted text-xs text-center sm:text-left">© 2026 BAHÍA NORTE CAPITAL, S.L. (NUTRETIUM) · NIF B27659754 · Todos los derechos reservados</p>
@@ -1428,7 +1433,7 @@
     <div class="modal-box modal-scroll bg-brand-card border border-brand-border rounded-2xl w-full max-w-md p-6 sm:p-8 shadow-2xl">
       <div class="flex justify-between items-center mb-6">
         <h3 id="loginModalTitle" class="text-xl font-black">Iniciar sesión</h3>
-        <button onclick="closeModal('loginModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5" aria-label="Cerrar">&times;</button>
+        <button type="button" onclick="closeModal('loginModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5" aria-label="Cerrar">&times;</button>
       </div>
       <div class="space-y-4">
         <div>
@@ -1442,11 +1447,11 @@
             class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
         </div>
         <p id="loginError" class="text-red-400 text-xs hidden" role="alert"></p>
-        <button onclick="submitLogin()" class="w-full bg-brand-gold text-black font-bold py-3 rounded-xl hover:bg-brand-goldlight transition-colors">
+        <button type="button" onclick="submitLogin()" class="w-full bg-brand-gold text-black font-bold py-3 rounded-xl hover:bg-brand-goldlight transition-colors">
           Entrar
         </button>
         <p class="text-center text-sm text-brand-muted">¿No tienes cuenta?
-          <button onclick="closeModal('loginModal'); openModal('registerModal')" class="text-brand-gold hover:underline font-semibold">Regístrate</button>
+          <button type="button" onclick="closeModal('loginModal'); openModal('registerModal')" class="text-brand-gold hover:underline font-semibold">Regístrate</button>
         </p>
       </div>
     </div>
@@ -1457,7 +1462,7 @@
     <div class="modal-box modal-scroll bg-brand-card border border-brand-border rounded-2xl w-full max-w-md p-6 sm:p-8 shadow-2xl">
       <div class="flex justify-between items-center mb-6">
         <h3 id="registerModalTitle" class="text-xl font-black">Crear cuenta</h3>
-        <button onclick="closeModal('registerModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5" aria-label="Cerrar">&times;</button>
+        <button type="button" onclick="closeModal('registerModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5" aria-label="Cerrar">&times;</button>
       </div>
       <div class="space-y-4">
         <div class="grid grid-cols-2 gap-3 sm:gap-4">
@@ -1533,11 +1538,11 @@
           </div>
         </div>
         <p id="regError" class="text-red-400 text-xs hidden" role="alert"></p>
-        <button onclick="submitRegister()" class="w-full bg-brand-gold text-black font-bold py-3 rounded-xl hover:bg-brand-goldlight transition-colors">
+        <button type="button" onclick="submitRegister()" class="w-full bg-brand-gold text-black font-bold py-3 rounded-xl hover:bg-brand-goldlight transition-colors">
           Crear cuenta
         </button>
         <p class="text-center text-sm text-brand-muted">¿Ya tienes cuenta?
-          <button onclick="closeModal('registerModal'); openModal('loginModal')" class="text-brand-gold hover:underline font-semibold">Inicia sesión</button>
+          <button type="button" onclick="closeModal('registerModal'); openModal('loginModal')" class="text-brand-gold hover:underline font-semibold">Inicia sesión</button>
         </p>
       </div>
     </div>
@@ -1548,7 +1553,7 @@
     <div class="modal-box modal-scroll bg-brand-card border border-brand-border rounded-2xl w-full max-w-md p-6 sm:p-8 shadow-2xl">
       <div class="flex justify-between items-center mb-6">
         <h3 id="reviewModalTitle" class="text-xl font-black">Dejar una reseña</h3>
-        <button onclick="closeModal('reviewModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5" aria-label="Cerrar">&times;</button>
+        <button type="button" onclick="closeModal('reviewModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5" aria-label="Cerrar">&times;</button>
       </div>
       <div class="space-y-4">
         <div>
@@ -1559,7 +1564,7 @@
           </select>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Valoración</label>
+          <label for="reviewAuthor" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Valoración</label>
           <div id="starPicker" class="flex gap-1 sm:gap-2 text-3xl" role="radiogroup" aria-label="Valoración">
             <span class="star-btn text-brand-border" data-val="1" onclick="setReviewStar(1)" role="radio" aria-label="1 estrella" tabindex="0">★</span>
             <span class="star-btn text-brand-border" data-val="2" onclick="setReviewStar(2)" role="radio" aria-label="2 estrellas" tabindex="0">★</span>
@@ -1579,7 +1584,7 @@
             class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors resize-none"></textarea>
         </div>
         <p id="reviewError" class="text-red-400 text-xs hidden" role="alert"></p>
-        <button onclick="submitReview()" class="w-full bg-brand-gold text-black font-bold py-3 rounded-xl hover:bg-brand-goldlight transition-colors">
+        <button type="button" onclick="submitReview()" class="w-full bg-brand-gold text-black font-bold py-3 rounded-xl hover:bg-brand-goldlight transition-colors">
           Publicar reseña
         </button>
       </div>
@@ -1596,7 +1601,7 @@
           <h3 id="customModalTitle" class="text-lg sm:text-xl font-black">Personalizar producto</h3>
           <p id="customProductName" class="text-brand-muted text-xs sm:text-sm mt-0.5"></p>
         </div>
-        <button onclick="closeModal('customModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5 flex-shrink-0" aria-label="Cerrar">&times;</button>
+        <button type="button" onclick="closeModal('customModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5 flex-shrink-0" aria-label="Cerrar">&times;</button>
       </div>
 
       <!-- Body: preview + form side by side on md+, stacked on mobile -->
@@ -1616,14 +1621,14 @@
 
           <!-- Font selector -->
           <div class="mt-4 w-full" style="max-width:220px;">
-            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-widest mb-2">Fuente del texto</label>
+            <label for="customText" class="block text-xs font-semibold text-brand-muted uppercase tracking-widest mb-2">Fuente del texto</label>
             <div class="grid grid-cols-2 gap-2">
-              <button onclick="selectFont(this,'Impact')"       class="font-btn text-xs py-2 px-2 rounded-lg border border-brand-border text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors" data-font="Impact"       style="font-family:Impact">Impact</button>
-              <button onclick="selectFont(this,'Georgia')"      class="font-btn text-xs py-2 px-2 rounded-lg border border-brand-border text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors" data-font="Georgia"      style="font-family:Georgia">Georgia</button>
-              <button onclick="selectFont(this,'Arial Black')"  class="font-btn text-xs py-2 px-2 rounded-lg border border-brand-border text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors" data-font="Arial Black"  style="font-family:'Arial Black'">Arial Black</button>
-              <button onclick="selectFont(this,'Courier New')"  class="font-btn text-xs py-2 px-2 rounded-lg border border-brand-border text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors" data-font="Courier New"  style="font-family:'Courier New'">Courier</button>
-              <button onclick="selectFont(this,'Trebuchet MS')" class="font-btn text-xs py-2 px-2 rounded-lg border border-brand-border text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors" data-font="Trebuchet MS" style="font-family:'Trebuchet MS'">Trebuchet</button>
-              <button onclick="selectFont(this,'Palatino')"     class="font-btn text-xs py-2 px-2 rounded-lg border border-brand-border text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors" data-font="Palatino"     style="font-family:Palatino">Palatino</button>
+              <button type="button" onclick="selectFont(this,'Impact')"       class="font-btn text-xs py-2 px-2 rounded-lg border border-brand-border text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors" data-font="Impact"       style="font-family:Impact">Impact</button>
+              <button type="button" onclick="selectFont(this,'Georgia')"      class="font-btn text-xs py-2 px-2 rounded-lg border border-brand-border text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors" data-font="Georgia"      style="font-family:Georgia">Georgia</button>
+              <button type="button" onclick="selectFont(this,'Arial Black')"  class="font-btn text-xs py-2 px-2 rounded-lg border border-brand-border text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors" data-font="Arial Black"  style="font-family:'Arial Black'">Arial Black</button>
+              <button type="button" onclick="selectFont(this,'Courier New')"  class="font-btn text-xs py-2 px-2 rounded-lg border border-brand-border text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors" data-font="Courier New"  style="font-family:'Courier New'">Courier</button>
+              <button type="button" onclick="selectFont(this,'Trebuchet MS')" class="font-btn text-xs py-2 px-2 rounded-lg border border-brand-border text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors" data-font="Trebuchet MS" style="font-family:'Trebuchet MS'">Trebuchet</button>
+              <button type="button" onclick="selectFont(this,'Palatino')"     class="font-btn text-xs py-2 px-2 rounded-lg border border-brand-border text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors" data-font="Palatino"     style="font-family:Palatino">Palatino</button>
             </div>
           </div>
 
@@ -1640,13 +1645,13 @@
 
           <!-- Text color -->
           <div class="mt-4 w-full" style="max-width:220px;">
-            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-widest mb-2">Color del texto</label>
+            <p class="block text-xs font-semibold text-brand-muted uppercase tracking-widest mb-2">Color del texto</p>
             <div class="flex gap-2 flex-wrap">
-              <button onclick="selectTextColor(this,'#ffffff')" class="text-color-btn w-7 h-7 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#ffffff" aria-label="Blanco"></button>
-              <button onclick="selectTextColor(this,'#D4AF37')" class="text-color-btn w-7 h-7 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#D4AF37" aria-label="Dorado"></button>
-              <button onclick="selectTextColor(this,'#000000')" class="text-color-btn w-7 h-7 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#000000" aria-label="Negro"></button>
-              <button onclick="selectTextColor(this,'#ef4444')" class="text-color-btn w-7 h-7 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#ef4444" aria-label="Rojo"></button>
-              <button onclick="selectTextColor(this,'#3b82f6')" class="text-color-btn w-7 h-7 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#3b82f6" aria-label="Azul"></button>
+              <button type="button" onclick="selectTextColor(this,'#ffffff')" class="text-color-btn w-7 h-7 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#ffffff" aria-label="Blanco"></button>
+              <button type="button" onclick="selectTextColor(this,'#D4AF37')" class="text-color-btn w-7 h-7 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#D4AF37" aria-label="Dorado"></button>
+              <button type="button" onclick="selectTextColor(this,'#000000')" class="text-color-btn w-7 h-7 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#000000" aria-label="Negro"></button>
+              <button type="button" onclick="selectTextColor(this,'#ef4444')" class="text-color-btn w-7 h-7 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#ef4444" aria-label="Rojo"></button>
+              <button type="button" onclick="selectTextColor(this,'#3b82f6')" class="text-color-btn w-7 h-7 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#3b82f6" aria-label="Azul"></button>
             </div>
           </div>
         </div>
@@ -1656,29 +1661,29 @@
 
           <!-- Size -->
           <div>
-            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Talla</label>
+            <p class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Talla</p>
             <div id="sizeOptions" class="flex flex-wrap gap-2">
-              <button onclick="selectSize(this,'XS')"  class="size-btn px-3 py-2 rounded-lg border border-brand-border text-sm font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">XS</button>
-              <button onclick="selectSize(this,'S')"   class="size-btn px-3 py-2 rounded-lg border border-brand-border text-sm font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">S</button>
-              <button onclick="selectSize(this,'M')"   class="size-btn px-3 py-2 rounded-lg border border-brand-border text-sm font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">M</button>
-              <button onclick="selectSize(this,'L')"   class="size-btn px-3 py-2 rounded-lg border border-brand-border text-sm font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">L</button>
-              <button onclick="selectSize(this,'XL')"  class="size-btn px-3 py-2 rounded-lg border border-brand-border text-sm font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">XL</button>
-              <button onclick="selectSize(this,'XXL')" class="size-btn px-3 py-2 rounded-lg border border-brand-border text-sm font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">XXL</button>
+              <button type="button" onclick="selectSize(this,'XS')"  class="size-btn px-3 py-2 rounded-lg border border-brand-border text-sm font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">XS</button>
+              <button type="button" onclick="selectSize(this,'S')"   class="size-btn px-3 py-2 rounded-lg border border-brand-border text-sm font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">S</button>
+              <button type="button" onclick="selectSize(this,'M')"   class="size-btn px-3 py-2 rounded-lg border border-brand-border text-sm font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">M</button>
+              <button type="button" onclick="selectSize(this,'L')"   class="size-btn px-3 py-2 rounded-lg border border-brand-border text-sm font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">L</button>
+              <button type="button" onclick="selectSize(this,'XL')"  class="size-btn px-3 py-2 rounded-lg border border-brand-border text-sm font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">XL</button>
+              <button type="button" onclick="selectSize(this,'XXL')" class="size-btn px-3 py-2 rounded-lg border border-brand-border text-sm font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">XXL</button>
             </div>
           </div>
 
           <!-- Shirt color -->
           <div>
-            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Color de la camiseta</label>
+            <p class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Color de la camiseta</p>
             <div class="flex flex-wrap gap-3">
-              <button onclick="selectColor(this,'#ffffff','Blanco')"  class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#ffffff" aria-label="Blanco"></button>
-              <button onclick="selectColor(this,'#111111','Negro')"   class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#111111" aria-label="Negro"></button>
-              <button onclick="selectColor(this,'#D4AF37','Dorado')"  class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#D4AF37" aria-label="Dorado"></button>
-              <button onclick="selectColor(this,'#1a1a2e','Marino')"  class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#1a1a2e" aria-label="Marino"></button>
-              <button onclick="selectColor(this,'#c8102e','Rojo')"    class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#c8102e" aria-label="Rojo"></button>
-              <button onclick="selectColor(this,'#2d6a4f','Verde')"   class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#2d6a4f" aria-label="Verde"></button>
-              <button onclick="selectColor(this,'#1d4ed8','Azul')"    class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#1d4ed8" aria-label="Azul"></button>
-              <button onclick="selectColor(this,'#6b21a8','Morado')"  class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#6b21a8" aria-label="Morado"></button>
+              <button type="button" onclick="selectColor(this,'#ffffff','Blanco')"  class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#ffffff" aria-label="Blanco"></button>
+              <button type="button" onclick="selectColor(this,'#111111','Negro')"   class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#111111" aria-label="Negro"></button>
+              <button type="button" onclick="selectColor(this,'#D4AF37','Dorado')"  class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#D4AF37" aria-label="Dorado"></button>
+              <button type="button" onclick="selectColor(this,'#1a1a2e','Marino')"  class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#1a1a2e" aria-label="Marino"></button>
+              <button type="button" onclick="selectColor(this,'#c8102e','Rojo')"    class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#c8102e" aria-label="Rojo"></button>
+              <button type="button" onclick="selectColor(this,'#2d6a4f','Verde')"   class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#2d6a4f" aria-label="Verde"></button>
+              <button type="button" onclick="selectColor(this,'#1d4ed8','Azul')"    class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#1d4ed8" aria-label="Azul"></button>
+              <button type="button" onclick="selectColor(this,'#6b21a8','Morado')"  class="color-btn w-9 h-9 rounded-full border-2 border-brand-border hover:border-brand-gold transition-colors" style="background:#6b21a8" aria-label="Morado"></button>
             </div>
             <p id="selectedColorLabel" class="text-xs text-brand-muted mt-2" aria-live="polite"></p>
           </div>
@@ -1694,7 +1699,7 @@
 
           <!-- Logo upload -->
           <div>
-            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Logo / imagen (PNG, JPG — máx. 2 MB)</label>
+            <label for="customNotes" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Logo / imagen (PNG, JPG — máx. 2 MB)</label>
             <label class="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-brand-border rounded-xl cursor-pointer hover:border-brand-gold transition-colors bg-brand-dark">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand-muted mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
@@ -1706,7 +1711,7 @@
               <img id="logoPreviewImg" src="" alt="Vista previa del logo" class="w-12 h-12 object-contain rounded-lg border border-brand-border bg-brand-dark"/>
               <div>
                 <p id="logoFileName" class="text-xs text-white font-semibold truncate max-w-[160px]"></p>
-                <button onclick="clearLogo()" class="text-xs text-red-400 hover:text-red-300 mt-1">Eliminar logo</button>
+                <button type="button" onclick="clearLogo()" class="text-xs text-red-400 hover:text-red-300 mt-1">Eliminar logo</button>
               </div>
             </div>
           </div>
@@ -1719,7 +1724,7 @@
           </div>
 
           <p id="customError" class="text-red-400 text-xs hidden" role="alert"></p>
-          <button onclick="addCustomToCart()" class="w-full bg-brand-gold text-black font-bold py-3.5 rounded-xl hover:bg-brand-goldlight transition-colors text-sm sm:text-base">
+          <button type="button" onclick="addCustomToCart()" class="w-full bg-brand-gold text-black font-bold py-3.5 rounded-xl hover:bg-brand-goldlight transition-colors text-sm sm:text-base">
             Añadir al carrito con personalización
           </button>
         </div>
@@ -1738,7 +1743,7 @@
           <h3 id="trainerModalTitle" class="text-2xl font-black mt-1">Contrata tu Personal Trainer</h3>
           <p class="text-brand-muted text-sm mt-1">Alcanza tus objetivos con la guía de un profesional certificado.</p>
         </div>
-        <button onclick="closeModal('trainerModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5 flex-shrink-0 ml-4" aria-label="Cerrar">&times;</button>
+        <button type="button" onclick="closeModal('trainerModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5 flex-shrink-0 ml-4" aria-label="Cerrar">&times;</button>
       </div>
 
       <!-- Service highlights -->
@@ -1766,12 +1771,12 @@
 
         <div class="grid sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Nombre completo <span class="text-red-400">*</span></label>
+            <label for="trainerName" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Nombre completo <span class="text-red-400">*</span></label>
             <input id="trainerName" type="text" placeholder="Ana García"
               class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Email <span class="text-red-400">*</span></label>
+            <label for="trainerEmail" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Email <span class="text-red-400">*</span></label>
             <input id="trainerEmail" type="email" placeholder="tu@email.com"
               class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
           </div>
@@ -1779,12 +1784,12 @@
 
         <div class="grid sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Teléfono</label>
+            <label for="trainerPhone" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Teléfono</label>
             <input id="trainerPhone" type="tel" placeholder="+34 600 000 000"
               class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Edad</label>
+            <label for="trainerAge" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Edad</label>
             <input id="trainerAge" type="number" min="14" max="99" placeholder="25"
               class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
           </div>
@@ -1792,7 +1797,7 @@
 
         <div class="grid sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Objetivo principal <span class="text-red-400">*</span></label>
+            <label for="trainerGoal" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Objetivo principal <span class="text-red-400">*</span></label>
             <select id="trainerGoal"
               class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-gold transition-colors">
               <option value="">Selecciona tu objetivo...</option>
@@ -1806,7 +1811,7 @@
             </select>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Modalidad <span class="text-red-400">*</span></label>
+            <label for="trainerMode" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Modalidad <span class="text-red-400">*</span></label>
             <select id="trainerMode"
               class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-gold transition-colors">
               <option value="">Selecciona modalidad...</option>
@@ -1818,7 +1823,7 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Nivel de experiencia</label>
+          <label for="trainerNotes" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Nivel de experiencia</label>
           <div class="flex flex-wrap gap-2">
             <button type="button" onclick="selectTrainerLevel(this,'Principiante')"  class="trainer-level-btn px-4 py-2 rounded-lg border border-brand-border text-xs font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">Principiante</button>
             <button type="button" onclick="selectTrainerLevel(this,'Intermedio')"    class="trainer-level-btn px-4 py-2 rounded-lg border border-brand-border text-xs font-bold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">Intermedio</button>
@@ -1828,7 +1833,7 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Disponibilidad horaria</label>
+          <p class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Disponibilidad horaria</p>
           <div class="flex flex-wrap gap-2">
             <button type="button" onclick="toggleSchedule(this,'Mañanas')"   class="schedule-btn px-3 py-1.5 rounded-lg border border-brand-border text-xs font-semibold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">Mañanas</button>
             <button type="button" onclick="toggleSchedule(this,'Tardes')"    class="schedule-btn px-3 py-1.5 rounded-lg border border-brand-border text-xs font-semibold text-brand-muted hover:border-brand-gold hover:text-brand-gold transition-colors">Tardes</button>
@@ -1838,7 +1843,7 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Información adicional o lesiones previas</label>
+          <p class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Información adicional o lesiones previas</p>
           <textarea id="trainerNotes" rows="3"
             placeholder="Cuéntanos cualquier detalle relevante: lesiones, condiciones médicas, equipamiento disponible..."
             class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors resize-none"></textarea>
@@ -1846,7 +1851,7 @@
 
         <p id="trainerError" class="text-red-400 text-xs hidden"></p>
 
-        <button
+        <button type="button"
           onclick="submitTrainerRequest()"
           class="w-full bg-brand-gold text-black font-bold py-3.5 rounded-xl hover:bg-brand-goldlight transition-colors flex items-center justify-center gap-2 text-sm"
         >
@@ -1871,7 +1876,7 @@
           <h3 id="careersModalTitle" class="text-2xl font-black mt-1">Trabaja con nosotros</h3>
           <p class="text-brand-muted text-sm mt-1">¿Apasionado/a por el deporte y la nutrición? Queremos conocerte.</p>
         </div>
-        <button onclick="closeModal('careersModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5 flex-shrink-0 ml-4" aria-label="Cerrar">&times;</button>
+        <button type="button" onclick="closeModal('careersModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5 flex-shrink-0 ml-4" aria-label="Cerrar">&times;</button>
       </div>
 
       <!-- Open positions -->
@@ -1899,12 +1904,12 @@
 
         <div class="grid sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Nombre completo <span class="text-red-400">*</span></label>
+            <label for="careerName" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Nombre completo <span class="text-red-400">*</span></label>
             <input id="careerName" type="text" placeholder="Ana García"
               class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Email <span class="text-red-400">*</span></label>
+            <label for="careerEmail" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Email <span class="text-red-400">*</span></label>
             <input id="careerEmail" type="email" placeholder="tu@email.com"
               class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
           </div>
@@ -1912,12 +1917,12 @@
 
         <div class="grid sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Teléfono</label>
+            <label for="careerPhone" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Teléfono</label>
             <input id="careerPhone" type="tel" placeholder="+34 600 000 000"
               class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors"/>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Posición de interés <span class="text-red-400">*</span></label>
+            <label for="careerPosition" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Posición de interés <span class="text-red-400">*</span></label>
             <select id="careerPosition"
               class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-gold transition-colors">
               <option value="">Selecciona un puesto...</option>
@@ -1930,14 +1935,14 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Cuéntanos sobre ti <span class="text-red-400">*</span></label>
+          <label for="careerMessage" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">Cuéntanos sobre ti <span class="text-red-400">*</span></label>
           <textarea id="careerMessage" rows="4"
             placeholder="¿Por qué quieres formar parte de NUTRETIUM? Experiencia relevante, motivación..."
             class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold transition-colors resize-none"></textarea>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">CV / Currículum (PDF, máx. 5 MB)</label>
+          <label for="taName" class="block text-xs font-semibold text-brand-muted uppercase tracking-wider mb-2">CV / Currículum (PDF, máx. 5 MB)</label>
           <label class="flex items-center gap-3 w-full border border-dashed border-brand-border rounded-xl px-4 py-3 cursor-pointer hover:border-brand-gold transition-colors bg-brand-dark">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
@@ -1949,7 +1954,7 @@
 
         <p id="careerError" class="text-red-400 text-xs hidden"></p>
 
-        <button
+        <button type="button"
           onclick="submitCareerApplication()"
           class="w-full bg-brand-gold text-black font-bold py-3.5 rounded-xl hover:bg-brand-goldlight transition-colors flex items-center justify-center gap-2"
         >
@@ -1970,7 +1975,7 @@
     <div class="modal-box modal-scroll bg-brand-card border border-brand-border rounded-2xl w-full max-w-md p-6 sm:p-8 shadow-2xl">
       <div class="flex justify-between items-center mb-6">
         <h3 id="takeawayTitle" class="text-xl font-black">🥤 Pedido Take Away</h3>
-        <button onclick="closeModal('takeawayModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5" aria-label="Cerrar">&times;</button>
+        <button type="button" onclick="closeModal('takeawayModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5" aria-label="Cerrar">&times;</button>
       </div>
       <div class="space-y-4">
         <div>
@@ -1991,7 +1996,7 @@
           <input id="taTime" type="time" class="w-full bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-gold transition-colors"/>
         </div>
         <p id="taError" class="text-red-400 text-xs hidden" role="alert"></p>
-        <button onclick="submitTakeaway()" class="w-full bg-brand-gold text-black font-bold py-3 rounded-xl hover:bg-brand-goldlight transition-colors">Confirmar pedido</button>
+        <button type="button" onclick="submitTakeaway()" class="w-full bg-brand-gold text-black font-bold py-3 rounded-xl hover:bg-brand-goldlight transition-colors">Confirmar pedido</button>
         <p class="text-xs text-brand-muted text-center">Recoge en Calle la Albericia Nº1, Santander. Pago al recoger o online.</p>
       </div>
     </div>
@@ -2011,30 +2016,30 @@
         <div>
           <p class="text-xs font-bold text-brand-muted uppercase tracking-wider mb-2">¿Cuál es tu objetivo principal?</p>
           <div class="grid grid-cols-2 gap-2">
-            <button onclick="selectTest(this,'goal','Pérdida de grasa')" class="test-opt" data-group="goal">🔥 Pérdida de grasa</button>
-            <button onclick="selectTest(this,'goal','Desarrollo muscular')" class="test-opt" data-group="goal">💪 Masa muscular</button>
-            <button onclick="selectTest(this,'goal','Rendimiento')" class="test-opt" data-group="goal">⚡ Rendimiento</button>
-            <button onclick="selectTest(this,'goal','Salud y bienestar')" class="test-opt" data-group="goal">🌿 Salud general</button>
+            <button type="button" onclick="selectTest(this,'goal','Pérdida de grasa')" class="test-opt" data-group="goal">🔥 Pérdida de grasa</button>
+            <button type="button" onclick="selectTest(this,'goal','Desarrollo muscular')" class="test-opt" data-group="goal">💪 Masa muscular</button>
+            <button type="button" onclick="selectTest(this,'goal','Rendimiento')" class="test-opt" data-group="goal">⚡ Rendimiento</button>
+            <button type="button" onclick="selectTest(this,'goal','Salud y bienestar')" class="test-opt" data-group="goal">🌿 Salud general</button>
           </div>
         </div>
         <div>
           <p class="text-xs font-bold text-brand-muted uppercase tracking-wider mb-2">¿Con qué frecuencia entrenas?</p>
           <div class="grid grid-cols-3 gap-2">
-            <button onclick="selectTest(this,'freq','1-2 días')" class="test-opt" data-group="freq">1–2 días</button>
-            <button onclick="selectTest(this,'freq','3-4 días')" class="test-opt" data-group="freq">3–4 días</button>
-            <button onclick="selectTest(this,'freq','5+ días')" class="test-opt" data-group="freq">5+ días</button>
+            <button type="button" onclick="selectTest(this,'freq','1-2 días')" class="test-opt" data-group="freq">1–2 días</button>
+            <button type="button" onclick="selectTest(this,'freq','3-4 días')" class="test-opt" data-group="freq">3–4 días</button>
+            <button type="button" onclick="selectTest(this,'freq','5+ días')" class="test-opt" data-group="freq">5+ días</button>
           </div>
         </div>
         <div>
           <p class="text-xs font-bold text-brand-muted uppercase tracking-wider mb-2">¿Tienes alguna preferencia dietética?</p>
           <div class="grid grid-cols-3 gap-2">
-            <button onclick="selectTest(this,'diet','Sin preferencia')" class="test-opt" data-group="diet">Ninguna</button>
-            <button onclick="selectTest(this,'diet','Vegana')" class="test-opt" data-group="diet">Vegana</button>
-            <button onclick="selectTest(this,'diet','Sin lactosa')" class="test-opt" data-group="diet">Sin lactosa</button>
+            <button type="button" onclick="selectTest(this,'diet','Sin preferencia')" class="test-opt" data-group="diet">Ninguna</button>
+            <button type="button" onclick="selectTest(this,'diet','Vegana')" class="test-opt" data-group="diet">Vegana</button>
+            <button type="button" onclick="selectTest(this,'diet','Sin lactosa')" class="test-opt" data-group="diet">Sin lactosa</button>
           </div>
         </div>
-        <button onclick="submitTest()" class="w-full bg-brand-gold text-black font-bold py-3.5 rounded-xl hover:bg-brand-goldlight transition-colors">Ver mis recomendaciones</button>
-        <button onclick="closeModal('testModal')" class="w-full text-brand-muted text-sm hover:text-white transition-colors">Ahora no, gracias</button>
+        <button type="button" onclick="submitTest()" class="w-full bg-brand-gold text-black font-bold py-3.5 rounded-xl hover:bg-brand-goldlight transition-colors">Ver mis recomendaciones</button>
+        <button type="button" onclick="closeModal('testModal')" class="w-full text-brand-muted text-sm hover:text-white transition-colors">Ahora no, gracias</button>
       </div>
     </div>
   </div>
@@ -2046,7 +2051,7 @@
     <div class="modal-box modal-scroll bg-brand-card border border-brand-border rounded-2xl w-full max-w-lg p-6 sm:p-8 shadow-2xl">
       <div class="flex justify-between items-center mb-5">
         <h3 id="infoTitle" class="text-xl font-black">Información</h3>
-        <button onclick="closeModal('infoModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5" aria-label="Cerrar">&times;</button>
+        <button type="button" onclick="closeModal('infoModal')" class="text-brand-muted hover:text-white text-2xl leading-none w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5" aria-label="Cerrar">&times;</button>
       </div>
       <div id="infoBody" class="text-sm text-brand-muted leading-relaxed space-y-3"></div>
     </div>
@@ -2063,28 +2068,28 @@
           <p class="font-black text-sm">Atención NUTRETIUM</p>
           <p class="text-xs flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-green-600 inline-block"></span> En línea ahora</p>
         </div>
-        <button onclick="toggleChat()" class="text-black/70 hover:text-black text-xl leading-none w-8 h-8 flex items-center justify-center" aria-label="Cerrar chat">&times;</button>
+        <button type="button" onclick="toggleChat()" class="text-black/70 hover:text-black text-xl leading-none w-8 h-8 flex items-center justify-center" aria-label="Cerrar chat">&times;</button>
       </div>
       <div id="chatBody" class="p-4 space-y-3 max-h-72 overflow-y-auto">
         <div class="bg-brand-dark border border-brand-border rounded-xl rounded-tl-sm p-3 text-sm">
           👋 ¡Hola! ¿En qué podemos ayudarte? Elige una opción:
         </div>
-        <button onclick="chatQuick('seguimiento')" class="w-full text-left bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm font-semibold hover:border-brand-gold hover:text-brand-gold transition-colors flex items-center gap-2">
+        <button type="button" onclick="chatQuick('seguimiento')" class="w-full text-left bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm font-semibold hover:border-brand-gold hover:text-brand-gold transition-colors flex items-center gap-2">
           📦 Seguimiento de pedido
         </button>
-        <button onclick="chatQuick('consultas')" class="w-full text-left bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm font-semibold hover:border-brand-gold hover:text-brand-gold transition-colors flex items-center gap-2">
+        <button type="button" onclick="chatQuick('consultas')" class="w-full text-left bg-brand-dark border border-brand-border rounded-xl px-4 py-3 text-sm font-semibold hover:border-brand-gold hover:text-brand-gold transition-colors flex items-center gap-2">
           💬 Otras consultas
         </button>
       </div>
       <div class="border-t border-brand-border p-3 flex gap-2">
         <input id="chatInput" type="text" placeholder="Escribe tu mensaje..." onkeydown="if(event.key==='Enter')chatSend()" class="flex-1 bg-brand-dark border border-brand-border rounded-lg px-3 py-2 text-sm text-white placeholder-brand-muted focus:outline-none focus:border-brand-gold"/>
-        <button onclick="chatSend()" class="bg-brand-gold text-black font-bold px-3 rounded-lg hover:bg-brand-goldlight transition-colors" aria-label="Enviar">
+        <button type="button" onclick="chatSend()" class="bg-brand-gold text-black font-bold px-3 rounded-lg hover:bg-brand-goldlight transition-colors" aria-label="Enviar">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.269 20.876L5.999 12zm0 0h7.5"/></svg>
         </button>
       </div>
     </div>
     <!-- Chat toggle button -->
-    <button onclick="toggleChat()" id="chatToggle" class="flex items-center gap-2 bg-brand-gold text-black font-bold pl-4 pr-5 py-3 rounded-full shadow-2xl hover:bg-brand-goldlight transition-colors" aria-label="Abrir chat de ayuda">
+    <button type="button" onclick="toggleChat()" id="chatToggle" class="flex items-center gap-2 bg-brand-gold text-black font-bold pl-4 pr-5 py-3 rounded-full shadow-2xl hover:bg-brand-goldlight transition-colors" aria-label="Abrir chat de ayuda">
       <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
       <span class="text-sm whitespace-nowrap">¿Necesitas ayuda!</span>
     </button>
@@ -2107,14 +2112,14 @@
         <p class="text-sm text-brand-muted leading-relaxed">
           Esta web solo guarda lo necesario para que funcionen <strong class="text-white">tu carrito y tu sesión</strong>.
           No usamos analítica ni publicidad. Si algún día las añadimos, no se activarán salvo que lo aceptes.
-          <button onclick="openInfo('cookies')" class="text-brand-gold hover:underline">Más detalle</button>
+          <button type="button" onclick="openInfo('cookies')" class="text-brand-gold hover:underline">Más detalle</button>
         </p>
         <div class="flex gap-2 shrink-0">
-          <button onclick="NUTRETIUM_CONSENT.rechaza()"
+          <button type="button" onclick="NUTRETIUM_CONSENT.rechaza()"
                   class="flex-1 sm:flex-none sm:w-28 px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-black/40 border border-brand-border hover:border-brand-gold transition-colors">
             Rechazar
           </button>
-          <button onclick="NUTRETIUM_CONSENT.acepta()"
+          <button type="button" onclick="NUTRETIUM_CONSENT.acepta()"
                   class="flex-1 sm:flex-none sm:w-28 px-5 py-2.5 rounded-lg text-sm font-semibold text-black bg-brand-gold border border-brand-gold hover:bg-brand-goldlight transition-colors">
             Aceptar
           </button>
@@ -2141,6 +2146,7 @@
   <script src="runtime-content.js"></script>
   <script src="runtime-performance.js"></script>
   <script src="runtime-guard.js"></script>
+  <script src="guardian-runtime.js"></script>
   <script src="animations.js"></script>
 </body>
 </html>

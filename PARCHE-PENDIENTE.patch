@@ -1,0 +1,1852 @@
+diff --git a/.gitignore b/.gitignore
+index fd654cd..6cfe8d1 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -4,6 +4,21 @@ node_modules/
+ # Artefacto público que genera scripts/prepare-dist.js en cada build.
+ dist/
+ 
++# Páginas estáticas de SEO e informe del PIM: los genera
++# scripts/build-seo-pages.js en cada build a partir de products-data.js, así
++# que se rehacen solas y no se versionan. (Las carpetas sí se publican: las
++# copia prepare-dist.js leyendo el disco, no git. `pim-audit.json` es interno
++# y no se copia porque .json no está en la lista de extensiones públicas.)
++/producto/
++/categoria/
++/marca/
++/objetivo/
++pim-audit.json
++
++# Informe del auditor del sitio publicado (scripts/live-security-audit.js):
++# es el resultado de una ejecución concreta, no código.
++live-security-report.json
++
+ # Variables de entorno (nunca subir claves)
+ .env
+ .env.*
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 473756b..7fb104d 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -54,6 +54,23 @@ sigue allí: ese necesita `git rm`.
+ GitHub: `appnutretium-hub/Nutretium`, rama `main` → despliega solo en Netlify
+ (proyecto `nutretium`, dominio `nutretium.com`).
+ 
++### Los workflows de GitHub no los puede subir el agente
++
++El agente de Netlify publica con una app de GitHub que **no tiene el permiso
++«workflows»**. Si un cambio toca `.github/workflows/`, GitHub rechaza el envío
++**completo**: no se sube ese archivo ni ninguno de los demás, aunque no tengan
++nada que ver. Ya pasó una vez y dejó dos tareas terminadas sin desplegar por
++dos líneas de un `.yml`.
++
++Así que **no edites `.github/workflows/` en una tarea del agente**. Si hace
++falta cambiar un workflow, se anota y lo aplica el usuario, que sí puede
++empujarlo. Para el caso más habitual —fijar las acciones por SHA, que es lo que
++exige `scripts/audit-workflow-pinning.js`— está `npm run fijar:workflows`
++(ensayo; `-- --aplicar` escribe) y después un `git push` suyo.
++
++La alternativa es dar a la app de Netlify el permiso *Workflows: read and
++write* en GitHub; mientras no lo tenga, la regla de arriba se mantiene.
++
+ El usuario ejecuta los comandos de git él mismo y **usa PowerShell**, no cmd:
+ nada de `cd /d`.
+ 
+@@ -72,6 +89,7 @@ nada de `cd /d`.
+ | `npm run fotos` | incorpora fotos nuevas del buzón (ensayo; `-- --aplicar` para escribir) |
+ | `npm run catalogo` | precios, altas, bajas y fotos desde CSV (ensayo; `-- --aplicar` para escribir) |
+ | `npm run panel` | lo mismo pero con pantalla, en `localhost:4180` |
++| `npm run fijar:workflows` | fija por SHA las acciones de `.github/workflows` (ensayo; `-- --aplicar` para escribir) |
+ 
+ `stock`, `fotos` y `catalogo` **no escriben nada sin `--aplicar`**: enseñan qué
+ harían y te dejan revisarlo. El panel hace lo mismo en pantalla: antes de
+diff --git a/app.js b/app.js
+index 27d39ad..6dc9fac 100644
+--- a/app.js
++++ b/app.js
+@@ -108,6 +108,7 @@ async function submitLogin() {
+     updateAuthUI();
+     closeModal('loginModal');
+     showToast(`Bienvenido/a, ${data.user.name} 👋`);
++    if (volverTrasEntrar) { const destino = volverTrasEntrar; volverTrasEntrar = ''; setTimeout(() => { location.href = destino }, 600) }
+   } catch (err) {
+     showFieldError(errEl, err.message);
+   }
+@@ -158,6 +159,35 @@ function logout() {
+   showToast('Sesión cerrada.');
+ }
+ 
++// Las otras páginas mandan aquí a quien tiene que identificarse: «Mi Nutretium»
++// enlaza /?login=1 y cuenta.js redirige ahí después de cambiar la contraseña.
++// Nadie leía el parámetro, así que ese botón dejaba al cliente en la portada
++// sin nada abierto y sin explicación.
++let volverTrasEntrar = '';   // a dónde volver cuando la sesión se pide desde otra página
++
++function abreSesionSiLaPideLaUrl() {
++  const params = new URLSearchParams(location.search);
++  const modal = params.get('login') === '1' ? 'loginModal'
++    : params.get('register') === '1' ? 'registerModal' : '';
++  if (!modal) return;
++
++  // El parámetro se limpia siempre: si se queda en la URL, recargar o volver
++  // atrás vuelve a abrir el formulario, incluso con la sesión ya iniciada.
++  history.replaceState({}, '', location.pathname + (location.hash || ''));
++  if (currentUser) return;   // ya hay sesión: no hay nada que pedir
++
++  // Quien llega desde «Mi Nutretium» quería entrar ahí, no quedarse en la
++  // portada: al identificarse se le devuelve a la página de la que venía.
++  try {
++    const vuelta = new URL(document.referrer || '', location.href);
++    if (vuelta.origin === location.origin && vuelta.pathname !== location.pathname) volverTrasEntrar = vuelta.pathname;
++  } catch { /* sin referrer no hay vuelta que dar */ }
++
++  openModal(modal);
++  const primero = modal === 'loginModal' ? 'loginEmail' : 'regName';
++  setTimeout(() => document.getElementById(primero)?.focus(), 150);
++}
++
+ function showFieldError(el, msg) {
+   el.textContent = msg;
+   el.classList.remove('hidden');
+@@ -1373,10 +1403,14 @@ async function saveProfile() {
+   setProfileNotice('', false);
+ 
+   try {
++    // La sesión va en la cookie HttpOnly, que el navegador manda sola en las
++    // peticiones al propio dominio. Aquí se enviaba currentUser.token, que ya
++    // no existe: llegaba un token vacío y quien decidía era la cookie.
+     const res = await fetch('/.netlify/functions/auth', {
+       method: 'POST',
++      credentials: 'same-origin',
+       headers: { 'Content-Type': 'application/json' },
+-      body: JSON.stringify({ action: 'update', token: currentUser.token, ...datos }),
++      body: JSON.stringify({ action: 'update', ...datos }),
+     });
+     const cuerpo = await res.json().catch(() => ({}));
+ 
+@@ -1418,9 +1452,9 @@ async function openOrders() {
+   openModal('infoModal');
+ 
+   try {
+-    const res = await fetch('/.netlify/functions/orders', {
+-      headers: { Authorization: `Bearer ${currentUser.token}` },
+-    });
++    // Igual que arriba: la cookie identifica al cliente. La cabecera mandaba
++    // literalmente «Bearer undefined» desde que el token dejó de guardarse.
++    const res = await fetch('/.netlify/functions/orders', { credentials: 'same-origin' });
+ 
+     if (res.status === 401) {
+       setInfoBody('<p>Tu sesión ha caducado. Vuelve a iniciar sesión para ver tus pedidos.</p>');
+@@ -1533,6 +1567,7 @@ async function initiateRedsysPayment() {
+   try {
+     const response = await fetch('/.netlify/functions/redsys', {
+       method: 'POST',
++      credentials: 'same-origin',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({
+         // El importe REAL lo calcula el servidor con los precios del catálogo.
+@@ -1546,9 +1581,8 @@ async function initiateRedsysPayment() {
+           code: i.product.code,
+           qty: i.quantity,
+         })),
+-        // Si hay sesión, el pedido queda asociado al usuario. El servidor
+-        // saca el email del token firmado, no de aquí.
+-        token: currentUser?.token || null,
++        // Si hay sesión, el pedido queda asociado al usuario: el servidor saca
++        // el email de la cookie de sesión firmada, no de aquí.
+       }),
+     });
+ 
+@@ -1855,6 +1889,7 @@ document.addEventListener('DOMContentLoaded', () => {
+   iniciaConsentimiento();
+   loadSession();
+   updateAuthUI();
++  abreSesionSiLaPideLaUrl();   // /?login=1 desde «Mi Nutretium»
+   loadProducts();   // pinta el catálogo de products-data.js
+   pintaMarcas();    // chips de marca del panel de filtros, sacados del catálogo
+   loadReviews();    // fetches from DB, falls back to local
+diff --git a/checkout.html b/checkout.html
+index d4e8d1e..a6475de 100644
+--- a/checkout.html
++++ b/checkout.html
+@@ -1,3 +1,3 @@
+ <!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,follow"><title>Finalizar compra | Nutretium</title><link rel="stylesheet" href="/styles.css"><style>
+ :root{--gold:#d4af37;--bg:#080808;--panel:#111;--line:#282828;--muted:#9a958c;--text:#f4f0e7}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0,rgba(212,175,55,.055),transparent 28%),var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif}.wrap{max-width:1120px;margin:auto;padding:0 24px 64px}.top{height:78px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #222}.brand{font-size:22px;font-weight:900;color:var(--gold);text-decoration:none;letter-spacing:.08em}.bank{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:12px;font-weight:700}.bank:before{content:'';width:8px;height:8px;border-radius:50%;background:#79bd8c;box-shadow:0 0 0 4px rgba(121,189,140,.08)}.progress{display:grid;grid-template-columns:repeat(3,1fr);max-width:520px;margin:28px 0 8px;gap:8px}.step{padding:10px 12px;border:1px solid #252525;border-radius:10px;color:#777;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.07em}.step.active{border-color:rgba(212,175,55,.35);color:var(--gold);background:rgba(212,175,55,.045)}.layout{display:grid;grid-template-columns:minmax(0,1.18fr) minmax(330px,.82fr);gap:24px;margin-top:22px}.card{background:linear-gradient(180deg,#121212,#0e0e0e);border:1px solid var(--line);border-radius:20px;padding:24px}.summary{position:sticky;top:20px;height:max-content}.eyebrow{color:var(--gold);font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}h1{font-size:clamp(30px,4vw,44px);letter-spacing:-.045em;line-height:1;margin:10px 0 10px}h2{margin:0 0 14px;font-size:20px}.muted{color:var(--muted);font-size:13px;line-height:1.6}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:22px}.field{display:flex;flex-direction:column;gap:7px}.field.full{grid-column:1/-1}.field label{font-size:11px;font-weight:800;color:#b9b4ab}.field input,.coupon input{width:100%;background:#090909;color:#fff;border:1px solid #343434;border-radius:11px;padding:12px;outline:none}.field input:focus,.coupon input:focus{border-color:rgba(212,175,55,.65);box-shadow:0 0 0 3px rgba(212,175,55,.07)}.btn{width:100%;border:0;border-radius:12px;padding:14px;background:linear-gradient(180deg,#e0bf4f,#caa632);color:#050505;font-weight:900;cursor:pointer}.btn:disabled{opacity:.45;cursor:not-allowed}.pay{margin-top:18px}.error{min-height:20px;color:#e98282;font-size:12px;margin:12px 0 0}.line{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid #242424;font-size:13px}.line span:first-child{color:#bbb6ad}.total{font-size:20px;font-weight:900;color:var(--gold);border-bottom:0;padding-top:16px}.coupon{display:grid;grid-template-columns:1fr auto;gap:8px;margin:18px 0 8px}.coupon .btn{padding:10px 13px}.hidden{display:none!important}.trust{display:grid;gap:9px;margin-top:18px;padding-top:17px;border-top:1px solid #242424}.trust div{display:flex;gap:10px;align-items:flex-start}.trust b{font-size:12px}.trust span{display:block;color:#807b72;font-size:11px;margin-top:2px}.trust i{font-style:normal;color:var(--gold);font-weight:900}.back{display:inline-flex;margin-top:17px;color:#8e897f;text-decoration:none;font-size:12px;font-weight:800}.back:hover{color:var(--gold)}@media(max-width:800px){.wrap{padding:0 16px 40px}.top{height:66px}.bank span{display:none}.layout{grid-template-columns:1fr}.summary{position:static;order:-1}.grid{grid-template-columns:1fr}.field.full{grid-column:auto}.progress{max-width:none}.step{padding:9px 8px;font-size:9px}.card{padding:20px}}
+-</style></head><body><main class="wrap"><header class="top"><a class="brand" href="/">NUTRETIUM</a><div class="bank"><span>Pago procesado mediante Redsys</span></div></header><div class="progress" aria-label="Proceso de compra"><div class="step active">1 · Datos</div><div class="step">2 · Banco</div><div class="step">3 · Confirmación</div></div><div class="layout"><section class="card"><span class="eyebrow">Checkout Nutretium</span><h1>Finalizar compra</h1><p id="modeText" class="muted"></p><div id="guestFields" class="grid"><div class="field"><label for="name">Nombre</label><input id="name" autocomplete="given-name" maxlength="60"></div><div class="field"><label for="surname">Apellidos</label><input id="surname" autocomplete="family-name" maxlength="60"></div><div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" inputmode="email"></div><div class="field"><label for="phone">Teléfono</label><input id="phone" type="tel" autocomplete="tel" maxlength="20"></div><div class="field full"><label for="calle">Calle y número</label><input id="calle" autocomplete="street-address" maxlength="120"></div><div class="field"><label for="piso">Piso / puerta (opcional)</label><input id="piso" autocomplete="address-line2" maxlength="40"></div><div class="field"><label for="cp">Código postal</label><input id="cp" inputmode="numeric" autocomplete="postal-code" maxlength="5"></div><div class="field"><label for="localidad">Localidad</label><input id="localidad" autocomplete="address-level2" maxlength="60"></div><div class="field"><label for="provincia">Provincia</label><input id="provincia" autocomplete="address-level1" maxlength="60"></div><div class="field full"><label for="pais">País</label><input id="pais" autocomplete="country-name" value="España" maxlength="60"></div></div><p id="error" class="error" role="alert"></p><button id="pay" class="btn pay">Continuar a Redsys</button><p class="muted" style="font-size:.72rem;line-height:1.6;margin-top:12px">Responsable: BAHÍA NORTE CAPITAL, S.L. (NUTRETIUM). Finalidad: gestionar tu pedido, la relación contractual y la facturación. Legitimación: ejecución del contrato y obligaciones legales. Derechos: <a href="mailto:nutretium@gmail.com">nutretium@gmail.com</a>. <a href="/privacidad">Política de Privacidad</a>.</p><a class="back" href="/?cart=1#products">← Volver al carrito</a></section><aside class="card summary"><span class="eyebrow">Resumen</span><h2>Tu pedido</h2><div id="lines"></div><div class="coupon"><input id="coupon" autocomplete="off" aria-label="Código promocional" placeholder="Código promocional"><button id="applyCoupon" class="btn">Aplicar</button></div><p id="couponMsg" class="muted"></p><div class="line"><span>Subtotal</span><span id="subtotal">—</span></div><div id="discountRow" class="line hidden"><span>Descuento</span><span id="discount">—</span></div><div class="line total"><span>Total</span><span id="total">—</span></div><div class="trust"><div><i>✓</i><div><b>Importe comprobado en servidor</b><span>El precio final no se toma del navegador.</span></div></div><div><i>✓</i><div><b>Compra como invitado</b><span>No necesitas crear una cuenta para pagar.</span></div></div><div><i>✓</i><div><b>Redsys</b><span>El resultado del pago lo confirma la notificación bancaria firmada.</span></div></div></div></aside></div></main><script src="/products-data.js"></script><script src="/checkout.js"></script></body></html>
+\ No newline at end of file
++</style></head><body><main class="wrap"><header class="top"><a class="brand" href="/">NUTRETIUM</a><div class="bank"><span>Pago procesado mediante Redsys</span></div></header><div class="progress" aria-label="Proceso de compra"><div class="step active">1 · Datos</div><div class="step">2 · Banco</div><div class="step">3 · Confirmación</div></div><div class="layout"><section class="card"><span class="eyebrow">Checkout Nutretium</span><h1>Finalizar compra</h1><p id="modeText" class="muted"></p><div id="guestFields" class="grid"><div class="field"><label for="name">Nombre</label><input id="name" autocomplete="given-name" maxlength="60"></div><div class="field"><label for="surname">Apellidos</label><input id="surname" autocomplete="family-name" maxlength="60"></div><div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" inputmode="email"></div><div class="field"><label for="phone">Teléfono</label><input id="phone" type="tel" autocomplete="tel" maxlength="20"></div><div class="field full"><label for="calle">Calle y número</label><input id="calle" autocomplete="street-address" maxlength="120"></div><div class="field"><label for="piso">Piso / puerta (opcional)</label><input id="piso" autocomplete="address-line2" maxlength="40"></div><div class="field"><label for="cp">Código postal</label><input id="cp" inputmode="numeric" autocomplete="postal-code" maxlength="5"></div><div class="field"><label for="localidad">Localidad</label><input id="localidad" autocomplete="address-level2" maxlength="60"></div><div class="field"><label for="provincia">Provincia</label><input id="provincia" autocomplete="address-level1" maxlength="60"></div><div class="field full"><label for="pais">País</label><input id="pais" autocomplete="country-name" value="España" maxlength="60"></div></div><p id="error" class="error" role="alert"></p><button id="pay" class="btn pay">Continuar a Redsys</button><p class="muted" style="font-size:.72rem;line-height:1.6;margin-top:12px">Responsable: BAHÍA NORTE CAPITAL, S.L. (NUTRETIUM). Finalidad: gestionar tu pedido, la relación contractual y la facturación. Legitimación: ejecución del contrato y obligaciones legales. Derechos: <a href="mailto:nutretium@gmail.com">nutretium@gmail.com</a>. <a href="/privacidad">Política de Privacidad</a>.</p><a class="back" href="/?cart=1#products">← Volver al carrito</a></section><aside class="card summary"><span class="eyebrow">Resumen</span><h2>Tu pedido</h2><div id="lines"></div><div class="coupon"><input id="coupon" autocomplete="off" aria-label="Código promocional" placeholder="Código promocional"><button id="applyCoupon" class="btn">Aplicar</button></div><p id="couponMsg" class="muted"></p><div class="line"><span>Subtotal</span><span id="subtotal">—</span></div><div id="discountRow" class="line hidden"><span>Descuento</span><span id="discount">—</span></div><div class="line total"><span>Total</span><span id="total">—</span></div><div class="trust"><div><i>✓</i><div><b>Importe comprobado en servidor</b><span>El precio final no se toma del navegador.</span></div></div><div><i>✓</i><div><b>Compra como invitado</b><span>No necesitas crear una cuenta para pagar.</span></div></div><div><i>✓</i><div><b>Redsys</b><span>El resultado del pago lo confirma la notificación bancaria firmada.</span></div></div></div></aside></div></main><script src="/sesion-cliente.js"></script><script src="/products-data.js"></script><script src="/checkout.js"></script></body></html>
+\ No newline at end of file
+diff --git a/checkout.js b/checkout.js
+index ccc8b3c..0257cd6 100644
+--- a/checkout.js
++++ b/checkout.js
+@@ -1,9 +1,12 @@
+ 'use strict';
+-const CART='nutretium_cart_v1',SESSION='nutretium_user';
++const CART='nutretium_cart_v1';
+ const $=id=>document.getElementById(id);
+ const PRODUCTS=window.NUTRETIUM_PRODUCTS||[];
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+-function session(){try{return JSON.parse(localStorage.getItem(SESSION)||'null')}catch{return null}}
++// La sesión la resuelve sesion-cliente.js. Mirar el token de localStorage
++// mandaba al formulario de invitado a clientes identificados: el token ya no
++// se guarda, la sesión va en la cookie HttpOnly y el servidor la lee de ahí.
++const sesion=window.NutretiumSesion;
+ function savedCart(){try{return JSON.parse(localStorage.getItem(CART)||'[]')}catch{return[]}}
+ function itemRows(){return savedCart().map(row=>{const p=PRODUCTS.find(x=>Number(x.id)===Number(row.id));if(!p||p.active===false)return null;const max=typeof p.stock==='number'?Math.max(0,p.stock):99;const qty=Math.min(max||0,Math.max(1,Number(row.quantity)||1));if(qty<1)return null;return{id:p.id,code:p.code,qty,name:p.name,price:Number(p.price)}}).filter(Boolean)}
+ function subtotal(){return itemRows().reduce((s,i)=>s+i.price*i.qty,0)}
+@@ -18,7 +21,7 @@ async function applyCoupon(){if(couponBusy)return;couponBusy=true;$('applyCoupon
+ function guest(){return{name:$('name').value.trim(),surname:$('surname').value.trim(),email:$('email').value.trim(),phone:$('phone').value.trim(),direccion:{calle:$('calle').value.trim(),piso:$('piso').value.trim(),cp:$('cp').value.trim(),localidad:$('localidad').value.trim(),provincia:$('provincia').value.trim(),pais:$('pais').value.trim()}}}
+ function validateGuest(g){if(!g.name)return'Escribe tu nombre.';if(!g.email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g.email))return'Introduce un email válido.';if(!g.direccion.calle)return'Falta la calle y el número.';if(!/^\d{5}$/.test(g.direccion.cp))return'El código postal debe tener cinco cifras.';if(!g.direccion.localidad)return'Falta la localidad.';if(!g.direccion.provincia)return'Falta la provincia.';if(!g.direccion.pais)return'Falta el país.';return null}
+ function submitRedsys(data){localStorage.setItem('nutretium_last_order',data.order);const f=document.createElement('form');f.method='POST';f.action=data.redsysUrl;[['Ds_SignatureVersion',data.Ds_SignatureVersion],['Ds_MerchantParameters',data.Ds_MerchantParameters],['Ds_Signature',data.Ds_Signature]].forEach(([n,v])=>{const i=document.createElement('input');i.type='hidden';i.name=n;i.value=v;f.appendChild(i)});document.body.appendChild(f);f.submit()}
+-function switchToGuest(message){localStorage.removeItem(SESSION);$('guestFields').classList.remove('hidden');$('modeText').textContent='Tu sesión ha caducado. Puedes continuar como invitado sin perder el carrito.';$('error').textContent=message||'Completa tus datos para continuar.';checkoutRequestId=globalThis.crypto?.randomUUID?.()||`${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;try{$('name').focus()}catch{}}
+-async function pay(){if(payBusy)return;const s=session();$('error').textContent='';if(!$('checkoutTerms')?.checked){$('error').textContent='Debes aceptar las condiciones de contratación antes de pagar.';return}const body={items:itemRows().map(({id,code,qty})=>({id,code,qty})),coupon:appliedCoupon||undefined,termsAccepted:true,termsVersion:'2026-09-20'};if(!body.items.length){$('error').textContent='El carrito está vacío.';return}if(s?.token)body.token=s.token;else{body.guest=guest();const problem=validateGuest(body.guest);if(problem){$('error').textContent=problem;return}}payBusy=true;$('pay').disabled=true;$('pay').textContent='Preparando pago…';try{track('begin_checkout');const r=await timedFetch('/.netlify/functions/checkout',{method:'POST',headers:{'Content-Type':'application/json','X-Nutretium-Request':checkoutRequestId},body:JSON.stringify(body)},20000);const d=await r.json().catch(()=>({}));if(!r.ok){if(r.status===401&&d.motivo==='guest-required'&&s?.token){switchToGuest('Tu sesión ha caducado. Completa los datos de envío para continuar como invitado.');return}throw new Error(d.error||'No se pudo preparar el pago.')}submitRedsys(d)}catch(e){$('error').textContent=e.name==='AbortError'?'La preparación del pago ha tardado demasiado. No se ha iniciado ningún cobro. Puedes reintentar con seguridad.':e.message}finally{payBusy=false;$('pay').disabled=false;$('pay').textContent='Pagar con tarjeta'}}
+-const s=session();if(s?.token){$('guestFields').classList.add('hidden');$('modeText').textContent='Comprarás con tu cuenta y la dirección guardada en Mi Nutretium.'}else{$('modeText').textContent='Compra como invitado: solo necesitamos los datos necesarios para gestionar tu pedido.'}
++function switchToGuest(message){sesion.olvida();$('guestFields').classList.remove('hidden');$('modeText').textContent='Tu sesión ha caducado. Puedes continuar como invitado sin perder el carrito.';$('error').textContent=message||'Completa tus datos para continuar.';checkoutRequestId=globalThis.crypto?.randomUUID?.()||`${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;try{$('name').focus()}catch{}}
++async function pay(){if(payBusy)return;$('error').textContent='';if(!$('checkoutTerms')?.checked){$('error').textContent='Debes aceptar las condiciones de contratación antes de pagar.';return}const body={items:itemRows().map(({id,code,qty})=>({id,code,qty})),coupon:appliedCoupon||undefined,termsAccepted:true,termsVersion:'2026-09-20'};if(!body.items.length){$('error').textContent='El carrito está vacío.';return}const conCuenta=sesion.activa();const heredado=sesion.tokenHeredado();if(heredado)body.token=heredado;if(!conCuenta){body.guest=guest();const problem=validateGuest(body.guest);if(problem){$('error').textContent=problem;return}}payBusy=true;$('pay').disabled=true;$('pay').textContent='Preparando pago…';try{track('begin_checkout');const r=await timedFetch('/.netlify/functions/checkout',sesion.opciones({method:'POST',headers:{'Content-Type':'application/json','X-Nutretium-Request':checkoutRequestId},body:JSON.stringify(body)}),20000);const d=await r.json().catch(()=>({}));if(!r.ok){if(r.status===401&&d.motivo==='guest-required'&&conCuenta){switchToGuest('Tu sesión ha caducado. Completa los datos de envío para continuar como invitado.');return}throw new Error(d.error||'No se pudo preparar el pago.')}submitRedsys(d)}catch(e){$('error').textContent=e.name==='AbortError'?'La preparación del pago ha tardado demasiado. No se ha iniciado ningún cobro. Puedes reintentar con seguridad.':e.message}finally{payBusy=false;$('pay').disabled=false;$('pay').textContent='Pagar con tarjeta'}}
++if(sesion.activa()){$('guestFields').classList.add('hidden');$('modeText').textContent='Comprarás con tu cuenta y la dirección guardada en Mi Nutretium.'}else{$('modeText').textContent='Compra como invitado: solo necesitamos los datos necesarios para gestionar tu pedido.'}
+ installTerms();$('pay').textContent='Pagar con tarjeta';$('applyCoupon').onclick=applyCoupon;$('pay').onclick=pay;$('coupon').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();applyCoupon()}});render();
+diff --git a/commerce-account-sync.js b/commerce-account-sync.js
+index 056879a..107b91e 100644
+--- a/commerce-account-sync.js
++++ b/commerce-account-sync.js
+@@ -1,5 +1,5 @@
+ /* Nutretium account synchronization and consented analytics */
+-(function(){'use strict';let wishlistSig='',cartTimer=null,analyticsCursor=0;function session(){try{return JSON.parse(localStorage.getItem('nutretium_user')||'null')}catch{return null}}function token(){return session()?.token||''}async function customer(body){if(!token())return null;const r=await fetch('/.netlify/functions/customer-commerce',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token()},body:JSON.stringify(body)});if(!r.ok)return null;return r.json().catch(()=>null)}function wishlistIds(){try{return(JSON.parse(localStorage.getItem('nt_wishlist_v1')||'[]')||[]).map(Number).filter(Number.isInteger)}catch{return[]}}async function syncWishlist(){if(!token())return;const ids=wishlistIds(),sig=ids.slice().sort((a,b)=>a-b).join(',');if(sig===wishlistSig)return;const d=await customer({action:'wishlist-sync',productIds:ids});if(d)wishlistSig=sig}function activeCartItems(){try{return Array.from(cart.values()).map(i=>({id:i.product.id,qty:i.quantity}))}catch{return[]}}async function syncCart(){if(!token())return;await customer({action:'active-cart-sync',items:activeCartItems()})}function scheduleCart(){clearTimeout(cartTimer);cartTimer=setTimeout(syncCart,900)}function wrapCartUI(){try{if(typeof updateCartUI==='function'&&!updateCartUI.__ntSync){const original=updateCartUI;const wrapped=function(){const out=original.apply(this,arguments);scheduleCart();return out};wrapped.__ntSync=true;updateCartUI=wrapped}}catch{}}
+-function analyticsAllowed(){try{return window.NUTRETIUM_CONSENT?.analitica?.()===true}catch{return false}}function subject(){let v=localStorage.getItem('nt_subject');if(!v){v=crypto?.randomUUID?.()||Math.random().toString(36).slice(2);localStorage.setItem('nt_subject',v)}return v}async function flushAnalytics(){if(!analyticsAllowed())return;let events=[];try{events=JSON.parse(sessionStorage.getItem('nt_analytics_buffer_v1')||'[]')||[]}catch{};for(;analyticsCursor<events.length;analyticsCursor++){const e=events[analyticsCursor];if(!e?.event)continue;fetch('/.netlify/functions/analytics-ingest',{method:'POST',headers:{'Content-Type':'application/json',...(token()?{Authorization:'Bearer '+token()}:{})},body:JSON.stringify({name:e.event,payload:e,consent:true,subject:subject()}),keepalive:true}).catch(()=>{})}}
+-async function mergeServerWishlist(){if(!token())return;const d=await customer({action:'overview'});const server=(d?.wishlist?.productIds||[]).map(Number),local=wishlistIds(),merged=[...new Set([...server,...local])];if(merged.length!==local.length||merged.some((v,i)=>v!==local[i]))localStorage.setItem('nt_wishlist_v1',JSON.stringify(merged));wishlistSig='';await syncWishlist()}
++(function(){'use strict';let wishlistSig='',cartTimer=null,analyticsCursor=0;/* La sesión de cliente la resuelve sesion-cliente.js: el token ya no se guarda en localStorage (va en la cookie HttpOnly), y mirarlo aquí dejaba sin sincronizar el carrito y los favoritos de quien sí tenía sesión. */const sesion=window.NutretiumSesion;async function customer(body){if(!sesion.activa())return null;const r=await sesion.pide('/.netlify/functions/customer-commerce',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)return null;return r.json().catch(()=>null)}function wishlistIds(){try{return(JSON.parse(localStorage.getItem('nt_wishlist_v1')||'[]')||[]).map(Number).filter(Number.isInteger)}catch{return[]}}async function syncWishlist(){if(!sesion.activa())return;const ids=wishlistIds(),sig=ids.slice().sort((a,b)=>a-b).join(',');if(sig===wishlistSig)return;const d=await customer({action:'wishlist-sync',productIds:ids});if(d)wishlistSig=sig}function activeCartItems(){try{return Array.from(cart.values()).map(i=>({id:i.product.id,qty:i.quantity}))}catch{return[]}}async function syncCart(){if(!sesion.activa())return;await customer({action:'active-cart-sync',items:activeCartItems()})}function scheduleCart(){clearTimeout(cartTimer);cartTimer=setTimeout(syncCart,900)}function wrapCartUI(){try{if(typeof updateCartUI==='function'&&!updateCartUI.__ntSync){const original=updateCartUI;const wrapped=function(){const out=original.apply(this,arguments);scheduleCart();return out};wrapped.__ntSync=true;updateCartUI=wrapped}}catch{}}
++function analyticsAllowed(){try{return window.NUTRETIUM_CONSENT?.analitica?.()===true}catch{return false}}function subject(){let v=localStorage.getItem('nt_subject');if(!v){v=crypto?.randomUUID?.()||Math.random().toString(36).slice(2);localStorage.setItem('nt_subject',v)}return v}async function flushAnalytics(){if(!analyticsAllowed())return;let events=[];try{events=JSON.parse(sessionStorage.getItem('nt_analytics_buffer_v1')||'[]')||[]}catch{};for(;analyticsCursor<events.length;analyticsCursor++){const e=events[analyticsCursor];if(!e?.event)continue;sesion.pide('/.netlify/functions/analytics-ingest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:e.event,payload:e,consent:true,subject:subject()}),keepalive:true}).catch(()=>{})}}
++async function mergeServerWishlist(){if(!sesion.activa())return;const d=await customer({action:'overview'});const server=(d?.wishlist?.productIds||[]).map(Number),local=wishlistIds(),merged=[...new Set([...server,...local])];if(merged.length!==local.length||merged.some((v,i)=>v!==local[i]))localStorage.setItem('nt_wishlist_v1',JSON.stringify(merged));wishlistSig='';await syncWishlist()}
+ function init(){wrapCartUI();mergeServerWishlist();setInterval(()=>{syncWishlist();flushAnalytics()},2500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){syncWishlist();syncCart();flushAnalytics()}});window.addEventListener('beforeunload',()=>{flushAnalytics()})}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();})();
+diff --git a/commerce-suite.js b/commerce-suite.js
+index f0d9bc8..b27b353 100644
+--- a/commerce-suite.js
++++ b/commerce-suite.js
+@@ -1,8 +1,10 @@
+ /* NUTRETIUM Commerce Suite — integración de cuenta, checkout, cross-sell y analítica */
+ (function(){
+ 'use strict';
+-const SESSION='nutretium_user';
+-const session=()=>{try{return JSON.parse(localStorage.getItem(SESSION)||'null')}catch{return null}};
++// Quién tiene sesión lo dice sesion-cliente.js: la sesión viaja en la cookie
++// HttpOnly y el token ya no se guarda en localStorage. El token solo se manda
++// si es uno heredado de antes del cambio.
++const sesion=window.NutretiumSesion;
+ const consent=()=>{try{const raw=JSON.parse(localStorage.getItem('nutretium_cookies')||'null');return !!(raw&&raw.version===1&&raw.analitica===true)}catch{return false}};
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ function track(name){try{if(consent())fetch('/.netlify/functions/analytics-event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name}),keepalive:true}).catch(()=>{})}catch{}}
+@@ -15,7 +17,7 @@ window.initiateRedsysPayment=function(){ if(typeof getCartItemCount==='function'
+ if(typeof window.addToCart==='function'&&!window.addToCart.__suite){const original=window.addToCart;const wrapped=function(){const r=original.apply(this,arguments);track('add_to_cart');return r};wrapped.__suite=true;window.addToCart=wrapped;}
+ 
+ // Guarda carrito en servidor para cuentas autenticadas. El servidor vuelve a valorar precios.
+-function saveCartServer(){const s=session();if(!s?.token||typeof cart==='undefined')return;const items=Array.from(cart.values()).map(i=>({id:i.product.id,code:i.product.code,qty:i.quantity}));fetch('/.netlify/functions/saved-cart',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.token},body:JSON.stringify({items})}).catch(()=>{});}
++function saveCartServer(){if(!sesion.activa()||typeof cart==='undefined')return;const items=Array.from(cart.values()).map(i=>({id:i.product.id,code:i.product.code,qty:i.quantity}));sesion.pide('/.netlify/functions/saved-cart',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items})}).catch(()=>{});}
+ if(typeof window.updateCartUI==='function'&&!window.updateCartUI.__suiteSave){const original=window.updateCartUI;const wrapped=function(){const r=original.apply(this,arguments);clearTimeout(window.__nutCartTimer);window.__nutCartTimer=setTimeout(saveCartServer,450);return r};wrapped.__suiteSave=true;window.updateCartUI=wrapped;}
+ 
+ // Reseñas: la sesión se manda al servidor para que pueda verificar la compra.
+@@ -29,8 +31,7 @@ if(typeof window.submitReview==='function'){
+     const rating=typeof reviewStarValue!=='undefined'?reviewStarValue:0;
+     if(!product||!rating||!author||!text){if(err){err.textContent='Completa producto, valoración, nombre y comentario.';err.classList.remove('hidden')}return;}
+     try{
+-      const s=session();
+-      const r=await fetch('/.netlify/functions/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'submit',token:s?.token||null,review:{author,product,rating,text}})});
++      const r=await sesion.pide('/.netlify/functions/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'submit',token:sesion.tokenHeredado()||null,review:{author,product,rating,text}})});
+       const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'No se pudo enviar la reseña.');
+       if(typeof closeModal==='function')closeModal('reviewModal');
+       if(typeof showToast==='function')showToast(d.verifiedPurchase?'Reseña recibida · compra verificada':'Reseña recibida para moderación');
+diff --git a/commercial-finish.js b/commercial-finish.js
+index a7da813..90c9385 100644
+--- a/commercial-finish.js
++++ b/commercial-finish.js
+@@ -3,10 +3,12 @@
+    accesibilidad de compra y conexión con educación/reseñas sin tocar pagos. */
+ (function(){
+ 'use strict';
+-const SESSION='nutretium_user';
++// Quién tiene sesión lo dice sesion-cliente.js: la sesión viaja en la cookie
++// HttpOnly y el token ya no se guarda en localStorage. El token solo se manda
++// si es uno heredado de antes del cambio.
+ const esc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const slugify=(v)=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+-const session=()=>{try{return JSON.parse(localStorage.getItem(SESSION)||'null')}catch{return null}};
++const sesion=window.NutretiumSesion;
+ const money=(n)=>Number(n||0).toLocaleString('es-ES',{style:'currency',currency:'EUR'});
+ 
+ function ensureStyle(){
+@@ -106,9 +108,8 @@ function installVerifiedReviews(){
+     if(typeof reviewStarValue==='undefined'||!reviewStarValue)return fail('Selecciona una valoración.');
+     if(!author)return fail('Escribe tu nombre.');
+     if(!text)return fail('Escribe un comentario.');
+-    const s=session();
+     try{
+-      const res=await fetch('/.netlify/functions/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'submit',review:{author,product,rating:reviewStarValue,text},token:s?.token||null})});
++      const res=await sesion.pide('/.netlify/functions/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'submit',review:{author,product,rating:reviewStarValue,text},token:sesion.tokenHeredado()||null})});
+       const data=await res.json().catch(()=>({}));
+       if(!res.ok)throw new Error(data.error||'No se pudo enviar la reseña.');
+       if(typeof closeModal==='function')closeModal('reviewModal');
+diff --git a/cuenta.html b/cuenta.html
+index 6d2b5fc..12c5c4e 100644
+--- a/cuenta.html
++++ b/cuenta.html
+@@ -49,5 +49,6 @@
+ <form id="passwordForm" class="card full"><h2>Seguridad</h2><div class="forms" style="margin:0"><div><input id="oldPassword" type="password" autocomplete="current-password" placeholder="Contraseña actual" required></div><div><input id="newPassword" type="password" autocomplete="new-password" minlength="10" maxlength="128" placeholder="Nueva contraseña (mín. 10)" required></div></div><button class="btn primary">Cambiar contraseña</button><span id="securityMsg" class="status muted"></span></form>
+ </div>
+ </main>
++<script src="/sesion-cliente.js"></script>
+ <script src="/cuenta.js"></script>
+ </body></html>
+diff --git a/cuenta.js b/cuenta.js
+index f0ded5f..22ccf10 100644
+--- a/cuenta.js
++++ b/cuenta.js
+@@ -1,27 +1,30 @@
+ (function () {
+   'use strict';
+-  const KEY='nutretium_user',$=(id)=>document.getElementById(id);
+-  function user(){try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch{return null}}
+-  function token(){return(user()||{}).token||''}
++  const $=(id)=>document.getElementById(id);
++  // Quién es el cliente lo resuelve sesion-cliente.js. Antes esto preguntaba
++  // por el token de localStorage, que ya no existe —la sesión viaja en la
++  // cookie HttpOnly—, así que «Mi Nutretium» enseñaba «inicia sesión» a quien
++  // acababa de entrar. La cookie la manda el propio helper con credentials.
++  const sesion=window.NutretiumSesion;
+   const resetToken=new URLSearchParams(location.search).get('reset')||'';
+   const esc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+-  async function api(body,path='customer-commerce'){const r=await fetch('/.netlify/functions/'+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token()},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'No se pudo completar la operación');return d}
++  async function api(body,path='customer-commerce'){const r=await sesion.pide('/.netlify/functions/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'No se pudo completar la operación');return d}
+   async function publicApi(body,path='account-security'){const r=await fetch('/.netlify/functions/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'No se pudo completar la operación');return d}
+   function setRecoveryView(mode){$('login').hidden=false;$('app').hidden=true;$('loginDefault').classList.toggle('hidden',mode!=='default');$('resetRequestForm').classList.toggle('hidden',mode!=='request');$('resetPasswordForm').classList.toggle('hidden',mode!=='password')}
+   function items(rows,empty='Sin registros'){return(rows||[]).map(r=>`<div class="item"><b>${esc(r.subject||r.orderId||r.name||r.cadence||r.type||r.code||r.id)}</b><div class="muted">${esc(r.status||'')}</div></div>`).join('')||`<div class="muted">${esc(empty)}</div>`}
+   function consentRows(rows){return(rows||[]).map(r=>`<div class="item"><b>${esc(r.purpose||'Consentimiento')}</b><div class="muted">${esc(r.status||'')} ${r.changedAt?`· ${esc(new Date(r.changedAt).toLocaleString('es-ES'))}`:''}</div></div>`).join('')||'<div class="muted">Aún no hay cambios de consentimiento registrados.</div>'}
+   function renderOrders(rows){return(rows||[]).map(r=>{const total=Number(r.amount||0).toFixed(2),date=r.createdAt?new Date(r.createdAt).toLocaleDateString('es-ES'):'';return `<div class="item"><b>Pedido ${esc(r.order)}</b><div class="muted">${esc(r.status)} · ${total} € · ${esc(date)}</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px">${r.status==='PAID'&&r.invoiceReady?`<button class="btn invoice" data-order="${esc(r.order)}">Descargar factura</button>`:''}${r.status==='PAID'?`<button class="btn return" data-order="${esc(r.order)}">Solicitar devolución</button>`:''}</div></div>`}).join('')||'<div class="muted">Aún no hay pedidos.</div>'}
+-  async function downloadInvoice(order){const r=await fetch('/.netlify/functions/invoice-download?order='+encodeURIComponent(order),{headers:{Authorization:'Bearer '+token()}});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'No se pudo descargar la factura')}const blob=await r.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='Nutretium-'+order+'.pdf';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
++  async function downloadInvoice(order){const r=await sesion.pide('/.netlify/functions/invoice-download?order='+encodeURIComponent(order));if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'No se pudo descargar la factura')}const blob=await r.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='Nutretium-'+order+'.pdf';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+   function bindOrders(){document.querySelectorAll('.invoice').forEach(b=>b.onclick=async()=>{try{await downloadInvoice(b.dataset.order)}catch(e){alert(e.message)}});document.querySelectorAll('.return').forEach(b=>b.onclick=async()=>{const reason=prompt('Motivo de la devolución:','');if(!reason)return;try{await api({action:'request-return',orderId:b.dataset.order,reason,items:[]});await load()}catch(e){alert(e.message)}})}
+   function latestConsent(rows,purpose){const m=(rows||[]).filter(r=>r.purpose===purpose).sort((a,b)=>String(b.changedAt||b.updatedAt||'').localeCompare(String(a.changedAt||a.updatedAt||'')))[0];return m?.status==='granted'}
+-  async function load(){if(resetToken){setRecoveryView('password');return}if(!token()){setRecoveryView('default');return}try{const d=await api({action:'overview'});$('login').hidden=true;$('app').hidden=false;$('loyalty').innerHTML=d.loyalty?`<strong style="font-size:1.7rem;color:#d4af37">${Number(d.loyalty.balance||0)}</strong><div class="muted">puntos disponibles</div>`:'<div class="muted">Sin saldo todavía.</div>';$('orders').innerHTML=renderOrders(d.orders);bindOrders();$('subscriptions').innerHTML=items(d.subscriptions);$('returns').innerHTML=items(d.returns);$('tickets').innerHTML=items(d.tickets);$('carts').innerHTML=items(d.savedCarts);$('privacy').innerHTML=items(d.privacyRequests);$('reviews').innerHTML=items(d.reviews,'Aún no has enviado reseñas.');$('referrals').innerHTML=(d.referrals||[]).length?d.referrals.map(r=>`<div class="item"><div class="code">${esc(r.code)}</div><div class="muted">${Number(r.conversions||0)} conversiones · ${esc(r.status)}</div></div>`).join(''):'<div class="muted">Aún no tienes código.</div>';$('consents').innerHTML=consentRows(d.consents);$('consentAnalytics').checked=latestConsent(d.consents,'analytics');$('consentMarketing').checked=latestConsent(d.consents,'marketing');$('consentPersonalization').checked=latestConsent(d.consents,'personalization')}catch(e){if(/sesión|iniciar/i.test(e.message)){localStorage.removeItem(KEY);location.reload()}else alert(e.message)}}
++  async function load(){if(resetToken){setRecoveryView('password');return}if(!sesion.activa()){setRecoveryView('default');return}try{const d=await api({action:'overview'});$('login').hidden=true;$('app').hidden=false;$('loyalty').innerHTML=d.loyalty?`<strong style="font-size:1.7rem;color:#d4af37">${Number(d.loyalty.balance||0)}</strong><div class="muted">puntos disponibles</div>`:'<div class="muted">Sin saldo todavía.</div>';$('orders').innerHTML=renderOrders(d.orders);bindOrders();$('subscriptions').innerHTML=items(d.subscriptions);$('returns').innerHTML=items(d.returns);$('tickets').innerHTML=items(d.tickets);$('carts').innerHTML=items(d.savedCarts);$('privacy').innerHTML=items(d.privacyRequests);$('reviews').innerHTML=items(d.reviews,'Aún no has enviado reseñas.');$('referrals').innerHTML=(d.referrals||[]).length?d.referrals.map(r=>`<div class="item"><div class="code">${esc(r.code)}</div><div class="muted">${Number(r.conversions||0)} conversiones · ${esc(r.status)}</div></div>`).join(''):'<div class="muted">Aún no tienes código.</div>';$('consents').innerHTML=consentRows(d.consents);$('consentAnalytics').checked=latestConsent(d.consents,'analytics');$('consentMarketing').checked=latestConsent(d.consents,'marketing');$('consentPersonalization').checked=latestConsent(d.consents,'personalization')}catch(e){if(/sesión|iniciar/i.test(e.message)){sesion.olvida();location.reload()}else alert(e.message)}}
+   $('forgotPassword').onclick=()=>{setRecoveryView('request');$('resetEmail').focus()};
+   $('cancelResetRequest').onclick=()=>setRecoveryView('default');
+   $('resetRequestForm').onsubmit=async e=>{e.preventDefault();const msg=$('resetRequestMsg');msg.textContent='Enviando…';msg.className='status muted';try{const d=await publicApi({action:'request-reset',email:$('resetEmail').value.trim()});msg.textContent=d.message||'Si existe una cuenta con ese email, recibirás instrucciones.';msg.className='status ok';e.target.reset()}catch(err){msg.textContent=err.message;msg.className='status bad'}};
+-  $('resetPasswordForm').onsubmit=async e=>{e.preventDefault();const msg=$('resetPasswordMsg'),p=$('resetPassword').value,c=$('resetPasswordConfirm').value;msg.textContent='';if(p.length<10){msg.textContent='La nueva contraseña debe tener al menos 10 caracteres.';msg.className='status bad';return}if(p!==c){msg.textContent='Las dos contraseñas no coinciden.';msg.className='status bad';return}msg.textContent='Guardando…';msg.className='status muted';try{const d=await publicApi({action:'reset-password',resetToken,newPassword:p});localStorage.removeItem(KEY);msg.textContent=d.message||'Contraseña actualizada. Ya puedes iniciar sesión.';msg.className='status ok';e.target.reset();setTimeout(()=>{location.href='/?login=1'},1200)}catch(err){msg.textContent=err.message;msg.className='status bad'}};
++  $('resetPasswordForm').onsubmit=async e=>{e.preventDefault();const msg=$('resetPasswordMsg'),p=$('resetPassword').value,c=$('resetPasswordConfirm').value;msg.textContent='';if(p.length<10){msg.textContent='La nueva contraseña debe tener al menos 10 caracteres.';msg.className='status bad';return}if(p!==c){msg.textContent='Las dos contraseñas no coinciden.';msg.className='status bad';return}msg.textContent='Guardando…';msg.className='status muted';try{const d=await publicApi({action:'reset-password',resetToken,newPassword:p});sesion.olvida();msg.textContent=d.message||'Contraseña actualizada. Ya puedes iniciar sesión.';msg.className='status ok';e.target.reset();setTimeout(()=>{location.href='/?login=1'},1200)}catch(err){msg.textContent=err.message;msg.className='status bad'}};
+   $('supportForm').onsubmit=async e=>{e.preventDefault();try{await api({action:'support-ticket',subject:$('subject').value,message:$('message').value});e.target.reset();await load()}catch(err){alert(err.message)}};
+   $('privacyForm').onsubmit=async e=>{e.preventDefault();try{await api({action:'privacy-request',type:$('privacyType').value,details:$('privacyDetails').value});e.target.reset();await load()}catch(err){alert(err.message)}};
+-  $('passwordForm').onsubmit=async e=>{e.preventDefault();$('securityMsg').textContent='';try{const d=await api({action:'change-password',currentPassword:$('oldPassword').value,newPassword:$('newPassword').value},'account-security');$('securityMsg').textContent=d.message||'Contraseña actualizada. Vuelve a iniciar sesión.';$('securityMsg').className='status ok';e.target.reset();if(d.reauthRequired){localStorage.removeItem(KEY);setTimeout(()=>location.reload(),700)}}catch(err){$('securityMsg').textContent=err.message;$('securityMsg').className='status bad'}};
++  $('passwordForm').onsubmit=async e=>{e.preventDefault();$('securityMsg').textContent='';try{const d=await api({action:'change-password',currentPassword:$('oldPassword').value,newPassword:$('newPassword').value},'account-security');$('securityMsg').textContent=d.message||'Contraseña actualizada. Vuelve a iniciar sesión.';$('securityMsg').className='status ok';e.target.reset();if(d.reauthRequired){sesion.olvida();setTimeout(()=>location.reload(),700)}}catch(err){$('securityMsg').textContent=err.message;$('securityMsg').className='status bad'}};
+   $('referralCreate').onclick=async()=>{try{await api({action:'referral-create'});await load()}catch(err){alert(err.message)}};
+   $('reviewForm').onsubmit=async e=>{e.preventDefault();$('reviewMsg').textContent='';try{await api({action:'submit-review',orderId:$('reviewOrder').value.trim(),productId:Number($('reviewProduct').value),rating:Number($('reviewRating').value),title:$('reviewTitle').value,body:$('reviewBody').value});$('reviewMsg').textContent='Reseña enviada a moderación.';$('reviewMsg').className='status ok';e.target.reset();await load()}catch(err){$('reviewMsg').textContent=err.message;$('reviewMsg').className='status bad'}};
+   $('giftCardForm').onsubmit=async e=>{e.preventDefault();$('giftCardResult').textContent='';try{const d=await api({action:'gift-card-balance',code:$('giftCardCode').value});const g=d.giftCard;$('giftCardResult').innerHTML=`Estado: <b>${esc(g.status)}</b> · Saldo: <b>${(Number(g.balanceCents||0)/100).toFixed(2)} ${esc(g.currency||'EUR')}</b>`}catch(err){$('giftCardResult').textContent=err.message}};
+diff --git a/enterprise-storefront.js b/enterprise-storefront.js
+index 5e276c3..04fea11 100644
+--- a/enterprise-storefront.js
++++ b/enterprise-storefront.js
+@@ -1,11 +1,11 @@
+ /* Nutretium enterprise storefront layer — loaded after app.js */
+-(function(){'use strict';let promoCode='',giftCardCode='',referralCode='',usePoints=0,lastQuote=null;const euro=v=>new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR'}).format(Number(v||0));const cartItems=()=>Array.from(cart.values()).map(item=>({id:item.product.id,code:item.product.code,qty:item.quantity,variantSku:item.customization?.variantSku||null}));
+-function fulfillment(){return document.getElementById('ntFulfillment')?.value==='pickup'?'pickup':'shipping'}function guestPayload(){if(currentUser?.token)return null;const v=id=>(document.getElementById(id)?.value||'').trim();return{email:v('ntGuestEmail'),name:v('ntGuestName'),surname:v('ntGuestSurname'),phone:v('ntGuestPhone'),direccion:{calle:v('ntGuestStreet'),piso:v('ntGuestFloor'),cp:v('ntGuestCp'),localidad:v('ntGuestCity'),provincia:v('ntGuestProvince'),pais:'España'}}}
++(function(){'use strict';/* Tener sesión ya no es tener token: el token vive en la cookie HttpOnly y el navegador no lo ve. Preguntar por el token del perfil mandaba al formulario de invitado —y al checkout como invitado— a clientes identificados. Quien manda es currentUser (el perfil) y, para el token heredado, sesion-cliente.js. */const sesion=window.NutretiumSesion;let promoCode='',giftCardCode='',referralCode='',usePoints=0,lastQuote=null;const euro=v=>new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR'}).format(Number(v||0));const cartItems=()=>Array.from(cart.values()).map(item=>({id:item.product.id,code:item.product.code,qty:item.quantity,variantSku:item.customization?.variantSku||null}));
++function fulfillment(){return document.getElementById('ntFulfillment')?.value==='pickup'?'pickup':'shipping'}function guestPayload(){if(currentUser)return null;const v=id=>(document.getElementById(id)?.value||'').trim();return{email:v('ntGuestEmail'),name:v('ntGuestName'),surname:v('ntGuestSurname'),phone:v('ntGuestPhone'),direccion:{calle:v('ntGuestStreet'),piso:v('ntGuestFloor'),cp:v('ntGuestCp'),localidad:v('ntGuestCity'),provincia:v('ntGuestProvince'),pais:'España'}}}
+ function benefitPayload(){promoCode=(document.getElementById('ntPromoCode')?.value||'').trim();giftCardCode=(document.getElementById('ntGiftCard')?.value||'').trim();referralCode=(document.getElementById('ntReferral')?.value||'').trim();usePoints=Math.max(0,Math.floor(Number(document.getElementById('ntUsePoints')?.value||0)));return{promotionCode:promoCode,giftCardCode,referralCode,usePoints}}
+ function injectTerms(){const button=document.getElementById('redsysBtn');if(!button||document.getElementById('ntTermsAccepted'))return;const label=document.createElement('label');label.style.cssText='display:flex;gap:8px;align-items:flex-start;margin:10px 0;color:#aaa;font-size:11px;line-height:1.45';label.innerHTML='<input id="ntTermsAccepted" type="checkbox" style="margin-top:2px;accent-color:#d4af37"><span>He leído y acepto las <a href="/condiciones" target="_blank" rel="noopener" style="color:#d4af37">condiciones de contratación</a> y la <a href="/privacidad" target="_blank" rel="noopener" style="color:#d4af37">política de privacidad</a>.</span>';button.parentElement.insertBefore(label,button)}
+ function injectCheckout(){const button=document.getElementById('redsysBtn');if(!button||document.getElementById('ntCheckoutBenefits'))return;const box=document.createElement('div');box.id='ntCheckoutBenefits';box.style.cssText='margin:12px 0;padding:12px;border:1px solid #292929;border-radius:12px;background:#0e0e0e;display:grid;gap:8px';box.innerHTML='<label style="font-size:11px;color:#9b958b">Entrega<select id="ntFulfillment" style="width:100%;background:#080808;color:#fff;border:1px solid #333;border-radius:8px;padding:9px;margin-top:4px"><option value="shipping">Envío a domicilio</option><option value="pickup">Recogida gratuita en Nutretium Santander</option></select></label><div id="ntPickupInfo" style="display:none;font-size:11px;color:#d4af37">Recogida: C/ La Albericia 1, Santander. Te avisaremos cuando el pedido esté preparado.</div><div id="ntGuestCheckout" style="display:none;border-bottom:1px solid #292929;padding-bottom:10px"><div style="font-size:11px;color:#d4af37;font-weight:800;margin-bottom:6px">COMPRAR SIN CREAR CUENTA</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><input id="ntGuestName" placeholder="Nombre *"><input id="ntGuestSurname" placeholder="Apellidos"><input id="ntGuestEmail" type="email" placeholder="Email *"><input id="ntGuestPhone" placeholder="Teléfono"><div id="ntGuestAddress" style="display:contents"><input id="ntGuestStreet" style="grid-column:1/-1" placeholder="Calle y número *"><input id="ntGuestFloor" placeholder="Piso / puerta"><input id="ntGuestCp" inputmode="numeric" maxlength="5" placeholder="CP *"><input id="ntGuestCity" placeholder="Localidad *"><input id="ntGuestProvince" placeholder="Provincia *"></div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:7px"><label style="font-size:11px;color:#9b958b">Cupón<input id="ntPromoCode" maxlength="40" autocomplete="off" placeholder="Código promocional"></label><label style="font-size:11px;color:#9b958b">Tarjeta regalo<input id="ntGiftCard" maxlength="80" autocomplete="off" placeholder="Código gift card"></label><label id="ntPointsWrap" style="font-size:11px;color:#9b958b">Puntos a usar<input id="ntUsePoints" type="number" min="0" step="1" value="0"></label><label style="font-size:11px;color:#9b958b">Código de referido<input id="ntReferral" maxlength="40" autocomplete="off" placeholder="Código"></label></div><button type="button" id="ntApplyPromo" style="border:1px solid #d4af37;background:#d4af37;color:#080808;border-radius:8px;padding:9px 11px;font-weight:800">Calcular total</button><div id="ntQuote" style="font-size:11px;color:#aaa">Todos los descuentos, puntos, saldo y gastos se validan en servidor.</div>';box.querySelectorAll('input').forEach(i=>i.style.cssText+=';width:100%;background:#080808;color:white;border:1px solid #333;border-radius:8px;padding:9px;margin-top:4px');button.parentElement.insertBefore(box,button);document.getElementById('ntApplyPromo').onclick=quote;document.getElementById('ntFulfillment').onchange=()=>{refreshGuestMode();quote().catch(()=>{})};refreshGuestMode()}
+-function refreshGuestMode(){const guest=document.getElementById('ntGuestCheckout'),points=document.getElementById('ntPointsWrap'),addr=document.getElementById('ntGuestAddress'),pickup=document.getElementById('ntPickupInfo');if(guest)guest.style.display=currentUser?.token?'none':'block';if(points)points.style.display=currentUser?.token?'block':'none';if(addr)addr.style.display=fulfillment()==='pickup'?'none':'contents';if(pickup)pickup.style.display=fulfillment()==='pickup'?'block':'none'}
+-async function request(action){const response=await fetch('/.netlify/functions/checkout-enterprise-secure',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,fulfillment:fulfillment(),items:cartItems(),token:currentUser?.token||null,guest:guestPayload(),termsAccepted:action==='pay'&&document.getElementById('ntTermsAccepted')?.checked===true,termsVersion:'2026-09-20',...benefitPayload()})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'No se pudo calcular el pedido.');return data}
++function refreshGuestMode(){const guest=document.getElementById('ntGuestCheckout'),points=document.getElementById('ntPointsWrap'),addr=document.getElementById('ntGuestAddress'),pickup=document.getElementById('ntPickupInfo');if(guest)guest.style.display=currentUser?'none':'block';if(points)points.style.display=currentUser?'block':'none';if(addr)addr.style.display=fulfillment()==='pickup'?'none':'contents';if(pickup)pickup.style.display=fulfillment()==='pickup'?'block':'none'}
++async function request(action){const response=await sesion.pide('/.netlify/functions/checkout-enterprise-secure',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,fulfillment:fulfillment(),items:cartItems(),token:sesion.tokenHeredado()||null,guest:guestPayload(),termsAccepted:action==='pay'&&document.getElementById('ntTermsAccepted')?.checked===true,termsVersion:'2026-09-20',...benefitPayload()})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'No se pudo calcular el pedido.');return data}
+ async function quote(){try{const data=await request('quote');lastQuote=data.quote;const b=data.benefits||{},detail=[b.b2b?`Tarifa B2B -${euro(data.quote.b2bDiscount||0)}`:'',b.giftCard?`Gift card -${euro((b.giftCard.useCents||0)/100)}`:'',b.loyalty?`${b.loyalty.points} puntos -${euro((b.loyalty.valueCents||0)/100)}`:'',b.referral?`Referido -${euro((b.referral.discountCents||0)/100)}`:''].filter(Boolean).join(' · '),delivery=data.quote.fulfillment==='pickup'?'Recogida gratis':'Envío '+euro(data.quote.shipping);document.getElementById('ntQuote').innerHTML=`Subtotal ${euro(data.quote.retailSubtotal??data.quote.subtotal)} · Descuento ${euro(data.quote.discount)} · ${delivery} · <b style="color:#d4af37">Total ${euro(data.quote.total)}</b>${detail?`<br>${detail}`:''}`;}catch(error){lastQuote=null;document.getElementById('ntQuote').textContent=error.message}}
+ async function pay(){if(getCartTotal()<=0)return;if(!document.getElementById('ntTermsAccepted')?.checked){showToast('Acepta las condiciones de contratación antes de pagar.');return}const button=document.getElementById('redsysBtn'),label=document.getElementById('redsysBtnText');button.disabled=true;if(label)label.innerHTML='<span class="spinner"></span> Procesando...';try{const data=await request('pay');if(data.order)localStorage.setItem('nutretium_last_order',data.order);if(data.guestAccessToken){localStorage.setItem('nutretium_guest_order_token',data.guestAccessToken);localStorage.setItem('nutretium_guest_order_id',data.order)}if(data.completed){showToast('Pedido confirmado.');cart.clear();updateCartUI();setTimeout(()=>{location.href='/pago-ok?order='+encodeURIComponent(data.order)},350);return}if(!data.Ds_SignatureVersion||!data.Ds_MerchantParameters||!data.Ds_Signature||!data.redsysUrl)throw new Error('Respuesta inválida del servidor de pagos.');const form=document.getElementById('redsysForm');form.action=data.redsysUrl;document.getElementById('rf_signatureVersion').value=data.Ds_SignatureVersion;document.getElementById('rf_merchantParameters').value=data.Ds_MerchantParameters;document.getElementById('rf_signature').value=data.Ds_Signature;if(typeof vigilaEnvioAlTpv==='function')vigilaEnvioAlTpv();form.submit()}catch(error){console.error('[Enterprise checkout]',error);showToast('Error: '+error.message);if(typeof restauraBotonPago==='function')restauraBotonPago();else{button.disabled=false;if(label)label.textContent='Pagar con Redsys'}}}
+ function safeUrl(value){try{const url=new URL(value,location.origin);return url.origin===location.origin||['https:','http:'].includes(url.protocol)?url.href:'#'}catch{return'#'}}function renderAnnouncement(block){if(!block||document.getElementById('ntEnterpriseAnnouncement'))return;const bar=document.createElement(block.url?'a':'div');bar.id='ntEnterpriseAnnouncement';if(block.url)bar.href=safeUrl(block.url);bar.style.cssText='display:block;background:#d4af37;color:#080808;text-align:center;padding:8px 14px;font:800 12px/1.35 Inter,system-ui,sans-serif;text-decoration:none;position:relative;z-index:100';bar.textContent=block.title||block.body||'';document.body.insertBefore(bar,document.body.firstChild)}async function loadPublicPlatform(){try{const subject=currentUser?.email||localStorage.getItem('nt_subject')||'anonymous',[cr,fr]=await Promise.all([fetch('/.netlify/functions/public-content'),fetch('/.netlify/functions/public-config?subject='+encodeURIComponent(subject))]),content=await cr.json().catch(()=>({blocks:[]})),config=await fr.json().catch(()=>({flags:{},experiments:{}})),announcement=(content.blocks||[]).find(block=>block.type==='announcement'||block.position==='top');if(announcement)renderAnnouncement(announcement);window.NTPlatformConfig=Object.freeze({flags:config.flags||{},experiments:config.experiments||{},content:content.blocks||[]});window.dispatchEvent(new CustomEvent('nutretium:platform-ready',{detail:window.NTPlatformConfig}))}catch(error){console.warn('[Enterprise storefront] Configuración pública no disponible:',error.message)}}window.addEventListener('storage',refreshGuestMode);window.NTCheckout={quote,getPromotion:()=>promoCode,getLastQuote:()=>lastQuote,refreshGuestMode};window.initiateRedsysPayment=pay;try{initiateRedsysPayment=pay}catch(_){}function init(){injectCheckout();injectTerms();loadPublicPlatform()}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();})();
+diff --git a/index.html b/index.html
+index 183b047..0ae7314 100644
+--- a/index.html
++++ b/index.html
+@@ -2123,6 +2123,7 @@
+     </div>
+   </div>
+ 
++  <script src="/sesion-cliente.js"></script>
+   <script src="products-data.js"></script>
+   <script src="app.js"></script>
+   <script src="trust-fixes.js"></script>
+diff --git a/netlify/functions/analytics-ingest.js b/netlify/functions/analytics-ingest.js
+index 074bd29..c897c35 100644
+--- a/netlify/functions/analytics-ingest.js
++++ b/netlify/functions/analytics-ingest.js
+@@ -1,14 +1,16 @@
+ 'use strict';
+ const crypto=require('crypto');
+ const enterprise=require('../lib/enterprise-store');
+-const {tokenFromHeader}=require('../lib/jwt');
+-const {verifyUserToken}=require('../lib/session');
++const sesionCliente=require('../lib/session');
++const {verifyUserToken}=sesionCliente;
+ const {cabecerasCORS}=require('../lib/cors');
+ const CORS=cabecerasCORS('POST, OPTIONS');
+ const ALLOWED=new Set(['nt_product_view','nt_search_select','nt_add_to_cart','nt_wishlist_add','nt_wishlist_remove','nt_compare_add','nt_compare_remove','nt_compare_open','nt_catalog_filter','nt_catalog_sort','nt_category_view','nt_begin_checkout','nt_purchase','nt_search','nt_remove_from_cart']);
+ const response=(s,b)=>({statusCode:s,headers:{...CORS,'Cache-Control':'no-store'},body:JSON.stringify(b)});
+ async function authenticatedConsent(event){
+- const token=tokenFromHeader(event.headers||{});if(!token)return null;
++ // La sesión llega por cookie HttpOnly: mirar solo la cabecera dejaba sin
++ // atribuir los eventos de todo cliente identificado.
++ const token=sesionCliente.customerEventToken(event);if(!token)return null;
+  let verified;try{verified=await verifyUserToken(token,{requireUser:true})}catch{return false}
+  const id=`${verified.email}:analytics`,record=await enterprise.get('consent-settings',id).catch(()=>null);
+  return record?.status==='granted'?verified.email:false;
+diff --git a/netlify/functions/checkout-enterprise.js b/netlify/functions/checkout-enterprise.js
+index 6667c07..db71cd9 100644
+--- a/netlify/functions/checkout-enterprise.js
++++ b/netlify/functions/checkout-enterprise.js
+@@ -1,7 +1,7 @@
+ 'use strict';
+ const core=require('../lib/checkout-enterprise-core');
+ const paymentConfig=require('../lib/payment-config');
+-const {verifyUserToken}=require('../lib/session');
++const session=require('../lib/session');const {verifyUserToken}=session;
+ const {consume}=require('../lib/rate-limit');
+ function response(statusCode,body,headers={}){return{statusCode,headers:{'Content-Type':'application/json','Cache-Control':'no-store',...headers},body:JSON.stringify(body)}}
+ function publicProductionHost(host){const h=String(host||'').toLowerCase().split(':')[0];return h==='nutretium.com'||h==='www.nutretium.com'}
+@@ -12,7 +12,11 @@ exports.handler=async function(event){
+  const rate=await consume({scope:'checkout-enterprise',event,limit:8,windowMs:10*60*1000}).catch(()=>({allowed:false,degraded:true,retryAfter:60}));
+  if(!rate.allowed)return response(rate.degraded?503:429,{error:rate.degraded?'El control de seguridad del checkout no está disponible. Reintenta en un minuto.':'Demasiados intentos de checkout seguidos. Espera unos minutos antes de volver a intentarlo.'},{'Retry-After':String(rate.retryAfter||60)});
+  let body;try{body=JSON.parse(event.body||'{}')}catch{return response(400,{error:'JSON no válido.'})}
+- if(body.token){try{await verifyUserToken(body.token,{requireUser:true})}catch{return response(401,{error:'La sesión no es válida, ha sido revocada o ha caducado. Inicia sesión de nuevo.'})}}
++ // La sesión puede llegar en la cookie HttpOnly, no solo en el cuerpo: se
++ // comprueba la misma que usará el núcleo, para que una sesión revocada no
++ // pase por venir por cookie.
++ const tokenCliente=session.customerEventToken(event,body.token);
++ if(tokenCliente){try{await verifyUserToken(tokenCliente,{requireUser:true})}catch{return response(401,{error:'La sesión no es válida, ha sido revocada o ha caducado. Inicia sesión de nuevo.'})}}
+  const payment=await paymentConfig.resolve().catch(()=>null);
+  if(body.action==='pay'){
+   const host=event.headers?.['x-forwarded-host']||event.headers?.host||'';
+diff --git a/netlify/functions/reviews.js b/netlify/functions/reviews.js
+index 3e55682..0ae7c5d 100644
+--- a/netlify/functions/reviews.js
++++ b/netlify/functions/reviews.js
+@@ -6,7 +6,7 @@
+ const crypto=require('crypto');
+ const {cabecerasCORS}=require('../lib/cors');
+ const {getBlobStore}=require('../lib/blob-store');
+-const {verifyUserToken}=require('../lib/session');
++const sesionCliente=require('../lib/session');const {verifyUserToken}=sesionCliente;
+ const CORS=cabecerasCORS('GET, POST, OPTIONS');
+ const clean=(v,n)=>String(v||'').trim().slice(0,n);
+ async function getStore(){return getBlobStore('reviews')}
+@@ -28,7 +28,7 @@ exports.handler=async function(event){
+   if(body.action!=='submit')return{statusCode:400,headers:CORS,body:JSON.stringify({error:'Acción no reconocida.'})};
+   const review=body.review||{};if(!review.author||!review.product||!review.rating||!review.text)return{statusCode:400,headers:CORS,body:JSON.stringify({error:'Faltan campos obligatorios.'})};
+   const rating=Math.round(Number(review.rating));if(!Number.isFinite(rating)||rating<1||rating>5)return{statusCode:400,headers:CORS,body:JSON.stringify({error:'Valoración inválida.'})};
+-  const product=clean(review.product,100),verified=await verifiedPurchase(body.token,product);
++  const product=clean(review.product,100),verified=await verifiedPurchase(sesionCliente.customerEventToken(event,body.token),product);
+   const newReview={id:crypto.randomUUID(),author:clean(review.author,60),product,rating,text:clean(review.text,500),date:new Date().toISOString().slice(0,10),approved:false,verifiedPurchase:verified};
+   const reviews=await readReviews();reviews.unshift(newReview);await writeReviews(reviews);
+   return{statusCode:201,headers:CORS,body:JSON.stringify({success:true,pendingModeration:true,verifiedPurchase:verified,message:'Gracias. Tu reseña se publicará tras ser revisada.'})};
+diff --git a/netlify/functions/staff-login.js b/netlify/functions/staff-login.js
+index d00301f..c6bf006 100644
+--- a/netlify/functions/staff-login.js
++++ b/netlify/functions/staff-login.js
+@@ -93,7 +93,12 @@ exports.handler = async event => {
+   const verification = user ? verifyPasswordRecord(password, user.passwordHash) : { ok:false, needsRehash:false };
+   if (!user || role === 'client' || !verification.ok) {
+     const passwordGate=await checkThrottle(event,email,'password');
+-    if(!passwordGate.ok)return response(401,{error:'Credenciales incorrectas.'});
++    // Al agotar los intentos se responde 429 con Retry-After, como hacen el
++    // login de cliente (auth.js) y el resto de endpoints con freno. Antes esta
++    // rama devolvía el mismo 401 que una contraseña incorrecta: el contador se
++    // consumía, pero bloquear y fallar eran indistinguibles, así que el freno
++    // del acceso interno —el más privilegiado— no frenaba nada.
++    if(!passwordGate.ok){const seconds=passwordGate.retryAfter;return response(429,{error:`Demasiados intentos incorrectos. Prueba otra vez dentro de ${Math.max(1,Math.ceil(seconds/60))} minutos.`},{'Retry-After':String(seconds)})}
+     return response(401, { error: 'Credenciales incorrectas.' });
+   }
+   await clearAttempts(event,email,'password');
+@@ -110,7 +115,8 @@ exports.handler = async event => {
+     if(user?.mfaSelfSetupPendingAt&&!mfaCode)return response(401,mfaSetupBody(email,secret));
+     if (!mfaCode) return response(401, {error: 'Introduce el código de 6 dígitos de tu aplicación de autenticación.',mfaRequired: true});
+     const mfaGate=await checkThrottle(event,email,'mfa');
+-    if(!mfaGate.ok)return response(401,{error:'Código MFA incorrecto.',mfaRequired:true});
++    // Igual que arriba: bloqueado no puede parecerse a código incorrecto.
++    if(!mfaGate.ok){const seconds=mfaGate.retryAfter;return response(429,{error:`Demasiados códigos incorrectos. Prueba otra vez dentro de ${Math.max(1,Math.ceil(seconds/60))} minutos.`,mfaRequired:true},{'Retry-After':String(seconds)})}
+     if (!verifyTotp(secret, mfaCode)) return response(401, { error: 'Código MFA incorrecto.', mfaRequired: true });
+     const once=await mfaReplay.consume(email,mfaCode);
+     if(!once.ok)return response(once.code==='MFA_REPLAY_GUARD_UNAVAILABLE'?503:409,{error:once.error,code:once.code,mfaRequired:true});
+diff --git a/netlify/lib/checkout-enterprise-core.js b/netlify/lib/checkout-enterprise-core.js
+index 56b8df2..37ddf3b 100644
+--- a/netlify/lib/checkout-enterprise-core.js
++++ b/netlify/lib/checkout-enterprise-core.js
+@@ -1,5 +1,5 @@
+ 'use strict';
+-const crypto=require('crypto');const {cabecerasCORS}=require('../lib/cors');const {verifyJWT}=require('../lib/jwt');const {getBlobStore}=require('../lib/blob-store');const {valorarCarrito}=require('../lib/catalogo');const usuarios=require('../lib/usuarios');const direccion=require('../lib/direccion');const enterprise=require('../lib/enterprise-store');const compliance=require('../lib/compliance-gate');const {calculateQuote}=require('../lib/checkout-enterprise');const fraud=require('../lib/fraud');const effects=require('../lib/order-effects');const finalize=require('../lib/order-finalize');const paymentConfig=require('../lib/payment-config');
++const crypto=require('crypto');const {cabecerasCORS}=require('../lib/cors');const {verifyJWT}=require('../lib/jwt');const sesionCliente=require('../lib/session');const {getBlobStore}=require('../lib/blob-store');const {valorarCarrito}=require('../lib/catalogo');const usuarios=require('../lib/usuarios');const direccion=require('../lib/direccion');const enterprise=require('../lib/enterprise-store');const compliance=require('../lib/compliance-gate');const {calculateQuote}=require('../lib/checkout-enterprise');const fraud=require('../lib/fraud');const effects=require('../lib/order-effects');const finalize=require('../lib/order-finalize');const paymentConfig=require('../lib/payment-config');
+ const CORS=cabecerasCORS('POST, OPTIONS'),URLS={test:'https://sis-t.redsys.es:25443/sis/realizarPago',production:'https://sis.redsys.es/sis/realizarPago'},ALFABETO='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',EMAIL=/^[^\s@]+@[^\s@]+\.[^\s@]+$/,PICKUP_ADDRESS={calle:'C/ La Albericia 1',piso:'',cp:'39012',localidad:'Santander',provincia:'Cantabria',pais:'España'},response=(statusCode,body)=>({statusCode,headers:{...CORS,'Cache-Control':'no-store'},body:JSON.stringify(body)});
+ function orderNumber(){const d=new Date(),prefix=String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');let suffix='',limit=256-(256%ALFABETO.length);while(suffix.length<8)for(const byte of crypto.randomBytes(16)){if(byte>=limit)continue;suffix+=ALFABETO[byte%ALFABETO.length];if(suffix.length===8)break;}return prefix+suffix;}function guestToken(){return crypto.randomBytes(32).toString('base64url')}function hashGuestToken(v){return crypto.createHash('sha256').update(String(v||'')).digest('hex')}
+ function signingKey(secret,order){const key=Buffer.from(secret,'base64'),iv=Buffer.alloc(8,0),cipher=crypto.createCipheriv('des-ede3-cbc',key,iv);cipher.setAutoPadding(false);const buffer=Buffer.alloc(Math.ceil(order.length/8)*8,0);buffer.write(order,'utf8');return Buffer.concat([cipher.update(buffer),cipher.final()]);}function signature(params,key){return crypto.createHmac('sha256',key).update(params).digest('base64');}
+@@ -32,5 +32,5 @@ async function taxBreakdown(items,merchandiseCents,shippingCents){
+ async function buyer(token,guest,fulfillment='shipping'){const pickup=fulfillment==='pickup';if(token){let email;try{email=verifyJWT(token).email;}catch{throw Object.assign(new Error('La sesión no es válida. Inicia sesión de nuevo o continúa como invitado.'),{statusCode:401,motivo:'sesion-invalida'});}const user=await usuarios.lee(email);if(!user)throw Object.assign(new Error('No encontramos tu cuenta.'),{statusCode:401});if(pickup)return{email,user,envio:PICKUP_ADDRESS,guest:false,fulfillment:'pickup'};const envio=direccion.normaliza(user.direccion),problem=direccion.revisa(envio);if(problem)throw Object.assign(new Error('Antes de pagar tienes que completar tu dirección de envío. '+problem),{statusCode:422,motivo:'sin-direccion'});return{email,user,envio,guest:false,fulfillment:'shipping'};}const g=guest&&typeof guest==='object'?guest:{},email=String(g.email||'').trim().toLowerCase(),name=String(g.name||'').trim(),surname=String(g.surname||'').trim(),phone=String(g.phone||'').trim();if(!EMAIL.test(email)||!name)throw Object.assign(new Error('Para comprar como invitado indica nombre y un email válido.'),{statusCode:422,motivo:'guest-incomplete'});if([name,surname,phone].some(v=>v.length>120||/[<>]/.test(v)))throw Object.assign(new Error('Los datos del invitado contienen caracteres o longitudes no válidos.'),{statusCode:400});if(pickup)return{email,user:{name,surname,phone},envio:PICKUP_ADDRESS,guest:true,fulfillment:'pickup'};const envio=direccion.normaliza(g.direccion),problem=direccion.revisa(envio);if(problem)throw Object.assign(new Error(problem),{statusCode:422,motivo:'guest-address'});return{email,user:{name,surname,phone},envio,guest:true,fulfillment:'shipping'};}
+ async function buildQuote(body,who){const baseRetail=valorarCarrito(body.items);if(!baseRetail.ok)throw Object.assign(new Error(baseRetail.errores[0]),{statusCode:400,details:baseRetail.errores});const retail=await applyVariants(baseRetail,body.items);const gate=await compliance.checkItems(retail.lineas);if(!gate.ok)throw Object.assign(new Error('Uno o más productos están bloqueados por Food Safety & EU Market Access y no pueden venderse.'),{statusCode:409,motivo:'compliance-block',details:gate.blocked});const b2b=who.guest?{active:false,totalCents:null,lines:retail.lineas}:await effects.b2bPrice(who.email,retail.lineas),cart={...retail,lineas:b2b.active?b2b.lines:retail.lineas,totalCents:b2b.active?b2b.totalCents:retail.totalCents},promotion=await loadPromotion(body.promotionCode),quote=calculateQuote({subtotalCents:cart.totalCents,promotion,shippingRules:await shippingRules(),address:who.envio,segment:b2b.active?'b2b':'retail',items:cart.lineas,fulfillment:who.fulfillment});if(!quote.ok)throw Object.assign(new Error(quote.error),{statusCode:400});const benefits=await effects.quoteBenefits({email:who.email,subtotalAfterPromoCents:quote.totalCents,giftCardCode:body.giftCardCode,usePoints:who.guest?0:body.usePoints,referralCode:body.referralCode});benefits.b2b=b2b.active?{account:b2b.account,priceList:b2b.priceList,missing:b2b.missing}:null;const finalCents=Math.max(0,quote.totalCents-benefits.extraDiscountCents),tax=await taxBreakdown(cart.lineas,Math.max(0,finalCents-quote.shippingCents),quote.shippingCents);return{cart,promotion,quote:{...quote,retailSubtotalCents:retail.totalCents,b2bDiscountCents:Math.max(0,retail.totalCents-cart.totalCents),benefitDiscountCents:benefits.extraDiscountCents,totalCents:finalCents,taxBreakdown:tax},benefits};}
+ async function persistOrder({order,who,cart,quote,benefits,risk,reservations,status='PENDING',guestAccessHash=null,termsVersion=null}){const orders=getBlobStore('redsys-orders'),index=getBlobStore('user-orders');if(!orders||!index)throw Object.assign(new Error('Almacenamiento de pedidos no disponible. No se ha iniciado ningún cobro.'),{statusCode:503});const record={order,email:who.email,guest:who.guest===true,guestAccessHash:who.guest?guestAccessHash:null,fulfillment:quote.fulfillment,pickup:quote.pickup,envio:who.envio,cliente:[who.user.name,who.user.surname].filter(Boolean).join(' '),telefono:who.user.phone||'',items:cart.lineas,retailSubtotal:quote.retailSubtotalCents/100,subtotal:quote.subtotalCents/100,b2bDiscount:quote.b2bDiscountCents/100,discount:(quote.discountCents+quote.benefitDiscountCents+quote.b2bDiscountCents)/100,promotionDiscount:quote.discountCents/100,benefitDiscount:quote.benefitDiscountCents/100,shipping:quote.shippingCents/100,amount:quote.totalCents/100,currency:'978',promotion:quote.promotion,shippingRule:quote.shippingRule,gift:quote.gift,benefits:{...benefits,settings:benefits.settings||{}},taxBreakdown:Array.isArray(quote.taxBreakdown)?quote.taxBreakdown:[],risk,reservations,legalAcceptance:{termsVersion:String(termsVersion||''),acceptedAt:new Date().toISOString()},complianceCheckedAt:new Date().toISOString(),status,createdAt:new Date().toISOString()};await orders.setJSON(order,record);if(!who.guest){const previous=(await index.get(who.email,{type:'json'}).catch(()=>null))||[];await index.setJSON(who.email,[order,...previous.filter(v=>v!==order)].slice(0,100));}return record;}
+-exports.handler=async function(event,context={}){if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};if(event.httpMethod!=='POST')return response(405,{error:'Method Not Allowed'});let body;try{body=JSON.parse(event.body||'{}');}catch{return response(400,{error:'JSON no válido.'});}let reservations=[],order='';try{const fulfillment=body.fulfillment==='pickup'?'pickup':'shipping',who=await buyer(body.token,body.guest,fulfillment),{cart,quote,benefits}=await buildQuote({...body,fulfillment},who);if(body.action==='quote')return response(200,{quote:{...quote,retailSubtotal:quote.retailSubtotalCents/100,subtotal:quote.subtotalCents/100,b2bDiscount:quote.b2bDiscountCents/100,discount:(quote.discountCents+quote.benefitDiscountCents+quote.b2bDiscountCents)/100,promotionDiscount:quote.discountCents/100,benefitDiscount:quote.benefitDiscountCents/100,shipping:quote.shippingCents/100,total:quote.totalCents/100},benefits:{giftCard:benefits.giftCard,loyalty:benefits.loyalty,referral:benefits.referral,b2b:benefits.b2b}});if(body.action!=='pay')return response(400,{error:'Acción no reconocida.'});if(body.termsAccepted!==true||String(body.termsVersion||'')!=='2026-09-20')return response(422,{error:'Debes aceptar las condiciones de contratación vigentes antes de pagar.',motivo:'terms-required'});const risk=await fraud.check({email:who.email,totalCents:quote.totalCents,items:cart.lineas});if(risk.decision!=='allow')return response(409,{error:'El pedido requiere revisión antes de poder cobrarse.',motivo:'fraud-review',risk:{decision:risk.decision,reasons:risk.reasons}});order=orderNumber();reservations=await effects.reserveOrder(order,cart.lineas);benefits.paidCents=quote.totalCents;const rawGuest=who.guest?guestToken():null,record=await persistOrder({order,who,cart,quote,benefits,risk,reservations,status:quote.totalCents===0?'PAID':'PENDING',guestAccessHash:rawGuest?hashGuestToken(rawGuest):null,termsVersion:body.termsVersion});if(quote.totalCents===0){await finalize.finalizePaid(record,{source:'internal-balance',sendCustomerEmail:true});return response(200,{completed:true,order,guestAccessToken:rawGuest,quote:{subtotal:quote.subtotalCents/100,discount:(quote.discountCents+quote.benefitDiscountCents+quote.b2bDiscountCents)/100,shipping:quote.shippingCents/100,total:0,fulfillment:quote.fulfillment}});}const payment=context.payment||await paymentConfig.resolve();const secret=payment?.secretKey,merchant=payment?.merchantCode,terminal=payment?.terminal||'1',env=payment?.environment||'test';if(!payment?.enabled||!secret||!merchant)throw Object.assign(new Error('Pasarela de pago no configurada.'),{statusCode:503});if(payment.managed&&env==='production'&&payment.dedicatedVaultKey!==true)throw Object.assign(new Error('La bóveda de pagos de producción no tiene una clave dedicada configurada.'),{statusCode:503});const host=event.headers['x-forwarded-host']||event.headers.host||'',base=host?`https://${host}`:'',mp={Ds_Merchant_Amount:String(quote.totalCents),Ds_Merchant_Order:order,Ds_Merchant_MerchantCode:merchant,Ds_Merchant_Currency:'978',Ds_Merchant_TransactionType:'0',Ds_Merchant_Terminal:terminal,Ds_Merchant_MerchantURL:payment.merchantUrl||`${base}/.netlify/functions/redsys-notify`,Ds_Merchant_UrlOK:payment.urlOk||`${base}/.netlify/functions/pago-return?result=ok`,Ds_Merchant_UrlKO:payment.urlKo||`${base}/.netlify/functions/pago-return?result=ko`},params=Buffer.from(JSON.stringify(mp)).toString('base64'),sig=signature(params,signingKey(secret,order));return response(200,{Ds_SignatureVersion:'HMAC_SHA256_V1',Ds_MerchantParameters:params,Ds_Signature:sig,redsysUrl:URLS[env]||URLS.test,order,guestAccessToken:rawGuest,quote:{subtotal:quote.subtotalCents/100,discount:(quote.discountCents+quote.benefitDiscountCents+quote.b2bDiscountCents)/100,shipping:quote.shippingCents/100,total:quote.totalCents/100,fulfillment:quote.fulfillment}});}catch(err){if(order&&reservations.length)await effects.releaseReservations(order,reservations).catch(()=>{});return response(err.statusCode||(err.code==='CONFLICT'?409:500),{error:err.message,motivo:err.motivo,detalles:err.details});}};
++exports.handler=async function(event,context={}){if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS,body:''};if(event.httpMethod!=='POST')return response(405,{error:'Method Not Allowed'});let body;try{body=JSON.parse(event.body||'{}');}catch{return response(400,{error:'JSON no válido.'});}let reservations=[],order='';try{const fulfillment=body.fulfillment==='pickup'?'pickup':'shipping',who=await buyer(sesionCliente.customerEventToken(event,body.token),body.guest,fulfillment),{cart,quote,benefits}=await buildQuote({...body,fulfillment},who);if(body.action==='quote')return response(200,{quote:{...quote,retailSubtotal:quote.retailSubtotalCents/100,subtotal:quote.subtotalCents/100,b2bDiscount:quote.b2bDiscountCents/100,discount:(quote.discountCents+quote.benefitDiscountCents+quote.b2bDiscountCents)/100,promotionDiscount:quote.discountCents/100,benefitDiscount:quote.benefitDiscountCents/100,shipping:quote.shippingCents/100,total:quote.totalCents/100},benefits:{giftCard:benefits.giftCard,loyalty:benefits.loyalty,referral:benefits.referral,b2b:benefits.b2b}});if(body.action!=='pay')return response(400,{error:'Acción no reconocida.'});if(body.termsAccepted!==true||String(body.termsVersion||'')!=='2026-09-20')return response(422,{error:'Debes aceptar las condiciones de contratación vigentes antes de pagar.',motivo:'terms-required'});const risk=await fraud.check({email:who.email,totalCents:quote.totalCents,items:cart.lineas});if(risk.decision!=='allow')return response(409,{error:'El pedido requiere revisión antes de poder cobrarse.',motivo:'fraud-review',risk:{decision:risk.decision,reasons:risk.reasons}});order=orderNumber();reservations=await effects.reserveOrder(order,cart.lineas);benefits.paidCents=quote.totalCents;const rawGuest=who.guest?guestToken():null,record=await persistOrder({order,who,cart,quote,benefits,risk,reservations,status:quote.totalCents===0?'PAID':'PENDING',guestAccessHash:rawGuest?hashGuestToken(rawGuest):null,termsVersion:body.termsVersion});if(quote.totalCents===0){await finalize.finalizePaid(record,{source:'internal-balance',sendCustomerEmail:true});return response(200,{completed:true,order,guestAccessToken:rawGuest,quote:{subtotal:quote.subtotalCents/100,discount:(quote.discountCents+quote.benefitDiscountCents+quote.b2bDiscountCents)/100,shipping:quote.shippingCents/100,total:0,fulfillment:quote.fulfillment}});}const payment=context.payment||await paymentConfig.resolve();const secret=payment?.secretKey,merchant=payment?.merchantCode,terminal=payment?.terminal||'1',env=payment?.environment||'test';if(!payment?.enabled||!secret||!merchant)throw Object.assign(new Error('Pasarela de pago no configurada.'),{statusCode:503});if(payment.managed&&env==='production'&&payment.dedicatedVaultKey!==true)throw Object.assign(new Error('La bóveda de pagos de producción no tiene una clave dedicada configurada.'),{statusCode:503});const host=event.headers['x-forwarded-host']||event.headers.host||'',base=host?`https://${host}`:'',mp={Ds_Merchant_Amount:String(quote.totalCents),Ds_Merchant_Order:order,Ds_Merchant_MerchantCode:merchant,Ds_Merchant_Currency:'978',Ds_Merchant_TransactionType:'0',Ds_Merchant_Terminal:terminal,Ds_Merchant_MerchantURL:payment.merchantUrl||`${base}/.netlify/functions/redsys-notify`,Ds_Merchant_UrlOK:payment.urlOk||`${base}/.netlify/functions/pago-return?result=ok`,Ds_Merchant_UrlKO:payment.urlKo||`${base}/.netlify/functions/pago-return?result=ko`},params=Buffer.from(JSON.stringify(mp)).toString('base64'),sig=signature(params,signingKey(secret,order));return response(200,{Ds_SignatureVersion:'HMAC_SHA256_V1',Ds_MerchantParameters:params,Ds_Signature:sig,redsysUrl:URLS[env]||URLS.test,order,guestAccessToken:rawGuest,quote:{subtotal:quote.subtotalCents/100,discount:(quote.discountCents+quote.benefitDiscountCents+quote.b2bDiscountCents)/100,shipping:quote.shippingCents/100,total:quote.totalCents/100,fulfillment:quote.fulfillment}});}catch(err){if(order&&reservations.length)await effects.releaseReservations(order,reservations).catch(()=>{});return response(err.statusCode||(err.code==='CONFLICT'?409:500),{error:err.message,motivo:err.motivo,detalles:err.details});}};
+ exports._test={orderNumber,signingKey,signature,buildQuote,hashGuestToken,buyer,taxBreakdown,applyVariants};
+diff --git a/netlify/lib/direccion.js b/netlify/lib/direccion.js
+index 569ae40..12b7338 100644
+--- a/netlify/lib/direccion.js
++++ b/netlify/lib/direccion.js
+@@ -42,6 +42,17 @@ const ETIQUETAS = {
+ /** Solo España de momento: los envíos que anuncia la web son nacionales. */
+ const CP_ESPANA = /^[0-9]{5}$/;
+ 
++/**
++ * ¿Es un código postal válido para enviar un pedido?
++ *
++ * Existe para que `netlify/lib/shipping.js` no tenga su propia regla: tenía una
++ * más laxa (3 a 12 caracteres alfanuméricos) y daba por bueno un «3900» que el
++ * alta de la ficha rechazaba. Ese es exactamente el fallo que describe
++ * CLAUDE.md con las dos listas de productos: dos validadores para lo mismo y
++ * uno deja pasar lo que el otro corta.
++ */
++const cpValido = (cp) => CP_ESPANA.test(String(cp ?? '').trim());
++
+ /** Deja la dirección en su forma canónica, con todos los campos como texto. */
+ function normaliza(entrada) {
+   const dir = {};
+@@ -75,7 +86,7 @@ function revisa(entrada) {
+     }
+   }
+ 
+-  if (!CP_ESPANA.test(dir.cp)) {
++  if (!cpValido(dir.cp)) {
+     return 'El código postal tiene que ser de cinco cifras.';
+   }
+ 
+@@ -93,4 +104,6 @@ function comoTexto(entrada) {
+     .filter(Boolean).join(' · ');
+ }
+ 
+-module.exports = { CAMPOS, OBLIGATORIOS, MAX, ETIQUETAS, normaliza, revisa, completa, comoTexto };
++module.exports = {
++  CAMPOS, OBLIGATORIOS, MAX, ETIQUETAS, normaliza, revisa, completa, comoTexto, cpValido,
++};
+diff --git a/netlify/lib/session.js b/netlify/lib/session.js
+index a98cc8a..d3feb7f 100644
+--- a/netlify/lib/session.js
++++ b/netlify/lib/session.js
+@@ -32,6 +32,14 @@ async function verifyEventSession(event,options={}){
+  const headers=event?.headers||{},token=bearerValue(headers)||cookieValue(headers,CUSTOMER_COOKIE);
+  if(!token)throw new Error('Token ausente');return verifyUserToken(token,options);
+ }
++// El token de cliente que trae una petición, por orden de preferencia: cookie
++// HttpOnly, cabecera Authorization y, por último, el token heredado que algún
++// navegador todavía mande en el cuerpo. Está aquí para que ningún endpoint
++// vuelva a mirar solo el cuerpo: el navegador ya no guarda ningún token.
++function customerEventToken(event,legacyToken){
++ const headers=event?.headers||{};
++ return cookieValue(headers,CUSTOMER_COOKIE)||bearerValue(headers)||(legacyToken?String(legacyToken):null);
++}
+ function customerSessionCookie(token,maxAge=CUSTOMER_SESSION_TTL_SECONDS){return `${CUSTOMER_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${Math.max(0,Number(maxAge)||0)}`}
+ function clearCustomerSessionCookie(){return customerSessionCookie('',0)}
+ async function verifyCustomerEventSession(event,options={}){
+@@ -57,4 +65,4 @@ async function verifyStaffEventSession(event,options={}){
+  const bearer=bearerValue(event.headers||{});if(!bearer)throw new Error('Sesión interna ausente');
+  const verified=await verifyUserToken(bearer,{requireUser:options.requireUser!==false});validateStaffClaims(verified.claims,'staff-login');defense.assertSessionBinding(event,verified.claims);return{...verified,source:'bearer'};
+ }
+-module.exports={verifyUserToken,verifyEventSession,verifyCustomerEventSession,verifyStaffEventSession,cookieValue,bearerValue,customerSessionCookie,clearCustomerSessionCookie,CUSTOMER_COOKIE,CUSTOMER_SESSION_TTL_SECONDS,STAFF_COOKIE};
++module.exports={verifyUserToken,verifyEventSession,customerEventToken,verifyCustomerEventSession,verifyStaffEventSession,cookieValue,bearerValue,customerSessionCookie,clearCustomerSessionCookie,CUSTOMER_COOKIE,CUSTOMER_SESSION_TTL_SECONDS,STAFF_COOKIE};
+diff --git a/netlify/lib/shipping.js b/netlify/lib/shipping.js
+index fd60597..4f4be76 100644
+--- a/netlify/lib/shipping.js
++++ b/netlify/lib/shipping.js
+@@ -1,5 +1,6 @@
+ 'use strict';
+ const settings=require('./settings');
++const direccion=require('./direccion');
+ function env(name){return String(process.env[name]||'').trim()}
+ function envCents(name){const v=env(name);if(v==='')return null;const n=Number(v);return Number.isInteger(n)&&n>=0?n:null}
+ function envPolicy(){return{managed:false,enabled:env('SHIPPING_ENABLED')==='true',rateCents:envCents('SHIPPING_RATE_CENTS'),freeFromCents:envCents('SHIPPING_FREE_FROM_CENTS'),country:env('SHIPPING_COUNTRY')||'España',label:env('SHIPPING_LABEL')||'Envío',methods:[],source:'env'}}
+@@ -14,7 +15,10 @@ function quoteWithPolicy(p,{subtotalCents,address}){
+  if(!p?.enabled)return{ok:false,reason:p?.managed?'shipping-disabled':'shipping-not-configured',error:p?.managed?'Los envíos online están desactivados en Ajustes.':'La política de envío todavía no está configurada.'};
+  const country=String(address&&(address.pais||address.country)||'').trim(),cp=String(address&&(address.cp||address.postalCode)||'').trim();
+  if(!country)return{ok:false,reason:'country-required',error:'Indica el país de envío.'};
+- if(!/^[0-9A-Za-z -]{3,12}$/.test(cp))return{ok:false,reason:'postal-code',error:'El código postal de envío no es válido.'};
++ // El código postal lo valida direccion.js, que es quien decide el formato en
++ // el alta de la ficha: tener aquí una regla propia daba por bueno al cotizar
++ // un CP que el alta rechazaba.
++ if(!direccion.cpValido(cp))return{ok:false,reason:'postal-code',error:'El código postal de envío no es válido.'};
+  const method=matchingMethod(p,address);
+  if(method===false)return{ok:false,reason:'zone-not-supported',error:'No hay una tarifa de envío activa para este código postal.'};
+  if(method){const free=method.freeFromCents!==null&&method.freeFromCents!==undefined&&Number(subtotalCents)>=method.freeFromCents;return{ok:true,shippingCents:free?0:method.rateCents,free,label:method.name||p.label||'Envío',country:method.country||country,freeFromCents:method.freeFromCents,eta:method.eta||'',methodId:method.id||null,source:p.source||'unknown'}}
+diff --git a/package.json b/package.json
+index cba24c9..8052b00 100644
+--- a/package.json
++++ b/package.json
+@@ -48,6 +48,7 @@
+     "test:admin-security": "node scripts/test-admin-security.js",
+     "test:redsys-mode-gate": "node scripts/test-redsys-mode-gate.js",
+     "test:managed-checkout-payment": "node scripts/test-managed-checkout-payment.js",
++    "fijar:workflows": "node scripts/fijar-acciones-workflows.js",
+     "test:release-guards": "node scripts/test-release-guards.js"
+   },
+   "engines": {
+diff --git a/pro-qa-fixes.js b/pro-qa-fixes.js
+index 14069b8..4d99165 100644
+--- a/pro-qa-fixes.js
++++ b/pro-qa-fixes.js
+@@ -4,7 +4,10 @@
+ (function(){
+ 'use strict';
+ const esc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+-const currentSession=()=>{try{return JSON.parse(localStorage.getItem('nutretium_user')||'null')}catch{return null}};
++// Quién tiene sesión lo dice sesion-cliente.js: la sesión viaja en la cookie
++// HttpOnly y el token ya no se guarda en localStorage. El token solo se manda
++// si es uno heredado de antes del cambio.
++const sesion=window.NutretiumSesion;
+ 
+ let desktopToggle=typeof window.toggleAdvFilters==='function'?window.toggleAdvFilters:null;
+ function ensureMobileFilters(){
+@@ -35,7 +38,7 @@ function sanitizeCareer(){const upload=document.getElementById('cvUpload');if(up
+ window.submitCareerApplication=async function(){const name=document.getElementById('careerName')?.value.trim()||'',email=document.getElementById('careerEmail')?.value.trim()||'',phone=document.getElementById('careerPhone')?.value.trim()||'',position=document.getElementById('careerPosition')?.value||'Candidatura espontánea',message=document.getElementById('careerMessage')?.value.trim()||'',link=document.getElementById('careerLink')?.value.trim()||'',err=document.getElementById('careerError');err?.classList.add('hidden');if(!name)return setErr(err,'El nombre es obligatorio.');if(!email)return setErr(err,'El email es obligatorio.');if(!message)return setErr(err,'Cuéntanos algo sobre ti.');try{const r=await fetch('/.netlify/functions/contact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,subject:`[CANDIDATURA] ${position}`,message:`Puesto: ${position}\nTeléfono: ${phone||'No indicado'}\nEnlace CV/LinkedIn: ${link||'No indicado'}\n\n${message}`})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'No se pudo enviar la candidatura.');if(typeof closeModal==='function')closeModal('careersModal');if(typeof showToast==='function')showToast('Candidatura recibida correctamente.');}catch(e){setErr(err,e.message||'No se pudo enviar la candidatura. Inténtalo de nuevo.');}};
+ 
+ const fulfilmentLabels={PENDING_FULFILMENT:'Pendiente de preparación',PREPARING:'En preparación',READY_TO_SHIP:'Listo para enviar',SHIPPED:'Enviado',DELIVERED:'Entregado',CANCELLED:'Cancelado',REVIEW_REQUIRED:'Revisión necesaria'};
+-async function chatRealOrders(){const s=currentSession();if(!s?.token){if(typeof chatAddBot==='function')chatAddBot('Para consultar un pedido de forma segura, inicia sesión y abre <a class="text-brand-gold underline" href="/cuenta.html">Mi Nutretium</a>.');return;}const typing=typeof chatTyping==='function'?chatTyping():null;try{const r=await fetch('/.netlify/functions/orders',{headers:{Authorization:`Bearer ${s.token}`}});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error();const orders=Array.isArray(d.orders)?d.orders.slice(0,3):[];if(!orders.length){chatAddBot('No aparecen pedidos asociados a tu cuenta.');return;}const html=orders.map(o=>{const state=fulfilmentLabels[o.fulfilmentStatus]||(o.status==='PAID'?'Pago confirmado':o.status||'En proceso');const track=o.tracking?.code?` · ${esc(o.tracking.carrier||'Transportista')} ${esc(o.tracking.code)}`:'';return `<div class="border-b border-brand-border/50 py-2"><strong>${esc(o.order)}</strong><br><span class="text-brand-muted">${esc(state)}${track}</span></div>`;}).join('');chatAddBot('Tus últimos pedidos:'+html+'<a class="text-brand-gold underline" href="/cuenta.html">Ver Mi Nutretium</a>');}catch{chatAddBot('No he podido consultar tus pedidos ahora. Puedes revisarlos en Mi Nutretium o contactar con el equipo.');}finally{typing?.remove();}}
++async function chatRealOrders(){if(!sesion.activa()){if(typeof chatAddBot==='function')chatAddBot('Para consultar un pedido de forma segura, inicia sesión y abre <a class="text-brand-gold underline" href="/cuenta.html">Mi Nutretium</a>.');return;}const typing=typeof chatTyping==='function'?chatTyping():null;try{const r=await sesion.pide('/.netlify/functions/orders');const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error();const orders=Array.isArray(d.orders)?d.orders.slice(0,3):[];if(!orders.length){chatAddBot('No aparecen pedidos asociados a tu cuenta.');return;}const html=orders.map(o=>{const state=fulfilmentLabels[o.fulfilmentStatus]||(o.status==='PAID'?'Pago confirmado':o.status||'En proceso');const track=o.tracking?.code?` · ${esc(o.tracking.carrier||'Transportista')} ${esc(o.tracking.code)}`:'';return `<div class="border-b border-brand-border/50 py-2"><strong>${esc(o.order)}</strong><br><span class="text-brand-muted">${esc(state)}${track}</span></div>`;}).join('');chatAddBot('Tus últimos pedidos:'+html+'<a class="text-brand-gold underline" href="/cuenta.html">Ver Mi Nutretium</a>');}catch{chatAddBot('No he podido consultar tus pedidos ahora. Puedes revisarlos en Mi Nutretium o contactar con el equipo.');}finally{typing?.remove();}}
+ window.chatQuick=function(type){if(typeof chatAddMsg==='function')chatAddMsg(type==='seguimiento'?'Seguimiento de pedido':'Otras consultas',true);if(type==='seguimiento'){chatRealOrders();return;}if(typeof chatAddBot==='function')chatAddBot('Puedo ayudarte con pedidos reales, pago mediante Redsys o a encontrar un producto del catálogo. Para condiciones de envío/devolución que no estén publicadas, te dirigiré al equipo de Nutretium.');};
+ window.chatReply=function(text){const t=String(text||'').toLowerCase();if(/pedido|seguimiento|tracking|env[ií]o/.test(t)){chatRealOrders();return;}if(/pago|tarjeta|bizum|paypal|klarna|sequra|apple pay|google pay/.test(t)){chatAddBot('El pago online implementado en Nutretium se procesa con <strong>tarjeta mediante Redsys</strong>. No mostraré otros métodos mientras no estén contratados e integrados.');return;}if(/devol|cambio|reembolso|porte|plazo|entrega/.test(t)){chatAddBot('Las condiciones aplicables deben coincidir con la política comercial publicada. Consulta el <a class="text-brand-gold underline" href="/ayuda">Centro de ayuda</a> o contacta con Nutretium para confirmar el caso concreto.');return;}try{const found=typeof chatSearchCatalog==='function'?chatSearchCatalog(text):{list:[]};if(found.list?.length){const items=found.list.slice(0,3).map(p=>`<div class="flex justify-between gap-2 border-b border-brand-border/50 py-1"><span>${esc(p.name)}</span><strong class="text-brand-gold">${Number(p.price).toFixed(2)} €</strong></div>`).join('');chatAddBot('He encontrado esto en el catálogo:'+items);return;}}catch(_){ }chatAddBot('No quiero darte una respuesta logística o comercial inventada. Puedes buscar un producto por nombre o hablar con Nutretium desde el formulario de contacto.');};
+ 
+diff --git a/product-engagement.js b/product-engagement.js
+index e83ff4b..0de8162 100644
+--- a/product-engagement.js
++++ b/product-engagement.js
+@@ -1,19 +1,20 @@
+ /* Nutretium product community, stock alerts and FACTUSOL live availability */
+ (function(){
+ 'use strict';
+-const KEY='nutretium_user';
+-function session(){try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch{return null}}
+-function token(){return session()?.token||''}
++// La sesión la resuelve sesion-cliente.js: el token ya no vive en
++// localStorage —viaja en la cookie HttpOnly—, y comprobarlo aquí cerraba las
++// funciones de cliente justo a quien acababa de identificarse.
++const sesion=window.NutretiumSesion;
+ function idFromPath(){const last=decodeURIComponent(location.pathname.split('/').filter(Boolean).pop()||''),m=last.match(/-(\d+)$/);return m?Number(m[1]):Number(new URLSearchParams(location.search).get('id'))}
+ const productId=idFromPath();
+ const products=Array.isArray(window.NUTRETIUM_PRODUCTS)?window.NUTRETIUM_PRODUCTS:[];
+ const product=products.find(p=>Number(p.id)===productId);
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+-async function customer(body){if(!token())throw new Error('Inicia sesión para usar esta función.');const r=await fetch('/.netlify/functions/customer-commerce',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token()},body:JSON.stringify(body)}),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'No se pudo completar la operación.');return d}
++async function customer(body){if(!sesion.activa())throw new Error('Inicia sesión para usar esta función.');const r=await sesion.pide('/.netlify/functions/customer-commerce',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'No se pudo completar la operación.');return d}
+ async function loadCommunity(){const host=document.querySelector('.related')||document.querySelector('.details');if(!host||!product)return;let d={reviews:[],questions:[],rating:{value:0,count:0}};try{const r=await fetch('/.netlify/functions/product-community?productId='+encodeURIComponent(product.id));d=await r.json()}catch{}const section=document.createElement('section');section.className='details';section.id='ntCommunity';section.innerHTML=`<div class="section-head"><div><h2>Opiniones y preguntas</h2><p>Reseñas publicadas de compras verificadas y respuestas del equipo Nutretium.</p></div></div><div class="detail-grid"><div class="detail"><strong>Valoración publicada</strong><span>${d.rating?.count?`${esc(d.rating.value)}/5 · ${esc(d.rating.count)} opiniones`:'Todavía no hay opiniones publicadas.'}</span></div><div class="detail" style="grid-column:span 2"><strong>Preguntas frecuentes de clientes</strong><span>${(d.questions||[]).slice(0,5).map(q=>`• ${esc(q.question)}${q.answer?`\n  ${esc(q.answer)}`:''}`).join('\n')||'Todavía no hay preguntas publicadas.'}</span></div></div>${(d.reviews||[]).length?`<div class="related-grid" style="margin-top:14px">${d.reviews.slice(0,4).map(r=>`<div class="detail"><strong>${'★'.repeat(Math.max(1,Math.min(5,Number(r.rating)||0)))} ${esc(r.title||'Opinión verificada')}</strong><span>${esc(r.body||'')}${r.verifiedPurchase?'\nCompra verificada':''}</span></div>`).join('')}</div>`:''}<div class="buy-panel" style="margin-top:16px"><strong style="font-size:.82rem">¿Tienes una duda sobre este producto?</strong><div style="display:flex;gap:8px;margin-top:8px"><input id="ntQuestion" maxlength="1500" placeholder="Escribe tu pregunta" style="flex:1;background:#080808;color:#fff;border:1px solid #333;border-radius:9px;padding:10px"><button id="ntAsk" class="secondary" type="button" style="padding:10px 14px;border-radius:9px">Enviar</button></div><div id="ntQuestionMsg" class="buy-note"></div></div>`;host.insertAdjacentElement('beforebegin',section);document.getElementById('ntAsk').onclick=async()=>{const q=document.getElementById('ntQuestion').value.trim(),msg=document.getElementById('ntQuestionMsg');try{await customer({action:'product-question',productId:product.id,question:q});msg.textContent='Pregunta enviada a moderación.';document.getElementById('ntQuestion').value=''}catch(e){msg.textContent=e.message}}}
+ function addStockAlert(){if(!product||!(typeof product.stock==='number'&&product.stock<=0))return;const stock=document.querySelector('.stock.out');if(!stock||document.getElementById('ntStockAlert'))return;const button=document.createElement('button');button.id='ntStockAlert';button.type='button';button.className='secondary';button.style.cssText='margin-top:10px;padding:10px 12px;border-radius:9px;cursor:pointer';button.textContent='Avísame cuando vuelva';button.onclick=async()=>{try{await customer({action:'stock-alert',sku:product.code,enabled:true});button.textContent='✓ Aviso activado';button.disabled=true}catch(e){alert(e.message)}};stock.insertAdjacentElement('afterend',button)}
+-function syncWishlist(){const btn=document.getElementById('wishlistButton');if(!btn||!token())return;btn.addEventListener('click',()=>setTimeout(async()=>{try{const ids=JSON.parse(localStorage.getItem('nt_wishlist_v1')||'[]');await customer({action:'wishlist-sync',productIds:ids})}catch{}},50))}
+-function trackView(){if(window.NUTRETIUM_CONSENT?.analitica?.()!==true||!product)return;fetch('/.netlify/functions/analytics-ingest',{method:'POST',headers:{'Content-Type':'application/json',...(token()?{Authorization:'Bearer '+token()}:{})},body:JSON.stringify({name:'nt_product_view',payload:{product_id:product.id,price:product.price},consent:true,subject:localStorage.getItem('nt_subject')||'anonymous'}),keepalive:true}).catch(()=>{})}
++function syncWishlist(){const btn=document.getElementById('wishlistButton');if(!btn||!sesion.activa())return;btn.addEventListener('click',()=>setTimeout(async()=>{try{const ids=JSON.parse(localStorage.getItem('nt_wishlist_v1')||'[]');await customer({action:'wishlist-sync',productIds:ids})}catch{}},50))}
++function trackView(){if(window.NUTRETIUM_CONSENT?.analitica?.()!==true||!product)return;sesion.pide('/.netlify/functions/analytics-ingest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'nt_product_view',payload:{product_id:product.id,price:product.price},consent:true,subject:localStorage.getItem('nt_subject')||'anonymous'}),keepalive:true}).catch(()=>{})}
+ function setLiveStock(item,checkedAt){
+   if(!product||!item)return;
+   const available=item.blocked===true?0:Math.max(0,Number(item.available)||0);
+diff --git a/producto.html b/producto.html
+index a743a75..63efcba 100644
+--- a/producto.html
++++ b/producto.html
+@@ -18,6 +18,7 @@
+ <body>
+   <header class="top"><div class="wrap"><a class="brand" href="/">NUTRE<span>TIUM</span></a><div style="display:flex;gap:14px;align-items:center"><a class="back" href="/aprende">Aprende</a><a class="back" href="/#products">← Volver a la tienda</a></div></div></header>
+   <main id="app" class="wrap"></main>
++  <script src="/sesion-cliente.js"></script>
+   <script src="/products-data.js"></script>
+   <script src="/product-pim.js"></script>
+   <script src="/product-variants.js"></script>
+diff --git a/scripts/audit-workflow-pinning.js b/scripts/audit-workflow-pinning.js
+index a09d39a..31802a0 100644
+--- a/scripts/audit-workflow-pinning.js
++++ b/scripts/audit-workflow-pinning.js
+@@ -29,27 +29,34 @@ function validateLocalUse(workflowName, spec) {
+   return true;
+ }
+ 
+-for (const name of fs.readdirSync(workflowDir).filter((f) => /\.ya?ml$/i.test(f)).sort()) {
+-  const source = fs.readFileSync(path.join(workflowDir, name), 'utf8');
+-  for (const match of source.matchAll(/\buses:\s*([^\s#]+)(?:\s*#.*)?$/gm)) {
+-    const spec = match[1];
+-    if (validateLocalUse(name, spec)) continue;
++function audita() {
++  for (const name of fs.readdirSync(workflowDir).filter((f) => /\.ya?ml$/i.test(f)).sort()) {
++    const source = fs.readFileSync(path.join(workflowDir, name), 'utf8');
++    for (const match of source.matchAll(/\buses:\s*([^\s#]+)(?:\s*#.*)?$/gm)) {
++      const spec = match[1];
++      if (validateLocalUse(name, spec)) continue;
+ 
+-    const at = spec.lastIndexOf('@');
+-    if (at < 1) {
+-      failures.push(`${name}: acción externa sin referencia fija: ${spec}`);
+-      continue;
++      const at = spec.lastIndexOf('@');
++      if (at < 1) {
++        failures.push(`${name}: acción externa sin referencia fija: ${spec}`);
++        continue;
++      }
++      const action = spec.slice(0, at);
++      const ref = spec.slice(at + 1);
++      if (!/^[0-9a-f]{40}$/i.test(ref)) failures.push(`${name}: ${action} no está fijada a SHA inmutable (${ref}).`);
++      if (expected[action] && ref.toLowerCase() !== expected[action]) failures.push(`${name}: ${action} usa SHA distinto del v7 verificado (${ref}).`);
+     }
+-    const action = spec.slice(0, at);
+-    const ref = spec.slice(at + 1);
+-    if (!/^[0-9a-f]{40}$/i.test(ref)) failures.push(`${name}: ${action} no está fijada a SHA inmutable (${ref}).`);
+-    if (expected[action] && ref.toLowerCase() !== expected[action]) failures.push(`${name}: ${action} usa SHA distinto del v7 verificado (${ref}).`);
+   }
+-}
+ 
+-if (failures.length) {
+-  console.error('[workflow-pinning] FAIL');
+-  failures.forEach((item) => console.error(` - ${item}`));
+-  process.exit(1);
++  if (failures.length) {
++    console.error('[workflow-pinning] FAIL');
++    failures.forEach((item) => console.error(` - ${item}`));
++    process.exit(1);
++  }
++  console.log('[workflow-pinning] OK · acciones externas fijadas por SHA; referencias locales confinadas al mismo commit');
+ }
+-console.log('[workflow-pinning] OK · acciones externas fijadas por SHA; referencias locales confinadas al mismo commit');
++
++// Los SHA se exportan para que `scripts/fijar-acciones-workflows.js` los aplique
++// sin copiarlos: una sola lista, como el resto de validadores del proyecto.
++module.exports = { SHA_ESPERADOS: expected };
++if (require.main === module) audita();
+diff --git a/scripts/build-seo-pages.js b/scripts/build-seo-pages.js
+index 44066bc..43f63d3 100644
+--- a/scripts/build-seo-pages.js
++++ b/scripts/build-seo-pages.js
+@@ -5,7 +5,7 @@ const path = require('path');
+ const { NUTRETIUM_PRODUCTS = [], NUTRETIUM_CATEGORIES = [] } = require('../products-data.js');
+ const pim = require('../product-pim.js');
+ 
+-const ROOT = process.cwd();
++const ROOT = path.join(__dirname, '..');
+ const ORIGIN = 'https://nutretium.com';
+ const products = NUTRETIUM_PRODUCTS.filter(p => p && p.active !== false).map(pim.normalize);
+ const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+@@ -57,9 +57,25 @@ function collectionPage({kind, label, slug, list, description}) {
+   return layout({title:`${label} | Nutretium Santander`,description,canonical,body,schema});
+ }
+ 
+-function buildProductPages() {
+-  const source = fs.readFileSync(path.join(ROOT,'producto.html'),'utf8');
+-  for (const p of products) {
++let plantillaFicha = null;
++function productTemplate() {
++  if (plantillaFicha === null) plantillaFicha = fs.readFileSync(path.join(ROOT,'producto.html'),'utf8');
++  return plantillaFicha;
++}
++
++/**
++ * Pinta la ficha estática de un producto y DEVUELVE el HTML, sin tocar disco.
++ *
++ * Está separado de buildProductPages() para que scripts/test-pim-seo.js pueda
++ * comprobar el canonical, los schemas y el orden de los scripts sin que haga
++ * falta haber construido el sitio antes: la prueba leía `producto/<slug>/`, que
++ * es una carpeta que genera el build, así que en un clon recién bajado fallaba
++ * aunque el generador estuviese perfecto.
++ */
++function renderProductPage(raw) {
++  const source = productTemplate();
++  const p = raw && raw.slug ? raw : pim.normalize(raw);
++  {
+     const canonical = abs(productUrl(p));
+     const description = (p.description || pim.factualDescription(p)).slice(0,155);
+     const available = typeof p.stock !== 'number' || p.stock > 0;
+@@ -83,7 +99,13 @@ function buildProductPages() {
+       .replace(/<link\s+rel="canonical"[^>]*>/i, `<link rel="canonical" href="${canonical}">`)
+       .replace('</head>', `  <meta property="og:type" content="product"><meta property="og:title" content="${esc(p.name)} | NUTRETIUM"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${canonical}">${p.images?.[0]?`<meta property="og:image" content="${esc(abs('/'+p.images[0].replace(/^\//,'')))}">`:''}<script id="nt-product-schema" type="application/ld+json">${json(productSchema)}</script><script id="nt-breadcrumb-schema" type="application/ld+json">${json(breadcrumb)}</script>\n</head>`)
+       .replace('<main id="app" class="wrap"></main>', `<main id="app" class="wrap">${pre}</main>`);
+-    writeRoute('producto', `${pim.slugify(p.name)}-${p.id}`, html);
++    return html;
++  }
++}
++
++function buildProductPages() {
++  for (const p of products) {
++    writeRoute('producto', `${pim.slugify(p.name)}-${p.id}`, renderProductPage(p));
+   }
+ }
+ 
+@@ -120,10 +142,16 @@ function buildSitemap(brands) {
+   return urls.size;
+ }
+ 
+-cleanDir('categoria'); cleanDir('marca'); cleanDir('objetivo'); cleanDir('producto');
+-buildProductPages();
+-const brands = buildCollections();
+-const count = buildSitemap(brands);
+-const audit = pim.audit(products);
+-fs.writeFileSync(path.join(ROOT,'pim-audit.json'),JSON.stringify({...audit,generatedAt:new Date().toISOString()},null,2),'utf8');
+-console.log(`[build-seo-pages] ${products.length} productos · ${brands.length} marcas · sitemap ${count} URLs · GTIN verificados ${audit.withGtin}/${audit.active}`);
++// Requerido como módulo (las pruebas) no escribe nada: solo expone el
++// generador. Como script hace el build de siempre.
++if (require.main === module) {
++  cleanDir('categoria'); cleanDir('marca'); cleanDir('objetivo'); cleanDir('producto');
++  buildProductPages();
++  const brands = buildCollections();
++  const count = buildSitemap(brands);
++  const audit = pim.audit(products);
++  fs.writeFileSync(path.join(ROOT,'pim-audit.json'),JSON.stringify({...audit,generatedAt:new Date().toISOString()},null,2),'utf8');
++  console.log(`[build-seo-pages] ${products.length} productos · ${brands.length} marcas · sitemap ${count} URLs · GTIN verificados ${audit.withGtin}/${audit.active}`);
++}
++
++module.exports = { renderProductPage, collectionPage, productUrl, products };
+diff --git a/scripts/fijar-acciones-workflows.js b/scripts/fijar-acciones-workflows.js
+new file mode 100644
+index 0000000..270eab4
+--- /dev/null
++++ b/scripts/fijar-acciones-workflows.js
+@@ -0,0 +1,67 @@
++'use strict';
++
++// Fija por SHA las acciones externas de `.github/workflows/`, que es lo que
++// exige `scripts/audit-workflow-pinning.js`. Los SHA se leen de ahí: una sola
++// lista, igual que hay un solo validador del catálogo.
++//
++// Existe porque el agente de Netlify NO puede subir archivos de
++// `.github/workflows/`: su app de GitHub no tiene el permiso «workflows» y el
++// intento hace fallar el envío entero, arrastrando cambios que no tienen nada
++// que ver. Así que este archivo lo aplicas tú y lo empujas con tus
++// credenciales, que sí pueden.
++//
++// En ensayo no escribe nada; con `--aplicar` guarda.
++
++const fs = require('fs');
++const path = require('path');
++const { SHA_ESPERADOS } = require('./audit-workflow-pinning.js');
++
++const aplicar = process.argv.includes('--aplicar');
++const directorio = path.join(process.cwd(), '.github', 'workflows');
++const pendientes = [];
++
++for (const nombre of fs.readdirSync(directorio).filter((f) => /\.ya?ml$/i.test(f)).sort()) {
++  const ruta = path.join(directorio, nombre);
++  const antes = fs.readFileSync(ruta, 'utf8');
++  let despues = antes;
++
++  for (const [accion, sha] of Object.entries(SHA_ESPERADOS)) {
++    const patron = new RegExp(`(^\\s*-?\\s*uses:\\s*)${accion.replace(/\//g, '\\/')}@[^\\s#]+[^\\S\\n]*(?:#[^\\n]*)?$`, 'gm');
++    despues = despues.replace(patron, `$1${accion}@${sha} # v7`);
++  }
++
++  if (despues === antes) continue;
++
++  const viejas = antes.split('\n');
++  const nuevas = despues.split('\n');
++  const lineas = viejas
++    .map((linea, i) => ({ n: i + 1, antes: linea.trim(), despues: (nuevas[i] || '').trim() }))
++    .filter((x) => x.antes !== x.despues);
++  pendientes.push({ nombre, ruta, despues, lineas });
++}
++
++if (!pendientes.length) {
++  console.log('[fijar-acciones] nada que hacer: todas las acciones externas ya están fijadas por SHA.');
++  process.exit(0);
++}
++
++console.log(`[fijar-acciones] ${aplicar ? 'APLICANDO' : 'ENSAYO (no se escribe nada)'}`);
++for (const archivo of pendientes) {
++  console.log(`\n${archivo.nombre}`);
++  archivo.lineas.forEach((x) => {
++    console.log(`  línea ${x.n}`);
++    console.log(`    - ${x.antes}`);
++    console.log(`    + ${x.despues}`);
++  });
++  if (aplicar) fs.writeFileSync(archivo.ruta, archivo.despues, 'utf8');
++}
++
++if (aplicar) {
++  console.log('\nHecho. Ahora, desde la carpeta del repositorio:');
++  console.log('  git add .github/workflows');
++  console.log('  git commit -m "ci: fijar acciones por SHA"');
++  console.log('  git push');
++  console.log('\nComprueba después: node scripts/audit-workflow-pinning.js');
++} else {
++  console.log('\nNada escrito. Para aplicarlo: npm run fijar:workflows -- --aplicar');
++}
+diff --git a/scripts/live-security-audit.js b/scripts/live-security-audit.js
+index a7df534..edf1382 100644
+--- a/scripts/live-security-audit.js
++++ b/scripts/live-security-audit.js
+@@ -185,17 +185,25 @@ async function authBoundaryProbe() {
+   add('JSON inválido falla cerrado sin 5xx', invalidJson.status >= 400 && invalidJson.status < 500, 'medium', `status=${invalidJson.status}`);
+ }
+ 
++// El freno de staff-login permite PASSWORD_LIMIT intentos (10) en cada ventana
++// de 5 minutos, así que con 7 peticiones no podía saltar nunca: la comprobación
++// daba «freno inexistente» aunque funcionara. Se prueba con margen sobre ese
++// tope y se corta en cuanto frena, para no insistir sobre el sitio publicado
++// más de lo necesario.
++const RATE_LIMIT_ATTEMPTS = 13;
++
+ async function rateLimitProbe() {
+   const id = crypto.randomBytes(8).toString('hex');
+   const email = `security-audit-${id}@example.invalid`;
+   const statuses = [];
+-  for (let i = 0; i < 7; i++) {
++  for (let i = 0; i < RATE_LIMIT_ATTEMPTS; i++) {
+     const res = await oneRequest(new URL('/.netlify/functions/staff-login', TARGET), {
+       method: 'POST',
+       headers: { Origin: TARGET.origin, 'Sec-Fetch-Site': 'same-origin', 'Content-Type': 'application/json' },
+       body: JSON.stringify({ email, password: `invalid-${id}-${i}` }),
+     });
+     statuses.push(res.status);
++    if (res.status === 429 || res.status === 503) break;
+     await sleep(250);
+   }
+   const throttled = statuses.some(status => status === 429 || status === 503);
+diff --git a/scripts/smoke-web.js b/scripts/smoke-web.js
+index 9327245..232d194 100644
+--- a/scripts/smoke-web.js
++++ b/scripts/smoke-web.js
+@@ -7,7 +7,8 @@ const root = process.cwd();
+ const requiredFiles = [
+   'index.html','app.js','products-data.js','styles.css','trust-fixes.js',
+   'franchise-trust.js','commerce-pro.js','final-hardening.js','producto.html','producto.js',
+-  'product-pim.js','product-variants.js','commerce-core.js','ayuda.html','condiciones.html','netlify.toml','netlify/functions/redsys-notify.js','netlify/lib/email.js'
++  'product-pim.js','product-variants.js','commerce-core.js','ayuda.html','condiciones.html','netlify.toml','netlify/functions/redsys-notify.js','netlify/lib/email.js',
++  'sesion-cliente.js','cuenta.html','cuenta.js','checkout.html'
+ ];
+ 
+ const failures = [];
+@@ -67,6 +68,41 @@ if (!failures.length) {
+     if (!email.includes(token)) failures.push(`Email transaccional incompleto: ${token}`);
+   });
+ 
++  // ── Sesión de cliente ───────────────────────────────────────────────────
++  // La sesión va en la cookie HttpOnly y el token ya no se guarda en el
++  // navegador: quien pregunte por `.token` para saber si hay sesión deja fuera
++  // a quien acaba de entrar. Todo eso vive en sesion-cliente.js, así que cada
++  // página que lo necesite tiene que cargarlo ANTES que sus scripts.
++  const paginasConSesion = {
++    'index.html': ['app.js','wishlist-sync.js','commerce-suite.js','commercial-finish.js','pro-qa-fixes.js'],
++    'cuenta.html': ['cuenta.js'],
++    'producto.html': ['product-engagement.js'],
++    'checkout.html': ['checkout.js'],
++  };
++  // Se busca la etiqueta, no el nombre del archivo: los comentarios del HTML
++  // nombran scripts y falsearían el orden.
++  const posicionDeScript = (html, src) => {
++    const i = html.indexOf(`src="${src}"`), j = html.indexOf(`src="/${src}"`);
++    return i >= 0 && j >= 0 ? Math.min(i, j) : Math.max(i, j);
++  };
++  for (const [pagina, consumidores] of Object.entries(paginasConSesion)) {
++    const html = read(pagina);
++    const posicion = posicionDeScript(html, 'sesion-cliente.js');
++    if (posicion < 0) { failures.push(`${pagina} no carga sesion-cliente.js`); continue; }
++    consumidores.forEach(src => {
++      const uso = posicionDeScript(html, src);
++      if (uso >= 0 && uso < posicion) failures.push(`${pagina} carga ${src} antes de sesion-cliente.js`);
++    });
++  }
++  ['cuenta.js','checkout.js','product-engagement.js','wishlist-sync.js','commerce-account-sync.js','commerce-suite.js','commercial-finish.js','pro-qa-fixes.js','enterprise-storefront.js']
++    .forEach(archivo => {
++      const codigo = read(archivo);
++      // Ni el nombre del almacén: la sesión se pregunta al helper y a nadie más.
++      if (codigo.includes('nutretium_user')) failures.push(`${archivo} lee la sesión del almacén del navegador en vez de sesion-cliente.js`);
++      // currentUser guarda el perfil, y el perfil nunca lleva token.
++      if (/currentUser\??\.token/.test(codigo)) failures.push(`${archivo} decide la sesión por un token que el navegador ya no guarda`);
++    });
++
+   const notify = read('netlify/functions/redsys-notify.js');
+   ['buildStoreOrderEmail','buildCustomerOrderEmail','PENDING_FULFILMENT','nutretium-order-customer','nutretium-order-store'].forEach(token => {
+     if (!notify.includes(token)) failures.push(`Redsys notify incompleto: ${token}`);
+diff --git a/scripts/staff-login-inject.js b/scripts/staff-login-inject.js
+index 93017f4..cb1eac5 100644
+--- a/scripts/staff-login-inject.js
++++ b/scripts/staff-login-inject.js
+@@ -2,9 +2,17 @@
+ const fs=require('fs');
+ const files=['admin.html','backoffice.html','settings.html','control.html','ops.html','enterprise.html','admin-center.html','product-editor.html','catalog-management.html','financial-dashboard.html','customer-center.html'];
+ const bridgePages=new Set(files);
+-for(const file of files){
+- if(!fs.existsSync(file))continue;
+- let html=fs.readFileSync(file,'utf8');
++
++/**
++ * Añade a una página de personal lo que le falte y devuelve el HTML resultante.
++ *
++ * Se separó de la escritura en disco para que scripts/test-admin-security.js
++ * pueda comprobar que el puente de sesión llega a `admin.html` sin necesitar un
++ * build previo: la prueba leía el archivo ya inyectado, así que en un clon
++ * recién bajado fallaba aunque la inyección fuese correcta.
++ */
++function inject(file,original){
++ let html=String(original);
+  if(!html.includes('/admin-shell.css')){
+   const css='<link rel="stylesheet" href="/admin-shell.css">';
+   html=html.includes('</head>')?html.replace('</head>',css+'</head>'):css+html;
+@@ -32,12 +40,23 @@ for(const file of files){
+   if(!html.includes('/admin-security-enhancer.js'))html=html.replace('</body>','<script src="/admin-security-enhancer.js"></script></body>');
+  }
+  if(file==='customer-center.html'&&!html.includes('/customer-center-query.js'))html=html.replace('</body>','<script src="/customer-center-query.js"></script></body>');
+- fs.writeFileSync(file,html);
++ return html;
++}
++
++function injectFile(file){
++ if(!fs.existsSync(file))return false;
++ fs.writeFileSync(file,inject(file,fs.readFileSync(file,'utf8')));
+  console.log('[admin-shell-inject]',file);
++ return true;
++}
++if(require.main===module){
++ for(const file of files)injectFile(file);
++ if(fs.existsSync('producto.html')){
++  let html=fs.readFileSync('producto.html','utf8');
++  if(!html.includes('/product-content-ui.js'))html=html.replace('</body>','<script src="/product-content-ui.js"></script></body>');
++  fs.writeFileSync('producto.html',html);
++  console.log('[product-content-inject] producto.html');
++ }
+ }
+-if(fs.existsSync('producto.html')){
+- let html=fs.readFileSync('producto.html','utf8');
+- if(!html.includes('/product-content-ui.js'))html=html.replace('</body>','<script src="/product-content-ui.js"></script></body>');
+- fs.writeFileSync('producto.html',html);
+- console.log('[product-content-inject] producto.html');
+-}
+\ No newline at end of file
++
++module.exports={files,bridgePages,inject,injectFile};
+\ No newline at end of file
+diff --git a/scripts/test-admin-security.js b/scripts/test-admin-security.js
+index c13f7dc..75538a3 100644
+--- a/scripts/test-admin-security.js
++++ b/scripts/test-admin-security.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const crypto=require('crypto');
+ process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
+ process.env.JWT_SECRET=crypto.randomBytes(48).toString('hex');
+@@ -51,7 +52,16 @@ const customerBearer=signJWT({sub:user.id,email,kind:'customer',sv:0,exp:Math.fl
+  const list=await adminAudit.handler(event({action:'list',limit:20},{cookie:cookiePair}));assert.strictEqual(list.statusCode,200,'El endpoint de auditoría debe aceptar cookie owner');assert.strictEqual(parse(list).events.length,12);
+  const verifyEndpoint=await adminAudit.handler(event({action:'verify',limit:100},{cookie:cookiePair}));assert.strictEqual(verifyEndpoint.statusCode,200);assert.strictEqual(parse(verifyEndpoint).valid,true);
+  const head=await getBlobStore('security-audit').get('chain-head',{type:'json'});const latest=await getBlobStore('security-audit').get(head.key,{type:'json'});await getBlobStore('security-audit').setJSON(head.key,{...latest,action:'TAMPERED'});const tampered=await audit.verify(100);assert.strictEqual(tampered.valid,false,'Una alteración debe romper la verificación criptográfica');
+- const adminHtml=fs.readFileSync('admin.html','utf8'),backofficeHtml=fs.readFileSync('backoffice.html','utf8');assert(adminHtml.includes('/staff-session-bridge.js'),'El build debe inyectar el puente en admin');assert(backofficeHtml.includes('/staff-session-bridge.js'),'El build debe inyectar el puente en backoffice');
++ // Se comprueba la inyección, no el archivo ya inyectado: los tags los añade
++ // `npm run build`, así que leer admin.html a secas fallaba en un clon recién
++ // bajado y, al contrario, podía pasar por un build viejo que dejó el tag.
++ const inyector=require('./staff-login-inject.js');
++ for(const page of ['admin.html','backoffice.html']){
++  assert(inyector.bridgePages.has(page),`El build debe inyectar el puente en ${page}`);
++  const inyectado=inyector.inject(page,fs.readFileSync(page,'utf8'));
++  assert(inyectado.includes('/staff-session-bridge.js'),`El build debe inyectar el puente en ${page}`);
++  assert(inyector.inject(page,inyectado)===inyectado,`La inyección de ${page} debe ser idempotente`);
++ }
+  const bridge=fs.readFileSync('staff-session-bridge.js','utf8');assert(bridge.includes("STAFF_LOGIN_ENDPOINT='/.netlify/functions/staff-login'"),'El puente debe reconocer el login específico de staff');assert(bridge.includes('exchangeStaffToken(token)'),'El login de staff debe canjear el JWT por la cookie interna');assert(!bridge.includes('localStorage.setItem(SESSION)'),'El puente no debe persistir el JWT interno');assert(bridge.includes('if(this===window.localStorage&&key===KEY)return;'),'El puente debe bloquear persistencia del usuario interno en localStorage');
+  const loginUi=fs.readFileSync('staff-login-ui.js','utf8');assert(!/localStorage\.setItem\(\s*KEY\b/.test(loginUi),'La UI de acceso interno no debe persistir datos o tokens de staff en localStorage');
+  const logout=await adminSession.handler(event({action:'logout'},{cookie:cookiePair}));assert.strictEqual(logout.statusCode,200);assert(/Max-Age=0/.test(logout.headers['Set-Cookie']),'Logout debe expirar la cookie');
+diff --git a/scripts/test-admin-site-config.js b/scripts/test-admin-site-config.js
+index 56e37fa..1a4416f 100644
+--- a/scripts/test-admin-site-config.js
++++ b/scripts/test-admin-site-config.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ const fs=require('fs');
+ const settings=require('../netlify/lib/settings');
+diff --git a/scripts/test-admin-staff-context.js b/scripts/test-admin-staff-context.js
+index 15661da..29ce5a0 100644
+--- a/scripts/test-admin-staff-context.js
++++ b/scripts/test-admin-staff-context.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ // Adaptador exclusivo de test. Las pruebas históricas pasan un campo `token`
+ // al helper local; aquí ese token se transforma en la cookie interna de staff
+ // ANTES de cargar admin.js. Así conservamos la cobertura del catálogo sin
+diff --git a/scripts/test-admin-suite.js b/scripts/test-admin-suite.js
+index 94cc93e..ff278b6 100644
+--- a/scripts/test-admin-suite.js
++++ b/scripts/test-admin-suite.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
+ globalThis.__NUTRETIUM_TEST_BLOBS__=new Map();globalThis.__NUTRETIUM_TEST_BLOB_ETAGS__=new Map();
+diff --git a/scripts/test-admin.js b/scripts/test-admin.js
+index 8ad5bf2..84901e6 100644
+--- a/scripts/test-admin.js
++++ b/scripts/test-admin.js
+@@ -12,6 +12,12 @@
+ // internet ni hacen commits de verdad, pero sí comprueban QUÉ se habría subido.
+ // ─────────────────────────────────────────────────────────────────────────────
+ 'use strict';
++require('./test-env');
++// El adaptador de contexto de staff tiene que cargarse ANTES que admin.js.
++// Se requiere aquí, y no solo con el `-r` de `npm run test:admin`, para que
++// `node scripts/test-admin.js` a secas también funcione: sin él la prueba
++// reventaba con un TypeError en lugar de decir qué faltaba.
++require('./test-admin-staff-context.js');
+ 
+ const fs = require('fs');
+ const path = require('path');
+diff --git a/scripts/test-agent-memory-extreme.js b/scripts/test-agent-memory-extreme.js
+index 07963e2..f76df72 100644
+--- a/scripts/test-agent-memory-extreme.js
++++ b/scripts/test-agent-memory-extreme.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ 
+ process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
+ process.env.JWT_SECRET='nutretium-test-jwt-secret-32-bytes-minimum-2026';
+diff --git a/scripts/test-agent-safe-memory.js b/scripts/test-agent-safe-memory.js
+index 34ad320..716efc2 100644
+--- a/scripts/test-agent-safe-memory.js
++++ b/scripts/test-agent-safe-memory.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ 
+ process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
+ const assert=require('assert');
+diff --git a/scripts/test-ai-control-plane.js b/scripts/test-ai-control-plane.js
+index 8e19602..407ee96 100644
+--- a/scripts/test-ai-control-plane.js
++++ b/scripts/test-ai-control-plane.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ const governance=require('../netlify/lib/agent-governance');
+ const runtime=require('../netlify/lib/ai-runtime');
+diff --git a/scripts/test-ai-federation.js b/scripts/test-ai-federation.js
+index 750e698..e58df39 100644
+--- a/scripts/test-ai-federation.js
++++ b/scripts/test-ai-federation.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ 
+ const assert=require('assert');
+ const federation=require('../netlify/lib/federated-ai-router');
+diff --git a/scripts/test-ai-growth-loop.js b/scripts/test-ai-growth-loop.js
+index 6122aaf..5a1aab7 100644
+--- a/scripts/test-ai-growth-loop.js
++++ b/scripts/test-ai-growth-loop.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ const growth=require('../netlify/lib/ai-growth-loop');
+ const verified=status=>({status,records:1});
+diff --git a/scripts/test-ai-live-ollama.js b/scripts/test-ai-live-ollama.js
+index 9bb0eca..fdadbb0 100644
+--- a/scripts/test-ai-live-ollama.js
++++ b/scripts/test-ai-live-ollama.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ 
+ const assert=require('assert');
+ process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
+diff --git a/scripts/test-architecture-hardening.js b/scripts/test-architecture-hardening.js
+index dc6168b..9342a8d 100644
+--- a/scripts/test-architecture-hardening.js
++++ b/scripts/test-architecture-hardening.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
+ process.env.JWT_SECRET=process.env.JWT_SECRET||'test-only-jwt-secret-with-sufficient-entropy-123456789';
+diff --git a/scripts/test-catalogo.js b/scripts/test-catalogo.js
+index 05c07d8..b420628 100644
+--- a/scripts/test-catalogo.js
++++ b/scripts/test-catalogo.js
+@@ -12,6 +12,7 @@
+ // y lo comprueba en memoria. La última prueba verifica justo eso.
+ // ─────────────────────────────────────────────────────────────────────────────
+ 'use strict';
++require('./test-env');
+ 
+ const fs = require('fs');
+ const path = require('path');
+diff --git a/scripts/test-checkout-enterprise.js b/scripts/test-checkout-enterprise.js
+index 8d1bef7..170804a 100644
+--- a/scripts/test-checkout-enterprise.js
++++ b/scripts/test-checkout-enterprise.js
+@@ -1,3 +1,6 @@
++'use strict';
++require('./test-env');
++
+ 'use strict';const assert=require('assert');const q=require('../netlify/lib/checkout-enterprise');let n=0;function t(name,fn){fn();n++;console.log('✓',name)}
+ t('España se normaliza a ES',()=>assert.strictEqual(q.country('España'),'ES'));
+ t('regla postal específica gana a la general',()=>{const r=q.selectShippingRule([{id:'general',status:'active',country:'ES',priceCents:500,isDefault:true},{id:'local',status:'active',country:'ES',postalPrefixes:['39'],priceCents:200}],{pais:'España',cp:'39001'});assert.strictEqual(r.id,'local')});
+diff --git a/scripts/test-commerce-benefits.js b/scripts/test-commerce-benefits.js
+index 11b129a..59e3014 100644
+--- a/scripts/test-commerce-benefits.js
++++ b/scripts/test-commerce-benefits.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
+ const assert=require('assert');
+ const store=require('../netlify/lib/enterprise-store');
+diff --git a/scripts/test-commerce-core.js b/scripts/test-commerce-core.js
+index 7e15deb..de2fdaf 100644
+--- a/scripts/test-commerce-core.js
++++ b/scripts/test-commerce-core.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ 
+ process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
+ process.env.JWT_SECRET='secreto-de-pruebas-con-mas-de-32-caracteres';
+@@ -49,7 +50,9 @@ async function main(){
+   // Otro SKU para no interferir con la prueba de commit anterior.
+   const checkoutProduct=NUTRETIUM_PRODUCTS.find(p=>p.active!==false&&(p.stock===null||p.stock>2)&&p.id!==product.id);
+   assert(checkoutProduct,'Hace falta un segundo producto vendible para probar checkout.');
+-  const body={items:[{id:checkoutProduct.id,code:checkoutProduct.code,qty:1}],guest:guest()};
++  // Las condiciones de contratación se aceptan en la petición: sin ellas el
++  // checkout responde 422 `terms-required` antes de valorar nada.
++  const body={items:[{id:checkoutProduct.id,code:checkoutProduct.code,qty:1}],termsAccepted:true,termsVersion:'2026-09-20',guest:guest()};
+   const first=await checkout(event(body,'checkout-idempotent-0001'));
+   assert.equal(first.statusCode,200,first.body);
+   const data=JSON.parse(first.body);
+diff --git a/scripts/test-commerce.js b/scripts/test-commerce.js
+index 0bb4337..a14376b 100644
+--- a/scripts/test-commerce.js
++++ b/scripts/test-commerce.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ const {slugify,escapeXml,productPath,categoryPath,buildSitemap}=require('../netlify/lib/seo');
+ const settings=require('../netlify/lib/settings');
+diff --git a/scripts/test-cuentas.js b/scripts/test-cuentas.js
+index f694f85..e551b4d 100644
+--- a/scripts/test-cuentas.js
++++ b/scripts/test-cuentas.js
+@@ -2,6 +2,7 @@
+ // NUTRETIUM — pruebas de las cuentas de cliente
+ // ─────────────────────────────────────────────────────────────────────────────
+ 'use strict';
++require('./test-env');
+ 
+ process.env.JWT_SECRET = 'secreto-de-pruebas-con-mas-de-32-caracteres-de-sobra';
+ process.env.URL = 'https://nutretium.com';
+diff --git a/scripts/test-customer-postsale.js b/scripts/test-customer-postsale.js
+index d2e29df..d8af0d9 100644
+--- a/scripts/test-customer-postsale.js
++++ b/scripts/test-customer-postsale.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ 
+ process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
+ process.env.JWT_SECRET='test-secret-abcdefghijklmnopqrstuvwxyz-1234567890';
+diff --git a/scripts/test-data-layer.js b/scripts/test-data-layer.js
+index f620858..67a4d8d 100644
+--- a/scripts/test-data-layer.js
++++ b/scripts/test-data-layer.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
+ const storage=require('../netlify/lib/storage');
+diff --git a/scripts/test-defense-in-depth.js b/scripts/test-defense-in-depth.js
+index 2373801..784d533 100644
+--- a/scripts/test-defense-in-depth.js
++++ b/scripts/test-defense-in-depth.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
+ process.env.CONTEXT='production';
+diff --git a/scripts/test-enterprise-workforce-runtime.js b/scripts/test-enterprise-workforce-runtime.js
+index befbd40..fa122ae 100644
+--- a/scripts/test-enterprise-workforce-runtime.js
++++ b/scripts/test-enterprise-workforce-runtime.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ 
+ const assert=require('assert');
+ const runtime=require('../netlify/lib/enterprise-workforce-runtime');
+diff --git a/scripts/test-enterprise-workforce.js b/scripts/test-enterprise-workforce.js
+index 1a3d65a..72dee5c 100644
+--- a/scripts/test-enterprise-workforce.js
++++ b/scripts/test-enterprise-workforce.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ 
+ const assert=require('assert');
+ const workforce=require('../netlify/lib/enterprise-workforce');
+diff --git a/scripts/test-enterprise.js b/scripts/test-enterprise.js
+index c6f05b5..a487fe6 100644
+--- a/scripts/test-enterprise.js
++++ b/scripts/test-enterprise.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');const schema=require('../netlify/lib/enterprise-schema');const a=require('../netlify/lib/enterprise-actions');
+ let n=0;function t(name,fn){fn();n++;console.log('✓',name)}
+ t('rechaza almacén sin campos obligatorios',()=>assert.strictEqual(schema.validate('warehouses',{}).ok,false));
+diff --git a/scripts/test-env.js b/scripts/test-env.js
+new file mode 100644
+index 0000000..45821a0
+--- /dev/null
++++ b/scripts/test-env.js
+@@ -0,0 +1,78 @@
++// ─────────────────────────────────────────────────────────────────────────────
++// scripts/test-env.js — el entorno limpio que esperan las pruebas
++//
++// Las pruebas se escribieron para ejecutarse en un equipo de trabajo, donde
++// ninguna variable de Netlify está puesta: cada una monta el escenario que
++// quiere probar (con credenciales o sin ellas, en pruebas o en producción) y
++// comprueba qué responde el servidor.
++//
++// Ejecutadas DENTRO de Netlify eso deja de ser cierto: el contenedor trae las
++// variables reales del sitio, y las pruebas empiezan a medir la configuración
++// del sitio en lugar del código. Pasaba de verdad, y de tres maneras:
++//
++//   · `URL=https://nutretium.com` y `COMMERCE_LIVE` hacen que
++//     `security-policy.productionLike()` diga «esto es producción», así que
++//     `REQUIRE_PRODUCT_COMPLIANCE` y el CSRF de personal se vuelven
++//     obligatorios. El checkout contestaba 409 y la sesión interna 403 donde
++//     la prueba esperaba 503 y 401 — no por un fallo, sino porque la política
++//     de producción se activó a mitad de la prueba.
++//
++//   · `SITE_ID` y `NETLIFY_API_TOKEN` hacen que `getBlobStore()` devuelva el
++//     almacén REAL del sitio publicado. Las pruebas que no piden el almacén en
++//     memoria leían datos de producción (77 lecturas en test-enterprise.js):
++//     su resultado dependía del contenido de la tienda en ese momento.
++//
++//   · `RESEND_API_KEY` y `ORDER_EMAIL_FROM` dejan el correo transaccional
++//     operativo, así que una prueba que llegue al aviso de pedido enviaría
++//     correo de verdad.
++//
++// Así que antes de nada se vuelve al punto de partida: se borran las variables
++// del sitio y cada prueba pone las suyas. El mismo veredicto en el portátil,
++// en GitHub Actions y dentro de Netlify.
++//
++// Se carga como primera línea de cada `scripts/test-*.js`, ANTES de que la
++// prueba escriba en `process.env`, para no pisar lo que ella misma configura.
++// ─────────────────────────────────────────────────────────────────────────────
++
++'use strict';
++
++/**
++ * Variables del sitio que cambian lo que responde el servidor. Se borran; la
++ * prueba que necesite alguna la pone ella.
++ *
++ * No están aquí las que solo describen el despliegue sin decidir nada
++ * (`COMMIT_REF`, `BRANCH`…): no alteran ninguna respuesta.
++ */
++const DEL_ENTORNO = [
++  // ── Qué contexto es. Deciden productionLike(), y con ello el cumplimiento
++  //    documental obligatorio, el CSRF de personal, MFA y HSTS.
++  'CONTEXT', 'URL', 'DEPLOY_URL', 'DEPLOY_PRIME_URL', 'COMMERCE_LIVE',
++
++  // ── Interruptores de seguridad que productionLike() ya implica, pero que
++  //    también pueden venir puestos por su cuenta.
++  'REQUIRE_PRODUCT_COMPLIANCE', 'COMPLIANCE_EXEMPT_SKUS',
++  'REQUIRE_STAFF_MFA', 'REQUIRE_STAFF_CSRF',
++  'REQUIRE_STAFF_COOKIE', 'REQUIRE_STAFF_STEP_UP',
++
++  // ── El TPV. Hay pruebas que comprueban justo que sin estas no se firma nada.
++  'REDSYS_SECRET_KEY', 'REDSYS_MERCHANT_CODE', 'REDSYS_TERMINAL', 'REDSYS_ENV',
++  'REDSYS_URL_OK', 'REDSYS_URL_KO', 'REDSYS_MERCHANT_URL',
++
++  // ── Sesiones y quién es administrador.
++  'JWT_SECRET', 'ADMIN_EMAILS', 'OWNER_EMAILS', 'GITHUB_TOKEN',
++
++  // ── El almacén: sin estas, getBlobStore() no alcanza el sitio publicado.
++  'SITE_ID', 'NETLIFY_API_TOKEN', 'NETLIFY_BLOBS_CONTEXT',
++
++  // ── Correo transaccional: que ninguna prueba pueda enviar correo real.
++  'RESEND_API_KEY', 'ORDER_EMAIL_FROM', 'ORDER_NOTIFICATION_EMAIL',
++
++  // ── Tienda: mantenimiento y política de envío.
++  'MAINTENANCE_MODE',
++  'SHIPPING_ENABLED', 'SHIPPING_RATE_CENTS', 'SHIPPING_FREE_FROM_CENTS',
++  'SHIPPING_COUNTRY', 'SHIPPING_LABEL',
++];
++
++for (const nombre of DEL_ENTORNO) delete process.env[nombre];
++
++module.exports = { DEL_ENTORNO };
+diff --git a/scripts/test-external-readiness.js b/scripts/test-external-readiness.js
+index 51354aa..2d0318f 100644
+--- a/scripts/test-external-readiness.js
++++ b/scripts/test-external-readiness.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ const readiness=require('../netlify/lib/external-readiness');
+ function response(json,status=200){return{ok:status>=200&&status<300,status,json:async()=>json};}
+diff --git a/scripts/test-factusol-integration.js b/scripts/test-factusol-integration.js
+index b466623..8e0b60c 100644
+--- a/scripts/test-factusol-integration.js
++++ b/scripts/test-factusol-integration.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert = require('assert');
+ const { FactusolClient, normalizeRows } = require('../netlify/lib/factusol-client');
+ const { FactusolCommerce } = require('../netlify/lib/factusol-commerce');
+diff --git a/scripts/test-finalization.js b/scripts/test-finalization.js
+index 0d5f902..018e247 100644
+--- a/scripts/test-finalization.js
++++ b/scripts/test-finalization.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ 
+ const assert = require('assert');
+ const provider = require('../netlify/lib/provider-client');
+diff --git a/scripts/test-guardian.js b/scripts/test-guardian.js
+index e73cd61..b338973 100644
+--- a/scripts/test-guardian.js
++++ b/scripts/test-guardian.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ const fs=require('fs');
+ const path=require('path');
+diff --git a/scripts/test-managed-checkout-payment.js b/scripts/test-managed-checkout-payment.js
+index 5f7664b..ff316be 100644
+--- a/scripts/test-managed-checkout-payment.js
++++ b/scripts/test-managed-checkout-payment.js
+@@ -1 +1,4 @@
++'use strict';
++require('./test-env');
++
+ 'use strict';const assert=require('assert');process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';process.env.JWT_SECRET='x'.repeat(48);process.env.CONFIG_VAULT_KEY='test-vault-key-'.padEnd(48,'x');globalThis.__NUTRETIUM_TEST_BLOBS__=new Map();globalThis.__NUTRETIUM_TEST_BLOB_ETAGS__=new Map();const payment=require('../netlify/lib/payment-config');const settings=require('../netlify/lib/settings');const vault=require('../netlify/lib/config-vault');(async()=>{let s=settings.normalize(settings.defaults);s.payment={...s.payment,managed:true,enabled:true,environment:'test',commerceLive:false,terminal:'1'};await settings.write(s);await vault.writePayment({merchantCode:'369551841',secretKey:'sq7HjrUOBfKmC576ILgskD5srU870gJ7'});let p=await payment.resolve();assert.equal(p.managed,true);assert.equal(p.enabled,true);assert.equal(p.environment,'test');assert.equal(p.credentialsConfigured,true);assert.equal(p.ready,true);s.payment.environment='production';s.payment.commerceLive=false;await settings.write(s);p=await payment.resolve();assert.equal(p.ready,false);console.log('[test-managed-checkout-payment] admin TEST is ready; unapproved LIVE is blocked')})().catch(e=>{console.error(e);process.exit(1)});
+diff --git a/scripts/test-merchant-feed.js b/scripts/test-merchant-feed.js
+index 5b1665c..1fe3104 100644
+--- a/scripts/test-merchant-feed.js
++++ b/scripts/test-merchant-feed.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ const feed=require('../netlify/functions/merchant-feed')._test;
+ let count=0;function t(name,fn){fn();count++;console.log('✓',name)}
+diff --git a/scripts/test-nexus-core.js b/scripts/test-nexus-core.js
+index 55dcae1..5a24c54 100644
+--- a/scripts/test-nexus-core.js
++++ b/scripts/test-nexus-core.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ const nexus=require('../netlify/lib/nexus-core');
+ const governance=require('../netlify/lib/agent-governance');
+diff --git a/scripts/test-password-recovery-ui.js b/scripts/test-password-recovery-ui.js
+index d3d1c2c..8820621 100644
+--- a/scripts/test-password-recovery-ui.js
++++ b/scripts/test-password-recovery-ui.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const fs=require('fs');
+ const path=require('path');
+ const assert=(cond,msg)=>{if(!cond)throw new Error(msg)};
+diff --git a/scripts/test-passwords.js b/scripts/test-passwords.js
+index 062965b..abcf4e0 100644
+--- a/scripts/test-passwords.js
++++ b/scripts/test-passwords.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ const crypto=require('crypto');
+ const passwords=require('../netlify/lib/passwords');
+diff --git a/scripts/test-pim-seo.js b/scripts/test-pim-seo.js
+index d49f477..beed26c 100644
+--- a/scripts/test-pim-seo.js
++++ b/scripts/test-pim-seo.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ 
+ const assert = require('assert');
+ const fs = require('fs');
+@@ -22,10 +23,13 @@ for (const raw of active) {
+ const invalid = pim.normalize({ id:999, name:'Prueba', ean:'12345', active:true });
+ assert.strictEqual(invalid.gtin, null, 'Un EAN de longitud inválida no debe publicarse como GTIN');
+ 
++// Se comprueba el HTML que PINTA el generador, no la carpeta que deja el
++// build: `producto/` y `categoria/` las crea `npm run build`, así que leerlas
++// hacía fallar la prueba en un clon recién bajado (y, peor, la dejaba pasar
++// leyendo las de un build viejo).
++const generador = require('./build-seo-pages.js');
+ const first = pim.normalize(active[0]);
+-const productPage = path.join(root,'producto',`${pim.slugify(first.name)}-${first.id}`,'index.html');
+-assert(fs.existsSync(productPage), 'Debe generarse HTML estático de producto');
+-const productHtml = fs.readFileSync(productPage,'utf8');
++const productHtml = generador.renderProductPage(first);
+ assert(productHtml.includes(`<h1 class="title">${first.name.replace(/&/g,'&amp;')}`) || productHtml.includes(first.name), 'La ficha estática debe contener el producto');
+ assert(productHtml.includes('rel="canonical"'), 'La ficha estática debe tener canonical');
+ assert.strictEqual((productHtml.match(/rel="canonical"/g)||[]).length, 1, 'La ficha estática debe tener un único canonical');
+@@ -39,14 +43,25 @@ assert(productHtml.indexOf('/product-pim.js') < productHtml.indexOf('/product-va
+ 
+ const category = NUTRETIUM_CATEGORIES.find(c => active.some(p => p.category === c));
+ assert(category, 'Debe existir una categoría activa');
+-const categoryPage = path.join(root,'categoria',pim.slugify(category),'index.html');
+-assert(fs.existsSync(categoryPage), 'Debe generarse landing estática de categoría');
+-const categoryHtml = fs.readFileSync(categoryPage,'utf8');
++const categorySlug = pim.slugify(category);
++const categoryHtml = generador.collectionPage({
++  kind:'categoria', label:category, slug:categorySlug,
++  list:active.map(pim.normalize).filter(p => p.category === category),
++  description:`Compra ${category.toLowerCase()} disponibles en el catálogo online de Nutretium.`,
++});
+ assert(categoryHtml.includes('"@type":"CollectionPage"'), 'La categoría debe tener CollectionPage schema');
+ assert(categoryHtml.includes('"@type":"ItemList"'), 'La categoría debe tener ItemList schema');
+ 
+ const brands = [...new Set(active.map(p=>p.brand).filter(Boolean))];
+-if (brands.length) assert(fs.existsSync(path.join(root,'marca',pim.slugify(brands[0]),'index.html')), 'Debe generarse landing de marca');
++if (brands.length) {
++  const brandHtml = generador.collectionPage({
++    kind:'marca', label:brands[0], slug:pim.slugify(brands[0]),
++    list:active.map(pim.normalize).filter(p => p.brand === brands[0]),
++    description:`Productos de ${brands[0]} publicados actualmente en Nutretium.`,
++  });
++  assert(brandHtml.includes('rel="canonical"'), 'La landing de marca debe tener canonical');
++  assert(brandHtml.includes(`/marca/${pim.slugify(brands[0])}`), 'La landing de marca debe apuntar a su propia URL');
++}
+ 
+ const sitemap = fs.readFileSync(path.join(root,'sitemap.xml'),'utf8');
+ assert(sitemap.includes('/condiciones'), 'Sitemap debe incluir condiciones de contratación');
+diff --git a/scripts/test-platform-services.js b/scripts/test-platform-services.js
+index cd82a10..61961de 100644
+--- a/scripts/test-platform-services.js
++++ b/scripts/test-platform-services.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');const hooks=require('../netlify/lib/webhooks');const worker=require('../netlify/functions/notification-worker')._test;const totp=require('../netlify/lib/totp');const guest=require('../netlify/lib/guest-access');const refund=require('../netlify/functions/refund-redsys')._test;let n=0;function t(name,fn){fn();n++;console.log('✓',name)}
+ t('firma webhook HMAC estable',()=>assert.strictEqual(hooks.signature('secret','body'),hooks.signature('secret','body')));
+ t('firma cambia con payload',()=>assert.notStrictEqual(hooks.signature('secret','body'),hooks.signature('secret','body2')));
+diff --git a/scripts/test-precios.js b/scripts/test-precios.js
+index 26d8b2b..c703d9a 100644
+--- a/scripts/test-precios.js
++++ b/scripts/test-precios.js
+@@ -1,6 +1,7 @@
+ // Pruebas de la valoración de carritos en el servidor.
+ // Uso: node scripts/test-precios.js   (sale con código 1 si algo falla)
+ 'use strict';
++require('./test-env');
+ const path = require('path').join(__dirname, '..') + '/';
+ const { valorarCarrito } = require(path+'netlify/lib/catalogo.js');
+ const { NUTRETIUM_PRODUCTS } = require(path+'products-data.js');
+diff --git a/scripts/test-production-deploy-guard.js b/scripts/test-production-deploy-guard.js
+index ac15a4c..845f28f 100644
+--- a/scripts/test-production-deploy-guard.js
++++ b/scripts/test-production-deploy-guard.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ 
+ const assert = require('assert');
+ const policy = require('../netlify/lib/main-origin-policy');
+diff --git a/scripts/test-production-readiness.js b/scripts/test-production-readiness.js
+index ddd935e..0b49185 100644
+--- a/scripts/test-production-readiness.js
++++ b/scripts/test-production-readiness.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ const sentinel=require('../netlify/functions/production-sentinel')._test;
+ const totp=require('../netlify/lib/totp');
+diff --git a/scripts/test-rate-limit-degraded.js b/scripts/test-rate-limit-degraded.js
+index feb0dc1..7f9f721 100644
+--- a/scripts/test-rate-limit-degraded.js
++++ b/scripts/test-rate-limit-degraded.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ const Module=require('module');
+ const path=require('path');
+diff --git a/scripts/test-redsys-mode-gate.js b/scripts/test-redsys-mode-gate.js
+index fa005c0..86e2f13 100644
+--- a/scripts/test-redsys-mode-gate.js
++++ b/scripts/test-redsys-mode-gate.js
+@@ -1,3 +1,6 @@
++'use strict';
++require('./test-env');
++
+ 'use strict';const assert=require('assert');process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';const gate=require('../netlify/functions/checkout-enterprise')._test.paymentHostAllowed;
+ assert.deepStrictEqual(gate('nutretium.com',{enabled:true,credentialsConfigured:true,environment:'test',commerceLive:false}),{ok:true,mode:'test'},'el dominio público debe permitir sandbox explícito');
+ assert.deepStrictEqual(gate('nutretium.com',{enabled:true,credentialsConfigured:true,environment:'production',commerceLive:false}),{ok:false,reason:'live-not-authorized'},'producción sin autorización debe bloquearse');
+diff --git a/scripts/test-redsys.js b/scripts/test-redsys.js
+index 9cc0548..b5505cf 100644
+--- a/scripts/test-redsys.js
++++ b/scripts/test-redsys.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ 
+ const assert = require('assert');
+ const crypto = require('crypto');
+diff --git a/scripts/test-refund-security.js b/scripts/test-refund-security.js
+index 9f446f2..faebf9b 100644
+--- a/scripts/test-refund-security.js
++++ b/scripts/test-refund-security.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
+ globalThis.__NUTRETIUM_TEST_BLOBS__=new Map();
+diff --git a/scripts/test-release-guards.js b/scripts/test-release-guards.js
+index ceea0d2..373affe 100644
+--- a/scripts/test-release-guards.js
++++ b/scripts/test-release-guards.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ 
+ const assert = require('assert');
+ const fs = require('fs');
+diff --git a/scripts/test-security-regressions.js b/scripts/test-security-regressions.js
+index 56a192d..cbfc28a 100644
+--- a/scripts/test-security-regressions.js
++++ b/scripts/test-security-regressions.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ const crypto=require('crypto');
+ const fs=require('fs');
+@@ -13,7 +14,8 @@ globalThis.__NUTRETIUM_TEST_BLOB_ETAGS__=new Map();
+ 
+ const usuarios=require('../netlify/lib/usuarios');
+ const {signJWT,verifyJWT}=require('../netlify/lib/jwt');
+-const {verifyUserToken}=require('../netlify/lib/session');
++const sesion=require('../netlify/lib/session');
++const {verifyUserToken}=sesion;
+ const {getBlobStore}=require('../netlify/lib/blob-store');
+ const customerCommerce=require('../netlify/functions/customer-commerce');
+ const checkoutSecure=require('../netlify/functions/checkout-enterprise-secure');
+@@ -43,7 +45,24 @@ function signedWithHeader(header,payload){const h=Buffer.from(JSON.stringify(hea
+  assert.strictEqual(maintenance.statusCode,503,'Mantenimiento debe bloquear checkout Enterprise antes de efectos');
+  process.env.MAINTENANCE_MODE='false';
+ 
++ // La sesión de cliente viaja en la cookie HttpOnly y el navegador ya no
++ // guarda ningún token: un checkout que solo mirase `body.token` trataría
++ // como invitado a quien está identificado y le pediría otra vez sus datos.
++ const correoCookie='cookie-session@example.com';
++ await usuarios.escribe(correoCookie,{id:'u-cookie',email:correoCookie,name:'Cookie',surname:'Sesion',phone:'600111222',direccion:{calle:'Calle La Albericia 1',piso:'',cp:'39012',localidad:'Santander',provincia:'Cantabria',pais:'España'},sessionVersion:0,tokensValidAfter:0,passwordHash:'x'});
++ const tokenCookie=signJWT({sub:'u-cookie',email:correoCookie,kind:'customer',sv:0,exp:Math.floor(Date.now()/1000)+3600});
++ assert.strictEqual(sesion.customerEventToken({headers:{cookie:`nt_customer_session=${tokenCookie}`}},'token-del-cuerpo'),tokenCookie,'La cookie manda sobre el token del cuerpo');
++ assert.strictEqual(sesion.customerEventToken({headers:{authorization:'Bearer de-cabecera'}},'token-del-cuerpo'),'de-cabecera','La cabecera manda sobre el token del cuerpo');
++ assert.strictEqual(sesion.customerEventToken({headers:{}},'token-del-cuerpo'),'token-del-cuerpo','El token heredado sigue valiendo si no hay nada más');
++ assert.strictEqual(sesion.customerEventToken({headers:{}}),null,'Sin sesión no se inventa token');
++ const conCookie=await checkoutSecure.handler({httpMethod:'POST',headers:{host:'preview.local','x-nf-client-connection-ip':'127.0.0.212',cookie:`nt_customer_session=${tokenCookie}`},body:JSON.stringify({action:'quote',items:[]})});
++ const cuerpoCookie=JSON.parse(conCookie.body||'{}');
++ assert.notStrictEqual(cuerpoCookie.motivo,'guest-incomplete','Con sesión en cookie el checkout no puede pedir datos de invitado');
++ assert.strictEqual(conCookie.statusCode,400,'Identificado y con el carrito vacío, el checkout falla por el carrito: '+conCookie.body);
++ const sinNada=await checkoutSecure.handler({httpMethod:'POST',headers:{host:'preview.local','x-nf-client-connection-ip':'127.0.0.213'},body:JSON.stringify({action:'quote',items:[]})});
++ assert.strictEqual(JSON.parse(sinNada.body||'{}').motivo,'guest-incomplete','Sin sesión sigue pidiendo los datos del invitado');
++
+  const resetStore=getBlobStore('password-reset-v1'),raw='x'.repeat(40),key=legacyReset._test.digest(raw);await resetStore.setJSON(key,{email,expiresAt:Date.now()+60000,used:false});
+  const claimsRace=await Promise.all(Array.from({length:8},()=>legacyReset._test.claimToken(resetStore,key)));assert.strictEqual(claimsRace.filter(Boolean).length,1,'El reset legacy debe poder reclamarse una sola vez bajo concurrencia');
+- console.log('[test-security-regressions] OK · JWT estricto · revocación exacta · Mi Cuenta · checkout fail-closed · reset legacy atómico');
++ console.log('[test-security-regressions] OK · JWT estricto · revocación exacta · Mi Cuenta · checkout fail-closed · sesión por cookie en checkout · reset legacy atómico');
+ })().catch(err=>{console.error(err);process.exit(1)});
+diff --git a/scripts/test-security-tokens.js b/scripts/test-security-tokens.js
+index 52cca2c..02e11ff 100644
+--- a/scripts/test-security-tokens.js
++++ b/scripts/test-security-tokens.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
+ process.env.JWT_SECRET='test-security-secret-abcdefghijklmnopqrstuvwxyz-123456789';
+ 
+diff --git a/scripts/test-smart-store.js b/scripts/test-smart-store.js
+index 4394d32..ecd69b0 100644
+--- a/scripts/test-smart-store.js
++++ b/scripts/test-smart-store.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ const E=require('../smart-store-engine.js');
+ const feed=require('../netlify/functions/catalog-json.js')._test;
+diff --git a/scripts/test-staff-access-recovery.js b/scripts/test-staff-access-recovery.js
+index d318138..afe6b6a 100644
+--- a/scripts/test-staff-access-recovery.js
++++ b/scripts/test-staff-access-recovery.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ const crypto=require('crypto');
+ process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
+@@ -60,5 +61,27 @@ const parse=r=>JSON.parse(r.body||'{}');
+  assert.ok(!stored.mfaSelfSetupPendingAt,'El estado de alta pendiente debe limpiarse tras verificar el código');
+  assert.strictEqual(totp.secretFor(adminEmail,stored),setup.mfa.setupSecret,'El secreto cifrado persistido debe coincidir con el aprovisionado');
+ 
+- console.log('[test-staff-access-recovery] OK · owner correo+contraseña · admin alta MFA guiada · código TOTP verificado · acceso recuperable');
++ // El freno del acceso interno tiene que notarse: al agotar los intentos la
++ // respuesta cambia a 429 con Retry-After. Antes devolvía el mismo 401 que una
++ // contraseña incorrecta, así que consumir el contador no cambiaba nada y el
++ // auditor del sitio publicado lo detectaba como freno inexistente.
++ const frenoIp='127.0.0.91',frenoEmail='recovery-freno@nutretium.test';
++ await usuarios.escribe(frenoEmail,base(frenoEmail));
++ let frenada=null;
++ for(let i=0;i<15&&!frenada;i++){
++  const r=await staffLogin.handler(event({email:frenoEmail,password:'incorrecta-'+i},frenoIp));
++  if(r.statusCode!==401)frenada=r;
++ }
++ assert.ok(frenada,'Repetir contraseñas incorrectas debe acabar frenando el acceso interno');
++ assert.strictEqual(frenada.statusCode,429,'El acceso interno frenado debe responder 429, no un 401 indistinguible');
++ assert.ok(Number(frenada.headers['Retry-After'])>=1,'El 429 debe decir cuánto hay que esperar');
++ // Y frena también un correo que no existe, para no revelar cuáles lo están.
++ let frenadaDesconocida=null;
++ for(let i=0;i<15&&!frenadaDesconocida;i++){
++  const r=await staffLogin.handler(event({email:'no-existe@nutretium.test',password:'incorrecta-'+i},'127.0.0.92'));
++  if(r.statusCode!==401)frenadaDesconocida=r;
++ }
++ assert.strictEqual(frenadaDesconocida?.statusCode,429,'El freno debe contar igual para correos que no existen');
++
++ console.log('[test-staff-access-recovery] OK · owner correo+contraseña · admin alta MFA guiada · código TOTP verificado · acceso recuperable · freno con 429');
+ })().catch(err=>{console.error(err);process.exit(1)});
+diff --git a/scripts/test-storefront-commercial.js b/scripts/test-storefront-commercial.js
+index ea38cb5..0935e81 100644
+--- a/scripts/test-storefront-commercial.js
++++ b/scripts/test-storefront-commercial.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ 
+ const fs = require('fs');
+ const assert = require('assert');
+diff --git a/scripts/test-tier5-incremental.js b/scripts/test-tier5-incremental.js
+index abb300b..7be8149 100644
+--- a/scripts/test-tier5-incremental.js
++++ b/scripts/test-tier5-incremental.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
+ process.env.JWT_SECRET='test-internal-secret-with-sufficient-length';
+diff --git a/scripts/test-zero-cost-policy.js b/scripts/test-zero-cost-policy.js
+index 17b393d..95d3448 100644
+--- a/scripts/test-zero-cost-policy.js
++++ b/scripts/test-zero-cost-policy.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ 
+ const assert=require('assert');
+ const zero=require('../netlify/lib/zero-cost-policy');
+diff --git a/scripts/test-zero-trust-security.js b/scripts/test-zero-trust-security.js
+index 308c373..c5f9c75 100644
+--- a/scripts/test-zero-trust-security.js
++++ b/scripts/test-zero-trust-security.js
+@@ -1,4 +1,5 @@
+ 'use strict';
++require('./test-env');
+ const assert=require('assert');
+ const fs=require('fs');
+ const path=require('path');
+diff --git a/sesion-cliente.js b/sesion-cliente.js
+new file mode 100644
+index 0000000..48a29d3
+--- /dev/null
++++ b/sesion-cliente.js
+@@ -0,0 +1,49 @@
++/* NUTRETIUM — sesión de cliente en el navegador.
++   La sesión de verdad es la cookie HttpOnly `nt_customer_session`, que el
++   navegador NO puede leer: por eso `customer-session-hardening.js` borra el
++   token de `localStorage` a propósito y en `localStorage` solo queda el perfil.
++
++   Aquí vive la única respuesta a «¿hay sesión?» para todo el lado cliente: la
++   da el perfil guardado, nunca un token. Preguntar por el token dejaba fuera a
++   quien acababa de entrar —«Inicia sesión para acceder a tus servicios» con la
++   sesión recién abierta— y mandaba `Authorization: Bearer ` vacío.
++
++   Las peticiones salen con `credentials:'same-origin'` para que la cookie
++   llegue, y la cabecera `Authorization` solo se pone si existe de verdad un
++   token heredado de una sesión anterior al cambio a cookie. */
++(function () {
++  'use strict';
++  const CLAVE = 'nutretium_user';
++  // El puente de las páginas internas (`staff-session-bridge.js`) finge este
++  // perfil en `localStorage`: es una marca de «la sesión va por cookie», no un
++  // token que el servidor pueda verificar, así que no se manda nunca.
++  const MARCA_COOKIE = 'http-only-cookie';
++
++  function perfil() {
++    try {
++      const crudo = localStorage.getItem(CLAVE);
++      const dato = crudo ? JSON.parse(crudo) : null;
++      return dato && typeof dato === 'object' ? dato : null;
++    } catch { return null }
++  }
++  function activa() { return perfil() !== null }
++  function tokenHeredado() {
++    const t = perfil() && perfil().token;
++    return typeof t === 'string' && t && t !== MARCA_COOKIE ? t : '';
++  }
++  function cabeceras(extra) {
++    const salida = Object.assign({}, extra || {});
++    const t = tokenHeredado();
++    if (t) salida.Authorization = 'Bearer ' + t;
++    return salida;
++  }
++  function opciones(init) {
++    const base = init || {};
++    return Object.assign({}, base, { credentials: 'same-origin', headers: cabeceras(base.headers) });
++  }
++  function pide(ruta, init) { return fetch(ruta, opciones(init)) }
++  // Al caducar la sesión se tira el perfil: sin él `activa()` ya dice que no.
++  function olvida() { try { localStorage.removeItem(CLAVE) } catch {} }
++
++  window.NutretiumSesion = { CLAVE, perfil, activa, tokenHeredado, cabeceras, opciones, pide, olvida };
++})();
+diff --git a/wishlist-sync.js b/wishlist-sync.js
+index a3c478e..0e28df5 100644
+--- a/wishlist-sync.js
++++ b/wishlist-sync.js
+@@ -1,13 +1,15 @@
+ /* NUTRETIUM — sincronización de favoritos para usuarios autenticados. */
+ (function(){
+   'use strict';
+-  const SESSION='nutretium_user', WISH='nutretium_wishlist_v1';
+-  const getSession=()=>{try{return JSON.parse(localStorage.getItem(SESSION)||'null')}catch{return null}};
++  const WISH='nutretium_wishlist_v1';
++  // Quién tiene sesión lo dice sesion-cliente.js, no un token en localStorage:
++  // ese token ya no se guarda y los favoritos dejaban de subir al servidor.
++  const sesion=window.NutretiumSesion;
+   const getLocal=()=>{try{const x=JSON.parse(localStorage.getItem(WISH)||'[]');return Array.isArray(x)?x.map(Number).filter(Number.isFinite):[]}catch{return[]}};
+   const setLocal=(ids)=>{try{localStorage.setItem(WISH,JSON.stringify([...new Set(ids.map(Number).filter(Number.isFinite))].slice(0,200)))}catch{}};
+   const request=async(method,body)=>{
+-    const token=getSession()?.token;if(!token)return null;
+-    const r=await fetch('/.netlify/functions/customer-data',{method,headers:{Authorization:`Bearer ${token}`,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});
++    if(!sesion.activa())return null;
++    const r=await sesion.pide('/.netlify/functions/customer-data',{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
+     if(!r.ok)return null;return r.json().catch(()=>null);
+   };
+   let last='';
+@@ -16,7 +18,7 @@
+     const merged=[...new Set([...remote.wishlist,...getLocal()])];setLocal(merged);last=JSON.stringify(merged.sort((a,b)=>a-b));
+   }
+   async function push(){
+-    if(!getSession()?.token)return;
++    if(!sesion.activa())return;
+     const ids=getLocal();const sig=JSON.stringify([...ids].sort((a,b)=>a-b));if(sig===last)return;
+     const remote=await request('POST',{action:'save-wishlist',ids});if(remote&&Array.isArray(remote.wishlist)){setLocal(remote.wishlist);last=JSON.stringify([...remote.wishlist].sort((a,b)=>a-b));}
+   }

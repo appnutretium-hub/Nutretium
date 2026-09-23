@@ -2430,3 +2430,284 @@ function openInfo(key) {
   document.getElementById('infoBody').innerHTML = data.html;
   openModal('infoModal');
 }
+
+/* NUTRETIUM_BUILD_LAYERS_START */
+/* layer:franchise-trust.js */
+/* NUTRETIUM — Franchise Trust Layer
+   Añade patrones de ecommerce consolidado sin sustituir la web original.
+   Este archivo se concatena a app.js durante el build de Netlify. */
+(function(){'use strict';
+const slugify=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+const cleanText=value=>String(value||'').replace(/[<>]/g,'');
+const productUrl=product=>`/producto/${slugify(product.name)}-${product.id}`;
+const notifyProductsRendered=()=>window.dispatchEvent(new CustomEvent('nt:products-rendered'));
+function productIdFromCard(card){const fromDataset=Number(card?.dataset?.productId);if(Number.isFinite(fromDataset)&&fromDataset>0)return fromDataset;const source=card?.querySelector('.add-to-cart-btn[onclick*="addToCart"],.add-to-cart-btn[onclick*="openCustomModal"]');const match=source?.getAttribute('onclick')?.match(/(?:addToCart|openCustomModal)\((\d+)\)/);return match?Number(match[1]):null}
+function reconcileCart(){try{if(typeof cart==='undefined'||!cart?.entries||typeof PRODUCTS==='undefined')return;let changed=false;for(const [k,item] of [...cart.entries()]){const id=Number(item?.product?.id??String(k).split('_')[0]),p=PRODUCTS.find(x=>Number(x.id)===id&&x.active!==false);if(!p){cart.delete(k);changed=true;continue}const max=typeof p.stock==='number'?Math.max(0,p.stock):99;if(max<=0){cart.delete(k);changed=true;continue}const qty=Math.min(max,Math.max(1,Number(item.quantity)||1));if(item.product!==p||item.quantity!==qty){item.product=p;item.quantity=qty;cart.set(k,item);changed=true}}if(changed&&typeof updateCartUI==='function')updateCartUI()}catch(err){console.warn('[cart-reconcile]',err?.message||err)}}
+function renderTrustFacts(){const stats=document.getElementById('statsBar');if(!stats)return;stats.innerHTML='';[['📍','Tienda física','C/ La Albericia 1 · Santander'],['💳','Pago bancario','Tarjeta mediante Redsys'],['🛒','Compra online','Catálogo y pedidos desde la web'],['☎️','Atención directa','633 753 517']].forEach(([icon,title,text])=>{const item=document.createElement('div');item.className='nt-franchise-fact';const i=document.createElement('span');i.className='nt-franchise-fact-icon';i.textContent=icon;const copy=document.createElement('div'),strong=document.createElement('strong'),small=document.createElement('span');strong.textContent=title;small.textContent=text;copy.append(strong,small);item.append(i,copy);stats.appendChild(item)})}
+function sectionShell(id,eyebrow,title,subtitle){const section=document.createElement('section');section.id=id;section.className='nt-franchise-section max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16';const head=document.createElement('div');head.className='nt-franchise-head';const e=document.createElement('span');e.className='nt-franchise-eyebrow';e.textContent=eyebrow;const h=document.createElement('h2');h.textContent=title;const p=document.createElement('p');p.textContent=subtitle;head.append(e,h,p);section.appendChild(head);return section}
+function insertGoals(){if(document.getElementById('ntGoals'))return;const categories=document.getElementById('categories');if(!categories)return;const section=sectionShell('ntGoals','Encuentra lo que necesitas','Compra según tu objetivo','Una forma rápida de llegar a la categoría más útil para tu entrenamiento o bienestar.'),grid=document.createElement('div');grid.className='nt-goal-grid';[['💪','Desarrollo muscular','Proteínas'],['⚡','Mayor rendimiento','Pre-entrenos'],['🔄','Recuperación','Colágeno y bienestar'],['🌿','Salud y bienestar','Vitaminas y salud'],['🥣','Alimentación proteica','Alimentación proteica']].forEach(([icon,label,category])=>{const btn=document.createElement('button');btn.type='button';btn.className='nt-goal-card';btn.addEventListener('click',()=>filterByCategory(category));const ico=document.createElement('span');ico.className='nt-goal-icon';ico.textContent=icon;const txt=document.createElement('span');txt.className='nt-goal-title';txt.textContent=label;const sub=document.createElement('span');sub.className='nt-goal-sub';sub.textContent=category;btn.append(ico,txt,sub);grid.appendChild(btn)});section.appendChild(grid);categories.insertAdjacentElement('afterend',section)}
+function brandCounts(){const map=new Map();(typeof PRODUCTS!=='undefined'?PRODUCTS:[]).forEach(p=>{const brand=String(p.brand||'').trim();if(!brand)return;map.set(brand,(map.get(brand)||0)+1)});return[...map.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'es'))}
+function filterBrand(brand){['searchInput','navSearchInput','mobileSearchInput'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});activeFilter='Todos';document.querySelectorAll('.filter-btn').forEach(btn=>btn.classList.toggle('active',btn.dataset.filter==='Todos'));const list=(typeof PRODUCTS!=='undefined'?PRODUCTS:[]).filter(p=>String(p.brand||'').trim()===brand);renderProducts(list);history.pushState({brand},'',`/?marca=${encodeURIComponent(slugify(brand))}#products`);document.getElementById('products')?.scrollIntoView({behavior:'smooth'})}
+function insertBrands(){if(document.getElementById('ntBrands'))return;const brands=brandCounts().slice(0,12);if(!brands.length)return;const products=document.getElementById('products');if(!products)return;const section=sectionShell('ntBrands','Catálogo real','Marcas disponibles en Nutretium','Accede directamente a las marcas que ya forman parte del catálogo publicado.'),grid=document.createElement('div');grid.className='nt-brand-grid';brands.forEach(([brand,count])=>{const btn=document.createElement('button');btn.type='button';btn.className='nt-brand-chip';btn.addEventListener('click',()=>filterBrand(brand));const name=document.createElement('strong');name.textContent=brand;const meta=document.createElement('span');meta.textContent=`${count} ${count===1?'producto':'productos'}`;btn.append(name,meta);grid.appendChild(btn)});section.appendChild(grid);products.insertAdjacentElement('beforebegin',section)}
+function insertStoreProof(){if(document.getElementById('ntStoreProof'))return;const products=document.getElementById('products');if(!products)return;const section=document.createElement('section');section.id='ntStoreProof';section.className='nt-store-proof';section.innerHTML=`<div class="nt-store-proof-inner"><div class="nt-store-proof-copy"><span class="nt-franchise-eyebrow">Detrás de la web hay una tienda real</span><h2>Nutretium también está en Santander</h2><p>Puedes visitarnos en C/ La Albericia 1 y hablar directamente con el equipo. La web complementa la atención de la tienda física con catálogo, fichas y compra online.</p><div class="nt-store-actions"><a href="#location">Ver ubicación y horario</a><a href="tel:+34633753517" class="secondary">Llamar al 633 753 517</a></div></div><div class="nt-store-proof-points" aria-label="Información de confianza"><div><strong>09:30–22:00</strong><span>Horario continuo</span></div><div><strong>Redsys</strong><span>Pasarela bancaria</span></div><div><strong>Santander</strong><span>Tienda física</span></div><div><strong>Online</strong><span>Catálogo y pedidos</span></div></div></div>`;products.insertAdjacentElement('afterend',section)}
+function insertLegalIdentity(){const footer=document.querySelector('footer .max-w-7xl');if(!footer||document.getElementById('ntLegalIdentity'))return;const box=document.createElement('div');box.id='ntLegalIdentity';box.className='nt-legal-identity';box.textContent='Nutretium · Establecimiento operado por BAHÍA NORTE CAPITAL, S.L. · NIF B27659754 · C/ La Albericia 1, Santander';footer.prepend(box)}
+function decorateProductCards(){if(typeof PRODUCTS==='undefined')return;document.querySelectorAll('#productGrid .product-card').forEach(card=>{const id=productIdFromCard(card);if(!Number.isFinite(id))return;const product=PRODUCTS.find(p=>Number(p.id)===id);if(!product)return;card.dataset.productId=String(id);const actionRows=[...card.querySelectorAll('.p-5 .flex.items-center.justify-between')],actions=actionRows.pop(),buttonWrap=actions?.lastElementChild;if(buttonWrap){let link=buttonWrap.querySelector('.nt-product-detail-link');if(!link){link=document.createElement('a');link.className='nt-product-detail-link';buttonWrap.prepend(link)}link.dataset.productId=String(id);link.href=productUrl(product);link.textContent='Ver ficha';link.setAttribute('aria-label',`Ver ficha de ${cleanText(product.name)}`)}})}
+function enhanceRendering(){if(typeof renderProducts!=='function'||renderProducts.__ntWrapped)return;const original=renderProducts,wrapped=function(list=PRODUCTS){const result=original(list);decorateProductCards();notifyProductsRendered();return result};wrapped.__ntWrapped=true;renderProducts=wrapped;decorateProductCards();notifyProductsRendered()}
+function enhanceCategoryUrls(){if(typeof filterByCategory!=='function'||filterByCategory.__ntWrapped)return;const original=filterByCategory,wrapped=function(category){original(category);const slug=slugify(category);if(category&&category!=='Todos'&&slug)history.pushState({category},'',`/categoria/${slug}`);else history.pushState({},'','/')};wrapped.__ntWrapped=true;filterByCategory=wrapped}
+function categoryFromSlug(slug){const categories=(window.NUTRETIUM_CATEGORIES||[]);return categories.find(c=>slugify(c)===slug)||null}
+function applyRoute(){const path=location.pathname.replace(/\/+$/,'');if(!path.startsWith('/categoria/'))return;const slug=decodeURIComponent(path.split('/').filter(Boolean)[1]||''),category=categoryFromSlug(slug);if(!category)return;activeFilter=category;document.querySelectorAll('.filter-btn').forEach(btn=>btn.classList.toggle('active',btn.dataset.filter===category));applyFilters();setTimeout(()=>document.getElementById('products')?.scrollIntoView({behavior:'smooth',block:'start'}),50)}
+function handleAddFromProductPage(){const params=new URLSearchParams(location.search),raw=params.get('add');if(!raw)return;const id=Number(raw);if(!Number.isInteger(id))return;setTimeout(()=>{addToCart(id);openCart();const clean=location.pathname+location.hash;history.replaceState({},'',clean||'/')},100)}
+function initFranchiseLayer(){reconcileCart();renderTrustFacts();insertGoals();insertBrands();insertStoreProof();insertLegalIdentity();enhanceRendering();enhanceCategoryUrls();applyRoute();handleAddFromProductPage()}
+window.addEventListener('popstate',applyRoute);if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(initFranchiseLayer,0));else setTimeout(initFranchiseLayer,0);
+})();
+
+/* layer:commerce-core.js */
+/* NUTRETIUM — Commerce Experience Layer
+   Progressive enhancement over the existing storefront. It does not own prices,
+   stock, payments or orders: those remain in the validated core/backend. */
+(function () {
+  'use strict';
+
+  const STORAGE = { wishlist: 'nt_wishlist_v1', compare: 'nt_compare_v1', recent: 'nt_recent_products_v1', sort: 'nt_catalog_sort_v1' };
+  const MAX_COMPARE = 3;
+  const products = () => (Array.isArray(window.NUTRETIUM_PRODUCTS) ? window.NUTRETIUM_PRODUCTS.filter((p) => p && p.active !== false) : []);
+  const normalize = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  const slugify = (value) => normalize(value).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const money = (value) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(Number(value || 0));
+  const productUrl = (p) => `/producto/${slugify(p.name)}-${p.id}`;
+  const safeParse = (raw, fallback) => { try { return JSON.parse(raw); } catch { return fallback; } };
+  const readSet = (key) => new Set((safeParse(localStorage.getItem(key), []) || []).map(Number).filter(Number.isFinite));
+  const writeSet = (key, set) => { try { localStorage.setItem(key, JSON.stringify([...set])); } catch (_) {} };
+
+  let wishlist = readSet(STORAGE.wishlist);
+  let compare = readSet(STORAGE.compare);
+  let lastBaseList = products();
+  let nativeRender = null;
+  let catalogSort = localStorage.getItem(STORAGE.sort) || 'recommended';
+  const catalogFlags = { inStock: false, favorites: false, featured: false };
+
+  function track(name, payload) {
+    const event = { event: `nt_${name}`, at: new Date().toISOString(), ...(payload || {}) };
+    window.dataLayer = window.dataLayer || []; window.dataLayer.push(event);
+    try { const history = safeParse(sessionStorage.getItem('nt_analytics_buffer_v1'), []) || []; history.push(event); sessionStorage.setItem('nt_analytics_buffer_v1', JSON.stringify(history.slice(-50))); } catch (_) {}
+  }
+  function getProduct(id) { return products().find((p) => Number(p.id) === Number(id)) || null; }
+  function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char])); }
+
+  function productIdFromCard(card) {
+    const detail = card.querySelector('.nt-product-detail-link[href*="/producto/"]');
+    if (detail) { const match = detail.getAttribute('href').match(/-(\d+)\/?$/); if (match) return Number(match[1]); }
+    const button = [...card.querySelectorAll('button[onclick]')].find((b) => /(?:addToCart|openCustomModal)\((\d+)/.test(b.getAttribute('onclick') || ''));
+    if (button) { const match = (button.getAttribute('onclick') || '').match(/(?:addToCart|openCustomModal)\((\d+)/); if (match) return Number(match[1]); }
+    return null;
+  }
+  function setButtonState(button, active, activeLabel, inactiveLabel) {
+    button.classList.toggle('is-active', active); button.setAttribute('aria-pressed', active ? 'true' : 'false'); button.setAttribute('aria-label', active ? activeLabel : inactiveLabel);
+  }
+  function toggleWishlist(id) {
+    const product = getProduct(id); if (!product) return;
+    wishlist.has(id) ? wishlist.delete(id) : wishlist.add(id); writeSet(STORAGE.wishlist, wishlist); refreshCardActions(); updateToolbarCounters();
+    track(wishlist.has(id) ? 'wishlist_add' : 'wishlist_remove', { product_id: id, product_name: product.name }); if (catalogFlags.favorites) rerenderLast();
+  }
+  function toggleCompare(id) {
+    const product = getProduct(id); if (!product) return;
+    if (compare.has(id)) compare.delete(id); else { if (compare.size >= MAX_COMPARE) { if (typeof window.showToast === 'function') window.showToast(`Puedes comparar hasta ${MAX_COMPARE} productos.`); return; } compare.add(id); }
+    writeSet(STORAGE.compare, compare); refreshCardActions(); renderCompareBar(); track(compare.has(id) ? 'compare_add' : 'compare_remove', { product_id: id, product_name: product.name });
+  }
+  function enhanceCard(card) {
+    const id = productIdFromCard(card); if (!id || card.querySelector('.nt-card-commerce-actions')) return;
+    const product = getProduct(id); if (!product) return;
+    const visual = card.querySelector('.relative') || card; if (getComputedStyle(visual).position === 'static') visual.style.position = 'relative';
+    const actions = document.createElement('div'); actions.className = 'nt-card-commerce-actions';
+    const fav = document.createElement('button'); fav.type = 'button'; fav.className = 'nt-icon-action'; fav.innerHTML = '<span aria-hidden="true">♡</span>';
+    setButtonState(fav, wishlist.has(id), `Quitar ${product.name} de favoritos`, `Guardar ${product.name} en favoritos`); fav.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); toggleWishlist(id); });
+    const cmp = document.createElement('button'); cmp.type = 'button'; cmp.className = 'nt-icon-action nt-compare-action'; cmp.innerHTML = '<span aria-hidden="true">⇄</span>';
+    setButtonState(cmp, compare.has(id), `Quitar ${product.name} de la comparación`, `Comparar ${product.name}`); cmp.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); toggleCompare(id); });
+    actions.append(fav, cmp); visual.appendChild(actions);
+  }
+  function refreshCardActions() {
+    document.querySelectorAll('#productGrid .product-card').forEach((card) => { const id = productIdFromCard(card); if (!id) return; const buttons = card.querySelectorAll('.nt-card-commerce-actions button'); if (buttons[0]) setButtonState(buttons[0], wishlist.has(id), 'Quitar de favoritos', 'Guardar en favoritos'); if (buttons[1]) setButtonState(buttons[1], compare.has(id), 'Quitar de la comparación', 'Comparar producto'); });
+  }
+  function enhanceCards() { document.querySelectorAll('#productGrid .product-card').forEach(enhanceCard); refreshCardActions(); }
+
+  function applyCommerceFilters(list) {
+    let result = Array.isArray(list) ? [...list] : [];
+    if (catalogFlags.inStock) result = result.filter((p) => typeof p.stock !== 'number' || p.stock > 0);
+    if (catalogFlags.favorites) result = result.filter((p) => wishlist.has(Number(p.id)));
+    if (catalogFlags.featured) result = result.filter((p) => p.featured === true || p.badge);
+    switch (catalogSort) {
+      case 'price-asc': result.sort((a, b) => Number(a.price) - Number(b.price)); break;
+      case 'price-desc': result.sort((a, b) => Number(b.price) - Number(a.price)); break;
+      case 'rating': result.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0) || Number(b.reviews || 0) - Number(a.reviews || 0)); break;
+      case 'name': result.sort((a, b) => String(a.name).localeCompare(String(b.name), 'es')); break;
+      default: break;
+    }
+    return result;
+  }
+  function wrapRendering() {
+    if (typeof window.renderProducts !== 'function' || window.renderProducts.__ntCommerceWrapped) return;
+    nativeRender = window.renderProducts;
+    const wrapped = function (list) { lastBaseList = Array.isArray(list) ? [...list] : products(); const transformed = applyCommerceFilters(lastBaseList); nativeRender(transformed); requestAnimationFrame(() => { enhanceCards(); updateResultCount(transformed.length); }); };
+    wrapped.__ntCommerceWrapped = true; window.renderProducts = wrapped; rerenderLast();
+  }
+  function rerenderLast() { if (typeof window.renderProducts === 'function') window.renderProducts(lastBaseList); }
+  function makeToggle(label, key) {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'nt-toolbar-toggle'; button.dataset.flag = key; button.textContent = label; button.setAttribute('aria-pressed', 'false');
+    button.addEventListener('click', () => { catalogFlags[key] = !catalogFlags[key]; button.classList.toggle('is-active', catalogFlags[key]); button.setAttribute('aria-pressed', catalogFlags[key] ? 'true' : 'false'); rerenderLast(); track('catalog_filter', { filter: key, active: catalogFlags[key] }); }); return button;
+  }
+  function insertToolbar() {
+    const grid = document.getElementById('productGrid'); if (!grid || document.getElementById('ntCommerceToolbar')) return;
+    const toolbar = document.createElement('div'); toolbar.id = 'ntCommerceToolbar'; toolbar.className = 'nt-commerce-toolbar';
+    const left = document.createElement('div'); left.className = 'nt-commerce-toolbar-left'; left.append(makeToggle('En stock', 'inStock'), makeToggle('Favoritos', 'favorites'), makeToggle('Destacados', 'featured'));
+    const right = document.createElement('div'); right.className = 'nt-commerce-toolbar-right'; const count = document.createElement('span'); count.id = 'ntResultCount'; count.className = 'nt-result-count';
+    const label = document.createElement('label'); label.className = 'nt-sort-label'; label.textContent = 'Ordenar'; const select = document.createElement('select'); select.id = 'ntCatalogSort'; select.className = 'nt-sort-select';
+    [['recommended','Recomendados'],['price-asc','Precio: menor a mayor'],['price-desc','Precio: mayor a menor'],['rating','Mejor valorados'],['name','Nombre A–Z']].forEach(([value,text]) => { const option = document.createElement('option'); option.value = value; option.textContent = text; select.appendChild(option); }); select.value = catalogSort;
+    select.addEventListener('change', () => { catalogSort = select.value; try { localStorage.setItem(STORAGE.sort, catalogSort); } catch (_) {} rerenderLast(); track('catalog_sort', { sort: catalogSort }); }); label.appendChild(select); right.append(count, label); toolbar.append(left, right); grid.parentElement.insertBefore(toolbar, grid); updateToolbarCounters();
+  }
+  function updateResultCount(count) { const node = document.getElementById('ntResultCount'); if (node) node.textContent = `${Number.isFinite(count) ? count : document.querySelectorAll('#productGrid .product-card').length} productos`; }
+  function updateToolbarCounters() { const button = document.querySelector('[data-flag="favorites"]'); if (button) button.textContent = `Favoritos${wishlist.size ? ` (${wishlist.size})` : ''}`; }
+
+  function renderCompareBar() {
+    let bar = document.getElementById('ntCompareBar'); if (!compare.size) { if (bar) bar.remove(); return; } if (!bar) { bar = document.createElement('div'); bar.id = 'ntCompareBar'; bar.className = 'nt-compare-bar'; document.body.appendChild(bar); }
+    const selected = [...compare].map(getProduct).filter(Boolean); bar.innerHTML = '';
+    const summary = document.createElement('div'); summary.className = 'nt-compare-summary'; const strong = document.createElement('strong'); strong.textContent = `${selected.length}/${MAX_COMPARE} para comparar`; const names = document.createElement('span'); names.textContent = selected.map((p) => p.name).join(' · '); summary.append(strong,names);
+    const buttons = document.createElement('div'); const clear = document.createElement('button'); clear.type='button'; clear.className='nt-compare-clear'; clear.textContent='Vaciar'; clear.addEventListener('click',()=>{compare.clear();writeSet(STORAGE.compare,compare);refreshCardActions();renderCompareBar();}); const open=document.createElement('button');open.type='button';open.className='nt-compare-open';open.textContent='Comparar';open.addEventListener('click',openCompareModal);buttons.append(clear,open);bar.append(summary,buttons);
+  }
+  function openCompareModal() {
+    const selected=[...compare].map(getProduct).filter(Boolean);if(!selected.length)return;let dialog=document.getElementById('ntCompareDialog');if(!dialog){dialog=document.createElement('dialog');dialog.id='ntCompareDialog';dialog.className='nt-compare-dialog';document.body.appendChild(dialog);}const rows=[['Precio',(p)=>money(p.price)],['Marca',(p)=>p.brand||'No indicada'],['Categoría',(p)=>p.category||'No indicada'],['Disponibilidad',(p)=>typeof p.stock==='number'?(p.stock>0?`${p.stock} uds.`:'Agotado'):'Consultar'],['Valoración',(p)=>Number(p.reviews||0)>0?`${Number(p.rating||0).toFixed(1)}/5 (${p.reviews})`:'Sin reseñas'],['Referencia',(p)=>p.code||'—']];dialog.innerHTML=`<div class="nt-compare-dialog-head"><div><span>Comparador Nutretium</span><h2>Compara antes de decidir</h2></div><button type="button" data-close aria-label="Cerrar">×</button></div><div class="nt-compare-scroll"><table><thead><tr><th>Característica</th>${selected.map((p)=>`<th>${escapeHtml(p.name)}<a href="${productUrl(p)}">Ver ficha</a></th>`).join('')}</tr></thead><tbody>${rows.map(([label,getter])=>`<tr><th>${label}</th>${selected.map((p)=>`<td>${escapeHtml(getter(p))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;dialog.querySelector('[data-close]').addEventListener('click',()=>dialog.close());dialog.showModal();track('compare_open',{products:selected.map((p)=>p.id)});
+  }
+
+  const aliases={prote:['proteina','proteinas','whey'],protein:['proteina','proteinas','whey'],whey:['proteina','proteinas','whey'],crea:['creatina','creatinas'],creatine:['creatina','creatinas'],pre:['pre-entreno','pre entreno','preentreno'],preworkout:['pre-entreno','pre entreno'],vitamina:['vitaminas','salud'],snack:['barritas','snacks'],barrita:['barritas','snacks']};
+  function expandedTerms(query){const clean=normalize(query);const terms=new Set(clean.split(/\s+/).filter(Boolean));for(const term of [...terms])(aliases[term]||[]).forEach((alias)=>terms.add(alias));return[...terms];}
+  function searchScore(product,query){const q=normalize(query);if(!q)return 0;const terms=expandedTerms(q),title=normalize(product.name),brand=normalize(product.brand),category=normalize(product.category),code=normalize(product.code);let score=0;if(title===q)score+=120;if(title.startsWith(q))score+=70;if(title.includes(q))score+=50;if(code===q)score+=100;if(code.includes(q))score+=45;if(brand.includes(q))score+=35;if(category.includes(q))score+=30;terms.forEach((term)=>{if(title.includes(term))score+=14;if(brand.includes(term))score+=10;if(category.includes(term))score+=8;});if(product.featured)score+=3;return score;}
+  function autocompleteResults(query){return products().map((p)=>({p,score:searchScore(p,query)})).filter((x)=>x.score>0).sort((a,b)=>b.score-a.score||Number(b.p.reviews||0)-Number(a.p.reviews||0)).slice(0,6).map((x)=>x.p);}
+  function attachAutocomplete(input){if(!input||input.dataset.ntAutocomplete)return;input.dataset.ntAutocomplete='1';const holder=input.parentElement;if(!holder)return;holder.classList.add('nt-search-holder');const panel=document.createElement('div');panel.className='nt-search-suggestions';panel.hidden=true;holder.appendChild(panel);const close=()=>{panel.hidden=true;panel.innerHTML='';};const render=()=>{const query=input.value.trim();if(query.length<2){close();return;}const matches=autocompleteResults(query);panel.innerHTML='';if(!matches.length){const empty=document.createElement('div');empty.className='nt-search-empty';empty.textContent='No encontramos coincidencias directas.';panel.appendChild(empty);}else{matches.forEach((p)=>{const link=document.createElement('a');link.href=productUrl(p);link.className='nt-search-suggestion';const media=document.createElement('span');media.className='nt-search-thumb';if(p.image){const img=document.createElement('img');img.src=p.image;img.alt='';img.loading='lazy';media.appendChild(img);}else media.textContent=p.emoji||'📦';const copy=document.createElement('span');copy.className='nt-search-copy';const title=document.createElement('strong');title.textContent=p.name;const meta=document.createElement('small');meta.textContent=[p.brand,p.category].filter(Boolean).join(' · ');copy.append(title,meta);const price=document.createElement('b');price.textContent=money(p.price);link.append(media,copy,price);link.addEventListener('click',()=>track('search_select',{query,product_id:p.id}));panel.appendChild(link);});}panel.hidden=false;};input.addEventListener('input',render);input.addEventListener('focus',render);input.addEventListener('keydown',(event)=>{if(event.key==='Escape')close();});document.addEventListener('click',(event)=>{if(!holder.contains(event.target))close();});}
+  function initAutocomplete(){['navSearchInput','mobileSearchInput','searchInput'].forEach((id)=>attachAutocomplete(document.getElementById(id)));}
+
+  function recentIds(){return(safeParse(localStorage.getItem(STORAGE.recent),[])||[]).map(Number).filter(Number.isFinite);}
+  function insertRecentProducts(){const productSection=document.getElementById('products');if(!productSection||document.getElementById('ntRecentProducts'))return;const recent=recentIds().map(getProduct).filter(Boolean).slice(0,6);if(!recent.length)return;const section=document.createElement('section');section.id='ntRecentProducts';section.className='nt-recent-section max-w-7xl mx-auto px-4 sm:px-6 lg:px-8';const header=document.createElement('div');header.className='nt-recent-head';header.innerHTML='<div><span>Continúa donde lo dejaste</span><h2>Vistos recientemente</h2></div>';const grid=document.createElement('div');grid.className='nt-recent-grid';recent.forEach((p)=>{const link=document.createElement('a');link.href=productUrl(p);link.className='nt-recent-card';const visual=document.createElement('span');visual.className='nt-recent-visual';if(p.image){const img=document.createElement('img');img.src=p.image;img.alt=p.name;img.loading='lazy';visual.appendChild(img);}else visual.textContent=p.emoji||'📦';const copy=document.createElement('span');copy.className='nt-recent-copy';const title=document.createElement('strong');title.textContent=p.name;const meta=document.createElement('small');meta.textContent=`${p.category||'Catálogo'} · ${money(p.price)}`;copy.append(title,meta);link.append(visual,copy);grid.appendChild(link);});section.append(header,grid);productSection.insertAdjacentElement('beforebegin',section);}
+
+  function upsertMeta(selector,attrs){let node=document.head.querySelector(selector);if(!node){node=document.createElement(attrs.tag||'meta');document.head.appendChild(node);}Object.entries(attrs).forEach(([key,value])=>{if(key!=='tag')node.setAttribute(key,value);});return node;}
+  function updateSeoFromLocation(){const path=location.pathname.replace(/\/+$/,'');if(!path.startsWith('/categoria/'))return;const slug=decodeURIComponent(path.split('/').filter(Boolean)[1]||'');const category=(window.NUTRETIUM_CATEGORIES||[]).find((c)=>slugify(c)===slug);if(!category)return;document.title=`${category} | Nutretium`;const description=`Compra ${category.toLowerCase()} en Nutretium. Consulta disponibilidad, precios y catálogo actual en nuestra tienda online y física de Santander.`;upsertMeta('meta[name="description"]',{name:'description',content:description});let canonical=document.head.querySelector('link[rel="canonical"]');if(!canonical){canonical=document.createElement('link');canonical.rel='canonical';document.head.appendChild(canonical);}canonical.href=`https://nutretium.com/categoria/${slug}`;}
+  function wrapCategoryNavigation(){if(typeof window.filterByCategory!=='function'||window.filterByCategory.__ntCommerceSeoWrapped)return;const original=window.filterByCategory;const wrapped=function(category){const result=original.apply(this,arguments);setTimeout(updateSeoFromLocation,0);track('category_view',{category:category||'Todos'});return result;};wrapped.__ntCommerceSeoWrapped=true;window.filterByCategory=wrapped;}
+  function wrapCartTracking(){if(typeof window.addToCart!=='function'||window.addToCart.__ntTracked)return;const original=window.addToCart;const wrapped=function(id){const product=getProduct(id);const result=original.apply(this,arguments);if(product)track('add_to_cart',{product_id:product.id,product_name:product.name,price:product.price});return result;};wrapped.__ntTracked=true;window.addToCart=wrapped;}
+  function handleProductPageQuantity(){const params=new URLSearchParams(location.search),raw=params.get('add');if(raw===null)return;const id=Number(raw),requested=Math.max(1,Math.min(20,Number(params.get('qty'))||1)),variantSku=(params.get('variantSku')||'').trim(),customization=variantSku?{variantSku}:null;if(!Number.isInteger(id)||id<1)return;setTimeout(()=>{if(typeof window.addToCart!=='function')return;for(let i=0;i<requested;i+=1)window.addToCart(id,customization);params.delete('add');params.delete('qty');params.delete('variantSku');const clean=params.toString()?location.pathname+'?'+params.toString()+location.hash:location.pathname+location.hash;history.replaceState(null,'',clean);},150);}
+  function init(){handleProductPageQuantity();insertToolbar();wrapRendering();enhanceCards();initAutocomplete();renderCompareBar();insertRecentProducts();wrapCategoryNavigation();wrapCartTracking();updateSeoFromLocation();updateResultCount(document.querySelectorAll('#productGrid .product-card').length);window.addEventListener('popstate',()=>setTimeout(updateSeoFromLocation,0));window.NTCommerce=Object.freeze({track,productUrl,getWishlist:()=>[...wishlist],getComparison:()=>[...compare]});}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,25));else setTimeout(init,25);
+})();
+
+/* layer:enterprise-storefront.js */
+/* Nutretium enterprise storefront layer — loaded after app.js */
+(function(){'use strict';/* Tener sesión ya no es tener token: el token vive en la cookie HttpOnly y el navegador no lo ve. Preguntar por el token del perfil mandaba al formulario de invitado —y al checkout como invitado— a clientes identificados. Quien manda es currentUser (el perfil) y, para el token heredado, sesion-cliente.js. */const sesion=window.NutretiumSesion;let promoCode='',giftCardCode='',referralCode='',usePoints=0,lastQuote=null;const euro=v=>new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR'}).format(Number(v||0));const cartItems=()=>Array.from(cart.values()).map(item=>({id:item.product.id,code:item.product.code,qty:item.quantity,variantSku:item.customization?.variantSku||null}));
+function fulfillment(){return document.getElementById('ntFulfillment')?.value==='pickup'?'pickup':'shipping'}function guestPayload(){if(currentUser)return null;const v=id=>(document.getElementById(id)?.value||'').trim();return{email:v('ntGuestEmail'),name:v('ntGuestName'),surname:v('ntGuestSurname'),phone:v('ntGuestPhone'),direccion:{calle:v('ntGuestStreet'),piso:v('ntGuestFloor'),cp:v('ntGuestCp'),localidad:v('ntGuestCity'),provincia:v('ntGuestProvince'),pais:'España'}}}
+function benefitPayload(){promoCode=(document.getElementById('ntPromoCode')?.value||'').trim();giftCardCode=(document.getElementById('ntGiftCard')?.value||'').trim();referralCode=(document.getElementById('ntReferral')?.value||'').trim();usePoints=Math.max(0,Math.floor(Number(document.getElementById('ntUsePoints')?.value||0)));return{promotionCode:promoCode,giftCardCode,referralCode,usePoints}}
+function injectTerms(){const button=document.getElementById('redsysBtn');if(!button||document.getElementById('ntTermsAccepted'))return;const label=document.createElement('label');label.style.cssText='display:flex;gap:8px;align-items:flex-start;margin:10px 0;color:#aaa;font-size:11px;line-height:1.45';label.innerHTML='<input id="ntTermsAccepted" type="checkbox" style="margin-top:2px;accent-color:#d4af37"><span>He leído y acepto las <a href="/condiciones" target="_blank" rel="noopener" style="color:#d4af37">condiciones de contratación</a> y la <a href="/privacidad" target="_blank" rel="noopener" style="color:#d4af37">política de privacidad</a>.</span>';button.parentElement.insertBefore(label,button)}
+function injectCheckout(){const button=document.getElementById('redsysBtn');if(!button||document.getElementById('ntCheckoutBenefits'))return;const box=document.createElement('div');box.id='ntCheckoutBenefits';box.style.cssText='margin:12px 0;padding:12px;border:1px solid #292929;border-radius:12px;background:#0e0e0e;display:grid;gap:8px';box.innerHTML='<label style="font-size:11px;color:#9b958b">Entrega<select id="ntFulfillment" style="width:100%;background:#080808;color:#fff;border:1px solid #333;border-radius:8px;padding:9px;margin-top:4px"><option value="shipping">Envío a domicilio</option><option value="pickup">Recogida gratuita en Nutretium Santander</option></select></label><div id="ntPickupInfo" style="display:none;font-size:11px;color:#d4af37">Recogida: C/ La Albericia 1, Santander. Te avisaremos cuando el pedido esté preparado.</div><div id="ntGuestCheckout" style="display:none;border-bottom:1px solid #292929;padding-bottom:10px"><div style="font-size:11px;color:#d4af37;font-weight:800;margin-bottom:6px">COMPRAR SIN CREAR CUENTA</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><input id="ntGuestName" placeholder="Nombre *"><input id="ntGuestSurname" placeholder="Apellidos"><input id="ntGuestEmail" type="email" placeholder="Email *"><input id="ntGuestPhone" placeholder="Teléfono"><div id="ntGuestAddress" style="display:contents"><input id="ntGuestStreet" style="grid-column:1/-1" placeholder="Calle y número *"><input id="ntGuestFloor" placeholder="Piso / puerta"><input id="ntGuestCp" inputmode="numeric" maxlength="5" placeholder="CP *"><input id="ntGuestCity" placeholder="Localidad *"><input id="ntGuestProvince" placeholder="Provincia *"></div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:7px"><label style="font-size:11px;color:#9b958b">Cupón<input id="ntPromoCode" maxlength="40" autocomplete="off" placeholder="Código promocional"></label><label style="font-size:11px;color:#9b958b">Tarjeta regalo<input id="ntGiftCard" maxlength="80" autocomplete="off" placeholder="Código gift card"></label><label id="ntPointsWrap" style="font-size:11px;color:#9b958b">Puntos a usar<input id="ntUsePoints" type="number" min="0" step="1" value="0"></label><label style="font-size:11px;color:#9b958b">Código de referido<input id="ntReferral" maxlength="40" autocomplete="off" placeholder="Código"></label></div><button type="button" id="ntApplyPromo" style="border:1px solid #d4af37;background:#d4af37;color:#080808;border-radius:8px;padding:9px 11px;font-weight:800">Calcular total</button><div id="ntQuote" style="font-size:11px;color:#aaa">Todos los descuentos, puntos, saldo y gastos se validan en servidor.</div>';box.querySelectorAll('input').forEach(i=>i.style.cssText+=';width:100%;background:#080808;color:white;border:1px solid #333;border-radius:8px;padding:9px;margin-top:4px');button.parentElement.insertBefore(box,button);document.getElementById('ntApplyPromo').onclick=quote;document.getElementById('ntFulfillment').onchange=()=>{refreshGuestMode();quote().catch(()=>{})};refreshGuestMode()}
+function refreshGuestMode(){const guest=document.getElementById('ntGuestCheckout'),points=document.getElementById('ntPointsWrap'),addr=document.getElementById('ntGuestAddress'),pickup=document.getElementById('ntPickupInfo');if(guest)guest.style.display=currentUser?'none':'block';if(points)points.style.display=currentUser?'block':'none';if(addr)addr.style.display=fulfillment()==='pickup'?'none':'contents';if(pickup)pickup.style.display=fulfillment()==='pickup'?'block':'none'}
+async function request(action){const response=await sesion.pide('/.netlify/functions/checkout-enterprise-secure',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,fulfillment:fulfillment(),items:cartItems(),token:sesion.tokenHeredado()||null,guest:guestPayload(),termsAccepted:action==='pay'&&document.getElementById('ntTermsAccepted')?.checked===true,termsVersion:'2026-09-20',...benefitPayload()})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'No se pudo calcular el pedido.');return data}
+async function quote(){try{const data=await request('quote');lastQuote=data.quote;const b=data.benefits||{},detail=[b.b2b?`Tarifa B2B -${euro(data.quote.b2bDiscount||0)}`:'',b.giftCard?`Gift card -${euro((b.giftCard.useCents||0)/100)}`:'',b.loyalty?`${b.loyalty.points} puntos -${euro((b.loyalty.valueCents||0)/100)}`:'',b.referral?`Referido -${euro((b.referral.discountCents||0)/100)}`:''].filter(Boolean).join(' · '),delivery=data.quote.fulfillment==='pickup'?'Recogida gratis':'Envío '+euro(data.quote.shipping);document.getElementById('ntQuote').innerHTML=`Subtotal ${euro(data.quote.retailSubtotal??data.quote.subtotal)} · Descuento ${euro(data.quote.discount)} · ${delivery} · <b style="color:#d4af37">Total ${euro(data.quote.total)}</b>${detail?`<br>${detail}`:''}`;}catch(error){lastQuote=null;document.getElementById('ntQuote').textContent=error.message}}
+async function pay(){if(getCartTotal()<=0)return;if(!document.getElementById('ntTermsAccepted')?.checked){showToast('Acepta las condiciones de contratación antes de pagar.');return}const button=document.getElementById('redsysBtn'),label=document.getElementById('redsysBtnText');button.disabled=true;if(label)label.innerHTML='<span class="spinner"></span> Procesando...';try{const data=await request('pay');if(data.order)localStorage.setItem('nutretium_last_order',data.order);if(data.guestAccessToken){localStorage.setItem('nutretium_guest_order_token',data.guestAccessToken);localStorage.setItem('nutretium_guest_order_id',data.order)}if(data.completed){showToast('Pedido confirmado.');cart.clear();updateCartUI();setTimeout(()=>{location.href='/pago-ok?order='+encodeURIComponent(data.order)},350);return}if(!data.Ds_SignatureVersion||!data.Ds_MerchantParameters||!data.Ds_Signature||!data.redsysUrl)throw new Error('Respuesta inválida del servidor de pagos.');const form=document.getElementById('redsysForm');form.action=data.redsysUrl;document.getElementById('rf_signatureVersion').value=data.Ds_SignatureVersion;document.getElementById('rf_merchantParameters').value=data.Ds_MerchantParameters;document.getElementById('rf_signature').value=data.Ds_Signature;if(typeof vigilaEnvioAlTpv==='function')vigilaEnvioAlTpv();form.submit()}catch(error){console.error('[Enterprise checkout]',error);showToast('Error: '+error.message);if(typeof restauraBotonPago==='function')restauraBotonPago();else{button.disabled=false;if(label)label.textContent='Pagar con Redsys'}}}
+function safeUrl(value){try{const url=new URL(value,location.origin);return url.origin===location.origin||['https:','http:'].includes(url.protocol)?url.href:'#'}catch{return'#'}}function renderAnnouncement(block){if(!block||document.getElementById('ntEnterpriseAnnouncement'))return;const bar=document.createElement(block.url?'a':'div');bar.id='ntEnterpriseAnnouncement';if(block.url)bar.href=safeUrl(block.url);bar.style.cssText='display:block;background:#d4af37;color:#080808;text-align:center;padding:8px 14px;font:800 12px/1.35 Inter,system-ui,sans-serif;text-decoration:none;position:relative;z-index:100';bar.textContent=block.title||block.body||'';document.body.insertBefore(bar,document.body.firstChild)}async function loadPublicPlatform(){try{const subject=currentUser?.email||localStorage.getItem('nt_subject')||'anonymous',[cr,fr]=await Promise.all([fetch('/.netlify/functions/public-content'),fetch('/.netlify/functions/public-config?subject='+encodeURIComponent(subject))]),content=await cr.json().catch(()=>({blocks:[]})),config=await fr.json().catch(()=>({flags:{},experiments:{}})),announcement=(content.blocks||[]).find(block=>block.type==='announcement'||block.position==='top');if(announcement)renderAnnouncement(announcement);window.NTPlatformConfig=Object.freeze({flags:config.flags||{},experiments:config.experiments||{},content:content.blocks||[]});window.dispatchEvent(new CustomEvent('nutretium:platform-ready',{detail:window.NTPlatformConfig}))}catch(error){console.warn('[Enterprise storefront] Configuración pública no disponible:',error.message)}}window.addEventListener('storage',refreshGuestMode);window.NTCheckout={quote,getPromotion:()=>promoCode,getLastQuote:()=>lastQuote,refreshGuestMode};window.initiateRedsysPayment=pay;try{initiateRedsysPayment=pay}catch(_){}function init(){injectCheckout();injectTerms();loadPublicPlatform()}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();})();
+
+/* layer:commerce-account-sync.js */
+/* Nutretium account synchronization and consented analytics */
+(function(){'use strict';let wishlistSig='',cartTimer=null,analyticsCursor=0;/* La sesión de cliente la resuelve sesion-cliente.js: el token ya no se guarda en localStorage (va en la cookie HttpOnly), y mirarlo aquí dejaba sin sincronizar el carrito y los favoritos de quien sí tenía sesión. */const sesion=window.NutretiumSesion;async function customer(body){if(!sesion.activa())return null;const r=await sesion.pide('/.netlify/functions/customer-commerce',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)return null;return r.json().catch(()=>null)}function wishlistIds(){try{return(JSON.parse(localStorage.getItem('nt_wishlist_v1')||'[]')||[]).map(Number).filter(Number.isInteger)}catch{return[]}}async function syncWishlist(){if(!sesion.activa())return;const ids=wishlistIds(),sig=ids.slice().sort((a,b)=>a-b).join(',');if(sig===wishlistSig)return;const d=await customer({action:'wishlist-sync',productIds:ids});if(d)wishlistSig=sig}function activeCartItems(){try{return Array.from(cart.values()).map(i=>({id:i.product.id,qty:i.quantity}))}catch{return[]}}async function syncCart(){if(!sesion.activa())return;await customer({action:'active-cart-sync',items:activeCartItems()})}function scheduleCart(){clearTimeout(cartTimer);cartTimer=setTimeout(syncCart,900)}function wrapCartUI(){try{if(typeof updateCartUI==='function'&&!updateCartUI.__ntSync){const original=updateCartUI;const wrapped=function(){const out=original.apply(this,arguments);scheduleCart();return out};wrapped.__ntSync=true;updateCartUI=wrapped}}catch{}}
+function analyticsAllowed(){try{return window.NUTRETIUM_CONSENT?.analitica?.()===true}catch{return false}}function subject(){let v=localStorage.getItem('nt_subject');if(!v){v=crypto?.randomUUID?.()||Math.random().toString(36).slice(2);localStorage.setItem('nt_subject',v)}return v}async function flushAnalytics(){if(!analyticsAllowed())return;let events=[];try{events=JSON.parse(sessionStorage.getItem('nt_analytics_buffer_v1')||'[]')||[]}catch{};for(;analyticsCursor<events.length;analyticsCursor++){const e=events[analyticsCursor];if(!e?.event)continue;sesion.pide('/.netlify/functions/analytics-ingest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:e.event,payload:e,consent:true,subject:subject()}),keepalive:true}).catch(()=>{})}}
+async function mergeServerWishlist(){if(!sesion.activa())return;const d=await customer({action:'overview'});const server=(d?.wishlist?.productIds||[]).map(Number),local=wishlistIds(),merged=[...new Set([...server,...local])];if(merged.length!==local.length||merged.some((v,i)=>v!==local[i]))localStorage.setItem('nt_wishlist_v1',JSON.stringify(merged));wishlistSig='';await syncWishlist()}
+function init(){wrapCartUI();mergeServerWishlist();setInterval(()=>{syncWishlist();flushAnalytics()},2500);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){syncWishlist();syncCart();flushAnalytics()}});window.addEventListener('beforeunload',()=>{flushAnalytics()})}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();})();
+
+/* layer:customer-session-hardening.js */
+/* NUTRETIUM — Customer Session Hardening
+   Final build layer. Keeps only non-secret profile data in browser storage and
+   uses the HttpOnly server session as the authentication source of truth. */
+(function(){
+  'use strict';
+  const STORAGE_KEY='nutretium_user';
+
+  function publicProfile(user){
+    if(!user||typeof user!=='object')return null;
+    const copy={...user};
+    delete copy.token;
+    delete copy.accessToken;
+    delete copy.refreshToken;
+    return copy;
+  }
+  function persistProfile(user){
+    try{
+      if(user)localStorage.setItem(STORAGE_KEY,JSON.stringify(user));
+      else localStorage.removeItem(STORAGE_KEY);
+    }catch{}
+  }
+
+  saveSession=function(user){
+    currentUser=publicProfile(user);
+    persistProfile(currentUser);
+  };
+
+  loadSession=function(){
+    let legacyToken=null;
+    try{
+      const raw=localStorage.getItem(STORAGE_KEY);
+      const parsed=raw?JSON.parse(raw):null;
+      legacyToken=parsed&&typeof parsed.token==='string'?parsed.token:null;
+      currentUser=publicProfile(parsed);
+      persistProfile(currentUser);
+    }catch{
+      currentUser=null;
+      persistProfile(null);
+    }
+
+    Promise.resolve().then(async()=>{
+      try{
+        const body={action:'profile'};
+        if(legacyToken)body.token=legacyToken;
+        const res=await fetch('/.netlify/functions/auth',{
+          method:'POST',
+          credentials:'same-origin',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(body),
+        });
+        if(res.ok){
+          const data=await res.json();
+          saveSession(data.user);
+          if(typeof updateAuthUI==='function')updateAuthUI();
+          return;
+        }
+        if(res.status===401||res.status===404){
+          clearSession();
+          if(typeof updateAuthUI==='function')updateAuthUI();
+        }
+      }catch{
+        // Un fallo de red no borra el perfil local. La autorización real sigue
+        // dependiendo del servidor, que rechazará cualquier operación protegida.
+      }
+    });
+  };
+
+  const clearLocalSession=clearSession;
+  clearSession=function(){
+    clearLocalSession();
+    persistProfile(null);
+  };
+
+  logout=function(){
+    fetch('/.netlify/functions/auth',{
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'logout'}),
+      keepalive:true,
+    }).catch(()=>{});
+    clearSession();
+    if(typeof updateAuthUI==='function')updateAuthUI();
+    if(typeof closeProfileDropdown==='function')closeProfileDropdown();
+    if(typeof showToast==='function')showToast('Sesión cerrada.');
+  };
+
+  window.NUTRETIUM_CUSTOMER_SESSION={
+    transport:'httponly-cookie',
+    storage:'profile-only',
+    version:2,
+  };
+})();
+/* NUTRETIUM_BUILD_LAYERS_END */

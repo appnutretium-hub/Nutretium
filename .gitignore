@@ -60,3 +60,11 @@ scripts/_*
 # instrucción. Las tratadas sí, en sources/productos/.
 sources/_nuevas/*
 !sources/_nuevas/LEEME.md
+
+# Directorio de trabajo de Netlify: NO es código nuestro y NO se versiona.
+# Lo rellena la plataforma en cada build y pesa medio giga: el plugin de
+# Lighthouse se instala ahí con su propio Chromium (320 MB en un solo archivo).
+# Sin esta línea entra en el zip de fuentes que sube `netlify deploy
+# --upload-source-zip` y la subida acaba en 'connect_read timeout reached',
+# además de quedar a un paso de commitearse entero.
+.netlify/

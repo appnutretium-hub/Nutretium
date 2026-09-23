@@ -71,10 +71,10 @@ function bankNotification(order, amountCents, invalidSignature, options) {
   const config = options || {};
   const params = {
     Ds_Amount: String(amountCents),
-    Ds_Currency: '978',
+    Ds_Currency: config.currency ?? '978',
     Ds_Order: order,
-    Ds_MerchantCode: COMERCIO,
-    Ds_Terminal: TERMINAL,
+    Ds_MerchantCode: config.merchantCode ?? COMERCIO,
+    Ds_Terminal: config.terminal ?? TERMINAL,
     Ds_Response: config.responseCode || '0000',
     Ds_AuthorisationCode: config.authorisationCode || '123456',
     Ds_TransactionType: config.transactionType || '0'
@@ -98,9 +98,9 @@ async function main() {
 
   const products = require('../products-data.js').NUTRETIUM_PRODUCTS;
   const product = products.find(function (item) {
-    return item.active !== false && (item.stock === null || Number(item.stock) >= 3);
+    return item.active !== false && Number.isInteger(item.stock) && item.stock >= 3;
   });
-  assert(product, 'El catálogo necesita un producto activo y vendible para probar Redsys.');
+  assert(product, 'El catálogo necesita un producto activo con stock finito >= 3 para probar reserva/commit Redsys.');
   const items = [{ id: product.id, code: product.code, qty: 1 }];
   const expectedCents = Math.round(Number(product.price) * 100);
 
@@ -174,7 +174,16 @@ async function main() {
   assert.strictEqual(manipulatedBody.order, payment.order);
   assert.strictEqual(manipulatedBody.idempotent, true);
 
-  const notify = require('../netlify/functions/redsys-notify.js').handler;
+  const notifyModule = require('../netlify/functions/redsys-notify.js');
+  const notify = notifyModule.handler;
+  const integrityFixture = { Ds_Currency:'978', Ds_MerchantCode:COMERCIO, Ds_Terminal:TERMINAL };
+  const integrityRecord = { currency:'978' };
+  const integrityPayment = { merchantCode:COMERCIO, terminal:TERMINAL };
+  assert.strictEqual(notifyModule._test.callbackIntegrity(integrityFixture, integrityRecord, integrityPayment).ok, true);
+  assert.deepStrictEqual(notifyModule._test.callbackIntegrity({ ...integrityFixture, Ds_Currency:'840' }, integrityRecord, integrityPayment).issues.map(i=>i.code), ['CURRENCY_MISMATCH']);
+  assert.deepStrictEqual(notifyModule._test.callbackIntegrity({ ...integrityFixture, Ds_MerchantCode:'000000000' }, integrityRecord, integrityPayment).issues.map(i=>i.code), ['MERCHANT_MISMATCH']);
+  assert.deepStrictEqual(notifyModule._test.callbackIntegrity({ ...integrityFixture, Ds_Terminal:'9' }, integrityRecord, integrityPayment).issues.map(i=>i.code), ['TERMINAL_MISMATCH']);
+
   const rejected = await notify(bankNotification(payment.order, expectedCents, true));
   assert.strictEqual(rejected.statusCode, 403);
 
@@ -228,7 +237,50 @@ async function main() {
   assert.strictEqual(Number(inventoryAfterLateFailure?.committed || 0), committedAfterFirst);
   assert.strictEqual(Number(inventoryAfterLateFailure?.committedOrders?.[payment.order] || 0), orderCommittedAfterFirst);
 
-  console.log('OK — checkout, firma Redsys, precio servidor, duplicados, tipo de operación y estado terminal PAID verificados.');
+  // Un callback correctamente firmado pero con moneda distinta se registra como
+  // pago, pero nunca puede consumir la reserva ni iniciar fulfillment.
+  const currencyCheckout = await checkout(paymentRequest(items, {
+    requestId: 'checkout-currency-001',
+    ip: '127.0.0.16'
+  }));
+  assert.strictEqual(currencyCheckout.statusCode, 200);
+  const currencyPayment = bodyOf(currencyCheckout);
+  const currencyMismatch = await notify(bankNotification(currencyPayment.order, expectedCents, false, { currency:'840' }));
+  assert.strictEqual(currencyMismatch.statusCode, 200);
+  const currencyRecord = await store.get(currencyPayment.order, { type:'json' });
+  assert.strictEqual(currencyRecord.status, 'PAID');
+  assert.strictEqual(currencyRecord.fulfilmentStatus, 'REVIEW_REQUIRED');
+  assert.strictEqual(currencyRecord.inventoryReservation.status, 'HELD_REVIEW');
+  assert.strictEqual(currencyRecord.paymentReview.reason, 'CURRENCY_MISMATCH');
+  assert.strictEqual(currencyRecord.paymentIntegrityMismatch.issues[0].code, 'CURRENCY_MISMATCH');
+  const inventoryAfterCurrencyMismatch = await inventoryStore.get(String(product.id), { type:'json' });
+  assert.strictEqual(Number(inventoryAfterCurrencyMismatch?.committed || 0), committedAfterFirst, 'la moneda discrepante no puede comprometer inventario');
+  assert.strictEqual(inventoryAfterCurrencyMismatch?.committedOrders?.[currencyPayment.order], undefined);
+
+  // Si Redsys autoriza después de caducar la reserva, el pago queda registrado
+  // pero el inventario falla cerrado y requiere revisión manual.
+  const expiredCheckout = await checkout(paymentRequest(items, {
+    requestId: 'checkout-expired-001',
+    ip: '127.0.0.17'
+  }));
+  assert.strictEqual(expiredCheckout.statusCode, 200);
+  const expiredPayment = bodyOf(expiredCheckout);
+  const beforeExpiry = await inventoryStore.get(String(product.id), { type:'json' });
+  assert(beforeExpiry?.reservations?.[expiredPayment.order], 'el checkout debe haber creado la reserva a expirar');
+  beforeExpiry.reservations[expiredPayment.order].expiresAt = Date.now() - 1000;
+  await inventoryStore.setJSON(String(product.id), beforeExpiry);
+  const expiredNotify = await notify(bankNotification(expiredPayment.order, expectedCents, false));
+  assert.strictEqual(expiredNotify.statusCode, 503);
+  const expiredRecord = await store.get(expiredPayment.order, { type:'json' });
+  assert.strictEqual(expiredRecord.status, 'PAID');
+  assert.strictEqual(expiredRecord.fulfilmentStatus, 'REVIEW_REQUIRED');
+  assert.strictEqual(expiredRecord.inventoryReservation.status, 'COMMIT_FAILED');
+  assert.strictEqual(expiredRecord.inventoryReservation.reason, 'reservation-missing');
+  const inventoryAfterExpiredPayment = await inventoryStore.get(String(product.id), { type:'json' });
+  assert.strictEqual(Number(inventoryAfterExpiredPayment?.committed || 0), committedAfterFirst, 'una reserva caducada no puede incrementar stock comprometido');
+  assert.strictEqual(inventoryAfterExpiredPayment?.committedOrders?.[expiredPayment.order], undefined);
+
+  console.log('OK — checkout, firma Redsys, integridad moneda/comercio/terminal, reservas caducadas, duplicados y estado terminal PAID verificados.');
 }
 
 main().catch(function (error) {

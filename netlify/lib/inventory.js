@@ -100,19 +100,42 @@ async function releaseLine(product, order) {
   });
 }
 
+function commitTransform(product, order, qty, state) {
+  if (state.committedOrders?.[order]) {
+    if (state.reservations[order]) delete state.reservations[order];
+    return { committed: Number(state.committedOrders[order]), idempotent: true };
+  }
+
+  const requested = Math.max(1, Number(qty) || 0);
+  const reservation = state.reservations?.[order];
+  const reserved = Math.max(0, Number(reservation?.qty) || 0);
+  if (!reservation || reserved <= 0) {
+    return {
+      error: 'reservation-missing',
+      productId: product.id,
+      productName: product.name,
+      requested,
+      reserved: 0,
+    };
+  }
+  if (reserved < requested) {
+    return {
+      error: 'reservation-insufficient',
+      productId: product.id,
+      productName: product.name,
+      requested,
+      reserved,
+    };
+  }
+
+  delete state.reservations[order];
+  state.committed = Math.max(0, Number(state.committed) || 0) + requested;
+  state.committedOrders[order] = requested;
+  return { committed: requested };
+}
+
 async function commitLine(product, order, qty) {
-  return mutate(product, (state) => {
-    if (state.committedOrders?.[order]) {
-      if (state.reservations[order]) delete state.reservations[order];
-      return { committed: Number(state.committedOrders[order]), idempotent: true };
-    }
-    const reserved = Number(state.reservations?.[order]?.qty) || 0;
-    const amount = Math.max(1, Number(qty) || reserved || 0);
-    delete state.reservations[order];
-    state.committed = Math.max(0, Number(state.committed) || 0) + amount;
-    state.committedOrders[order] = amount;
-    return { committed: amount };
-  });
+  return mutate(product, (state) => commitTransform(product, order, qty, state));
 }
 
 function reservableLines(lines) {
@@ -163,13 +186,28 @@ async function release(order, lines) {
 }
 
 async function commit(order, lines) {
+  const committedProductIds = [];
   try {
-    await Promise.all(reservableLines(lines).map(({ line, product }) => commitLine(product, order, line.qty)));
-    return { ok: true };
+    for (const { line, product } of reservableLines(lines)) {
+      const result = await commitLine(product, order, line.qty);
+      if (result?.error) {
+        return {
+          ok: false,
+          reason: result.error,
+          productId: result.productId,
+          committedProductIds,
+          error: result.error === 'reservation-insufficient'
+            ? 'La reserva de inventario ya no cubre todas las unidades pagadas. El pedido requiere revisión manual.'
+            : 'La reserva de inventario ha expirado o ya no existe. El pedido requiere revisión manual.',
+        };
+      }
+      committedProductIds.push(product.id);
+    }
+    return { ok: true, committedProductIds };
   } catch (err) {
     console.error('[inventory] confirmación', order, err);
-    return { ok: false, error: err.message };
+    return { ok: false, reason: err.code || 'inventory-error', committedProductIds, error: err.message };
   }
 }
 
-module.exports = { reserve, release, commit, availableQty, DEFAULT_TTL_MS };
+module.exports = { reserve, release, commit, availableQty, DEFAULT_TTL_MS, _test: { normalState, commitTransform } };

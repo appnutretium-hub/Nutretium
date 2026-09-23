@@ -9,7 +9,10 @@ function router(routes){return async(url)=>{for(const [match,value] of routes){i
  assert.equal(readiness.senderDomain('invalido'),'');
  assert.equal(readiness.paymentsState({REDSYS_ENV:'test',COMMERCE_LIVE:'false'}).ready,false);
  assert.equal(readiness.paymentsState({REDSYS_ENV:'production',COMMERCE_LIVE:'true',REDSYS_SECRET_KEY:'secret',REDSYS_MERCHANT_CODE:'merchant'}).ready,true);
+ assert.equal(readiness.paymentsState({}, {managed:true,enabled:true,environment:'production',commerceLive:true,credentialsConfigured:true,dedicatedVaultKey:true}).ready,true);
+ assert.equal(readiness.paymentsState({}, {managed:true,enabled:true,environment:'production',commerceLive:true,credentialsConfigured:true,dedicatedVaultKey:false}).reason,'missing-dedicated-vault-key');
  assert.equal(readiness.shippingState({managed:false,enabled:false,rateCents:null}).ready,false);
+ assert.equal(readiness.shippingState({managed:false,enabled:true,rateCents:495}).ready,true,'shipping por entorno con tarifa efectiva también debe contar como ready');
  assert.equal(readiness.shippingState({managed:true,enabled:true,rateCents:495}).ready,true);
  assert.equal(readiness.tpvState({}).ready,false);
  assert.equal(readiness.tpvState({TPVSOL_SYNC_MODE:'api',TPVSOL_SYNC_ENDPOINT:'https://tpv.example/sync',TPVSOL_SYNC_TOKEN:'token',TPVSOL_CONNECTION_VALIDATED:'true'}).ready,true);
@@ -26,11 +29,20 @@ function router(routes){return async(url)=>{for(const [match,value] of routes){i
  const pending=await readiness.resendState({RESEND_API_KEY:'x',ORDER_EMAIL_FROM:'pedidos@nutretium.com'},router([['api.resend.com',{data:[{name:'nutretium.com',status:'pending'}]}]]));
  assert.equal(pending.ready,false);
  const aggregateFetch=router([['api.github.com',{commit:{sha}}],['api.resend.com',{data:[{name:'nutretium.com',status:'verified'}]}]]);
- const aggregate=await readiness.assessExternalReadiness({env:{GITHUB_REPOSITORY:'appnutretium-hub/Nutretium',GITHUB_TOKEN:'x',COMMIT_REF:sha,CONTEXT:'production',BRANCH:'main',RESEND_API_KEY:'x',ORDER_EMAIL_FROM:'pedidos@nutretium.com',REDSYS_ENV:'production',COMMERCE_LIVE:'true',REDSYS_SECRET_KEY:'secret',REDSYS_MERCHANT_CODE:'merchant',TPVSOL_SYNC_MODE:'api',TPVSOL_SYNC_ENDPOINT:'https://tpv.example/sync',TPVSOL_SYNC_TOKEN:'token',TPVSOL_CONNECTION_VALIDATED:'true'},shipping:{managed:true,enabled:true,rateCents:495},fetchImpl:aggregateFetch});
+ const aggregateEnv={GITHUB_REPOSITORY:'appnutretium-hub/Nutretium',GITHUB_TOKEN:'x',COMMIT_REF:sha,CONTEXT:'production',BRANCH:'main',RESEND_API_KEY:'x',ORDER_EMAIL_FROM:'pedidos@nutretium.com',REDSYS_ENV:'production',COMMERCE_LIVE:'true',REDSYS_SECRET_KEY:'secret',REDSYS_MERCHANT_CODE:'merchant',TPVSOL_SYNC_MODE:'api',TPVSOL_SYNC_ENDPOINT:'https://tpv.example/sync',TPVSOL_SYNC_TOKEN:'token',TPVSOL_CONNECTION_VALIDATED:'true'};
+ const aggregate=await readiness.assessExternalReadiness({env:aggregateEnv,shipping:{managed:true,enabled:true,rateCents:495},fetchImpl:aggregateFetch});
  assert.equal(aggregate.ready,true);
  assert.deepEqual(aggregate.blockers,[]);
+ const managedAggregate=await readiness.assessExternalReadiness({
+  env:{...aggregateEnv,REDSYS_ENV:'test',COMMERCE_LIVE:'false',REDSYS_SECRET_KEY:'',REDSYS_MERCHANT_CODE:''},
+  shipping:{managed:false,enabled:true,rateCents:495,methods:[]},
+  payment:{managed:true,enabled:true,environment:'production',commerceLive:true,credentialsConfigured:true,dedicatedVaultKey:true},
+  fetchImpl:aggregateFetch
+ });
+ assert.equal(managedAggregate.ready,true,'el gate debe usar pago gestionado y política de shipping efectivas, no variables legacy');
+ assert.deepEqual(managedAggregate.blockers,[]);
  const failClosed=await readiness.assessExternalReadiness({env:{REDSYS_ENV:'test'},shipping:{managed:false},fetchImpl:router([])});
  assert.equal(failClosed.ready,false);
  assert.ok(failClosed.blockers.length>=5);
- console.log('External readiness gate: OK');
+ console.log('External readiness gate: OK · env/managed parity');
 })().catch(error=>{console.error(error);process.exit(1);});

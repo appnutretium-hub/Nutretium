@@ -13,6 +13,8 @@ const CONTROL_SHARDS = 4;
 const CONTROL_SELECTOR = 'button:not([disabled]), [role="button"]:not([aria-disabled="true"])';
 const UI_SETTLE_MS = 100;
 const TARGET_LOAD_ATTEMPTS = 3;
+const TARGET_NAVIGATION_TIMEOUT_MS = 15000;
+const FUNCTION_STUB_BODY = JSON.stringify({ ok: false, error: 'E2E_FUNCTION_UNAVAILABLE' });
 
 function isSafeControl(el) {
   if (!el || el.disabled) return false;
@@ -43,12 +45,17 @@ function descriptorSignature(item) {
 }
 
 async function settle(page) {
-  await page.waitForLoadState('load').catch(() => {});
   await page.waitForTimeout(UI_SETTLE_MS);
 }
 
+async function stopResidualNavigation(page) {
+  if (page.isClosed()) return;
+  await page.evaluate(() => window.stop()).catch(() => {});
+  await page.waitForTimeout(25);
+}
+
 async function readRawControls(page) {
-  return page.locator(CONTROL_SELECTOR).evaluateAll(elements => elements.map(el => {
+  return page.evaluate(selector => Array.from(document.querySelectorAll(selector)).map(el => {
     const clean = value => String(value || '').replace(/\s+/g, ' ').trim();
     return {
       tag: clean(el.tagName).toLowerCase(),
@@ -61,7 +68,7 @@ async function readRawControls(page) {
       type: clean(el.getAttribute('type')),
       text: clean(el.textContent).slice(0, 240)
     };
-  }));
+  }), CONTROL_SELECTOR);
 }
 
 async function snapshotControls(page) {
@@ -73,26 +80,17 @@ async function snapshotControls(page) {
   for (const item of raw) {
     const signature = descriptorSignature(item);
     const exact = Boolean(machineIdentity(item));
-
-    // Machine-facing identities are certified individually. Legacy controls
-    // without a stable identity are certified once per semantic action family.
     if (!exact) {
       if (semanticFamilies.has(signature)) continue;
       semanticFamilies.add(signature);
       snapshot.push({ ...item, signature, occurrence: 0, exact: false });
       continue;
     }
-
     const occurrence = occurrences.get(signature) || 0;
     occurrences.set(signature, occurrence + 1);
     snapshot.push({ ...item, signature, occurrence, exact: true });
   }
-
   return snapshot;
-}
-
-function matchesTarget(item, target) {
-  return item.signature === target.signature && (!target.exact || item.occurrence === target.occurrence);
 }
 
 async function concreteDomIndex(page, target) {
@@ -108,21 +106,13 @@ async function concreteDomIndex(page, target) {
 }
 
 async function reloadTarget(page, path, target) {
-  // Some storefront controls are intentionally conditional: product compare
-  // actions depend on the rendered card set and dock controls depend on the
-  // current UI state. A control observed in the baseline is therefore retried
-  // across bounded clean loads. Persistent absence is reported as conditional,
-  // never silently converted into a functional failure or a false PASS click.
   for (let attempt = 1; attempt <= TARGET_LOAD_ATTEMPTS; attempt++) {
-    await page.context().clearCookies();
-    // Always perform an explicit navigation. A previously dispatched click can
-    // leave Chromium between document attachments; page.reload() is racy in
-    // that state and can fail with "Not attached to an active page".
-    await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
+    await stopResidualNavigation(page);
+    await page.goto(BASE + path, {
+      waitUntil: 'domcontentloaded',
+      timeout: TARGET_NAVIGATION_TIMEOUT_MS
+    });
     await settle(page);
-
-    const current = await snapshotControls(page);
-    if (!current.some(item => matchesTarget(item, target))) continue;
     const domIndex = await concreteDomIndex(page, target);
     if (domIndex >= 0) return { domIndex, attempts: attempt };
   }
@@ -146,9 +136,16 @@ async function preparePage(page, path, runtimeErrors) {
   page.on('dialog', dialog => dialog.dismiss().catch(() => {}));
 
   await installDeterministicClientState(page);
-  await page.route('**/.netlify/functions/**', route => route.abort('blockedbyclient'));
+  await page.route('**/.netlify/functions/**', route => route.fulfill({
+    status: 503,
+    contentType: 'application/json; charset=utf-8',
+    body: FUNCTION_STUB_BODY
+  }));
 
-  const response = await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
+  const response = await page.goto(BASE + path, {
+    waitUntil: 'domcontentloaded',
+    timeout: TARGET_NAVIGATION_TIMEOUT_MS
+  });
   expect(response, `sin respuesta para ${path}`).not.toBeNull();
   expect(response.status(), `HTTP inválido en ${path}`).toBeLessThan(400);
   await settle(page);
@@ -181,11 +178,9 @@ for (const path of pages) {
         if (!safe) continue;
 
         const beforeErrors = runtimeErrors.length;
-        // Runtime wiring is certified independently from pointer geometry.
-        // Dedicated quality/E2E suites in this same gate cover actionability,
-        // layout and accessibility with real browser interactions.
         await control.dispatchEvent('click');
-        await page.waitForTimeout(50);
+        await page.waitForTimeout(75);
+        await stopResidualNavigation(page);
 
         expect(
           runtimeErrors.slice(beforeErrors),
@@ -203,7 +198,10 @@ for (const path of pages) {
 
 for (const path of pages) {
   test(`formularios y enlaces sin pseudo-acciones javascript: ${path}`, async ({ page }) => {
-    const response = await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
+    const response = await page.goto(BASE + path, {
+      waitUntil: 'domcontentloaded',
+      timeout: TARGET_NAVIGATION_TIMEOUT_MS
+    });
     expect(response && response.status(), `HTTP inválido en ${path}`).toBeLessThan(400);
     await settle(page);
     const invalid = await page.locator('a[href="javascript:void(0)"], a[href="javascript:;"], form[action="javascript:void(0)"], form[action="javascript:;"]').count();

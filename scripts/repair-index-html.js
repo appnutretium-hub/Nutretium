@@ -4,6 +4,8 @@ const fs = require('fs');
 const path = require('path');
 
 const file = path.resolve(__dirname, '..', 'index.html');
+const mode = String(process.env.NUTRETIUM_HTML_REPAIR_MODE || 'write').trim().toLowerCase();
+if (!['write', 'check'].includes(mode)) throw new Error(`[repair-index-html] modo no soportado: ${mode}`);
 let html = fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '');
 const original = html;
 
@@ -161,10 +163,13 @@ if (!/<footer\b/i.test(html)) problems.push('falta landmark <footer>');
 if (problems.length) {
   console.error('[repair-index-html] VALIDACIÓN FALLIDA');
   for (const p of problems) console.error(' - ' + p);
-  process.exit(1);
+  throw new Error(`[repair-index-html] ${problems.length} problema(s) de cierre HTML`);
 }
 
 if (html !== original) {
+  if (mode === 'check') {
+    throw new Error('[repair-index-html] index.html requiere reparación. Ejecuta el script en modo write dentro de una rama/PR y revisa el diff; CI no modifica código automáticamente.');
+  }
   fs.writeFileSync(file, html, 'utf8');
   console.log('[repair-index-html] index.html reparado y validado');
 } else {

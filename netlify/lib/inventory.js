@@ -13,7 +13,7 @@ function finiteStock(product) {
 
 function nowMs() { return Date.now(); }
 
-function normalState(product, raw) {
+function normalState(product, raw, referenceNow = nowMs()) {
   const catalogStock = Number(product.stock);
   let state = raw && typeof raw === 'object' ? { ...raw } : {};
   state.reservations = state.reservations && typeof state.reservations === 'object' ? { ...state.reservations } : {};
@@ -29,7 +29,7 @@ function normalState(product, raw) {
     state.committedOrders = {};
   }
 
-  const now = nowMs();
+  const now = Number.isFinite(Number(referenceNow)) ? Number(referenceNow) : nowMs();
   for (const [order, reservation] of Object.entries(state.reservations)) {
     if (!reservation || Number(reservation.expiresAt) <= now || Number(reservation.qty) <= 0) {
       delete state.reservations[order];
@@ -49,7 +49,7 @@ function availableQty(product, state, exceptOrder = '') {
   return Math.max(0, Number(product.stock) - Math.max(0, Number(state.committed) || 0) - reservedQty(state, exceptOrder));
 }
 
-async function mutate(product, transform) {
+async function mutate(product, transform, { referenceNow } = {}) {
   const store = getBlobStore(STORE_NAME);
   if (!store || typeof store.getWithMetadata !== 'function') {
     throw Object.assign(new Error('Inventario transaccional no disponible.'), { code: 'inventory-unavailable' });
@@ -58,7 +58,7 @@ async function mutate(product, transform) {
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     const current = await store.getWithMetadata(key, { type: 'json', consistency: 'strong' }).catch(() => null);
-    const state = normalState(product, current?.data || null);
+    const state = normalState(product, current?.data || null, referenceNow);
     const result = transform(state);
     if (result?.error) return result;
 
@@ -100,17 +100,17 @@ async function releaseLine(product, order) {
   });
 }
 
-function commitTransform(product, order, qty, state) {
+function validateCommitReservation(product, order, qty, state) {
+  const requested = Math.max(1, Number(qty) || 0);
   if (state.committedOrders?.[order]) {
-    if (state.reservations[order]) delete state.reservations[order];
-    return { committed: Number(state.committedOrders[order]), idempotent: true };
+    return { ok: true, idempotent: true, committed: Number(state.committedOrders[order]), requested };
   }
 
-  const requested = Math.max(1, Number(qty) || 0);
   const reservation = state.reservations?.[order];
   const reserved = Math.max(0, Number(reservation?.qty) || 0);
   if (!reservation || reserved <= 0) {
     return {
+      ok: false,
       error: 'reservation-missing',
       productId: product.id,
       productName: product.name,
@@ -120,6 +120,7 @@ function commitTransform(product, order, qty, state) {
   }
   if (reserved < requested) {
     return {
+      ok: false,
       error: 'reservation-insufficient',
       productId: product.id,
       productName: product.name,
@@ -127,15 +128,25 @@ function commitTransform(product, order, qty, state) {
       reserved,
     };
   }
-
-  delete state.reservations[order];
-  state.committed = Math.max(0, Number(state.committed) || 0) + requested;
-  state.committedOrders[order] = requested;
-  return { committed: requested };
+  return { ok: true, requested, reserved };
 }
 
-async function commitLine(product, order, qty) {
-  return mutate(product, (state) => commitTransform(product, order, qty, state));
+function commitTransform(product, order, qty, state) {
+  const validation = validateCommitReservation(product, order, qty, state);
+  if (!validation.ok) return validation;
+  if (validation.idempotent) {
+    if (state.reservations[order]) delete state.reservations[order];
+    return { committed: validation.committed, idempotent: true };
+  }
+
+  delete state.reservations[order];
+  state.committed = Math.max(0, Number(state.committed) || 0) + validation.requested;
+  state.committedOrders[order] = validation.requested;
+  return { committed: validation.requested };
+}
+
+async function commitLine(product, order, qty, referenceNow) {
+  return mutate(product, (state) => commitTransform(product, order, qty, state), { referenceNow });
 }
 
 function reservableLines(lines) {
@@ -143,6 +154,38 @@ function reservableLines(lines) {
     const product = PRODUCTOS.get(String(line.id));
     return { line, product };
   }).filter(({ product }) => finiteStock(product));
+}
+
+async function preflightCommit(order, lines, referenceNow = nowMs()) {
+  const store = getBlobStore(STORE_NAME);
+  if (!store || typeof store.getWithMetadata !== 'function') {
+    return { ok: false, reason: 'inventory-unavailable', error: 'El inventario no está disponible para confirmar el pedido.' };
+  }
+
+  const checked = [];
+  try {
+    for (const { line, product } of reservableLines(lines)) {
+      const current = await store.getWithMetadata(String(product.id), { type: 'json', consistency: 'strong' }).catch(() => null);
+      const state = normalState(product, current?.data || null, referenceNow);
+      const validation = validateCommitReservation(product, order, line.qty, state);
+      if (!validation.ok) {
+        return {
+          ok: false,
+          reason: validation.error,
+          productId: validation.productId,
+          checkedProductIds: checked.map(item => item.product.id),
+          error: validation.error === 'reservation-insufficient'
+            ? 'La reserva de inventario ya no cubre todas las unidades pagadas. El pedido requiere revisión manual.'
+            : 'La reserva de inventario ha expirado o ya no existe. El pedido requiere revisión manual.',
+        };
+      }
+      checked.push({ product, line, idempotent: validation.idempotent === true });
+    }
+    return { ok: true, checked, referenceNow };
+  } catch (err) {
+    console.error('[inventory] preflight commit', order, err);
+    return { ok: false, reason: err.code || 'inventory-error', checkedProductIds: checked.map(item => item.product.id), error: 'No se pudo verificar el inventario antes de confirmar el pago.' };
+  }
 }
 
 async function reserve(order, lines, ttlMs = DEFAULT_TTL_MS) {
@@ -186,10 +229,17 @@ async function release(order, lines) {
 }
 
 async function commit(order, lines) {
+  const referenceNow = nowMs();
+  const preflight = await preflightCommit(order, lines, referenceNow);
+  if (!preflight.ok) return preflight;
+
   const committedProductIds = [];
   try {
-    for (const { line, product } of reservableLines(lines)) {
-      const result = await commitLine(product, order, line.qty);
+    // El preflight evita modificar ninguna línea cuando una reserva ya era
+    // inválida al comenzar el callback. Las escrituras siguen protegidas por
+    // ETag/CAS; cualquier carrera posterior queda fail-closed y REVIEW_REQUIRED.
+    for (const { line, product } of preflight.checked) {
+      const result = await commitLine(product, order, line.qty, referenceNow);
       if (result?.error) {
         return {
           ok: false,
@@ -197,8 +247,8 @@ async function commit(order, lines) {
           productId: result.productId,
           committedProductIds,
           error: result.error === 'reservation-insufficient'
-            ? 'La reserva de inventario ya no cubre todas las unidades pagadas. El pedido requiere revisión manual.'
-            : 'La reserva de inventario ha expirado o ya no existe. El pedido requiere revisión manual.',
+            ? 'La reserva de inventario cambió y ya no cubre las unidades pagadas. El pedido requiere revisión manual.'
+            : 'La reserva de inventario cambió o dejó de existir durante la confirmación. El pedido requiere revisión manual.',
         };
       }
       committedProductIds.push(product.id);
@@ -210,4 +260,11 @@ async function commit(order, lines) {
   }
 }
 
-module.exports = { reserve, release, commit, availableQty, DEFAULT_TTL_MS, _test: { normalState, commitTransform } };
+module.exports = {
+  reserve,
+  release,
+  commit,
+  availableQty,
+  DEFAULT_TTL_MS,
+  _test: { normalState, validateCommitReservation, commitTransform }
+};

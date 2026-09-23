@@ -7,7 +7,10 @@ const meta = require('./write-build-meta');
 
 const TRUSTED = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const CANDIDATE = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+const VERIFIED_LIVE = 'cccccccccccccccccccccccccccccccccccccccc';
+const POISONED_LIVE = 'dddddddddddddddddddddddddddddddddddddddd';
 const REPO = 'appnutretium-hub/Nutretium';
+const MERGED_PR = [{ number: 125, merged_at: '2026-09-22T22:00:00Z', base: { ref: 'main' } }];
 
 function response(data, status = 200) {
   return {
@@ -34,7 +37,7 @@ function config() {
   return { productionTrust: { productionUrl: 'https://nutretium.com', bootstrapSha: TRUSTED } };
 }
 
-function mockFetch({ pulls = [{ number: 125, merged_at: '2026-09-22T22:00:00Z', base: { ref: 'main' } }], commit, liveMeta = { commitRef: TRUSTED } } = {}) {
+function mockFetch({ pulls = MERGED_PR, commit, liveMeta = { commitRef: TRUSTED } } = {}) {
   return async url => {
     const value = String(url);
     if (value.startsWith('https://nutretium.com/build-meta.json')) return response(liveMeta);
@@ -48,6 +51,43 @@ function mockFetch({ pulls = [{ number: 125, merged_at: '2026-09-22T22:00:00Z', 
       files: [{ filename: 'app.js' }],
       parents: [{ sha: TRUSTED }]
     });
+    throw new Error(`URL no simulada: ${value}`);
+  };
+}
+
+function verifiedLiveFetch() {
+  return async url => {
+    const value = String(url);
+    if (value.startsWith('https://nutretium.com/build-meta.json')) return response({ commitRef: VERIFIED_LIVE });
+    if (value.includes(`/compare/${TRUSTED}...${VERIFIED_LIVE}`)) {
+      return response({ status: 'ahead', total_commits: 1, commits: [{ sha: VERIFIED_LIVE }] });
+    }
+    if (value.endsWith(`/commits/${VERIFIED_LIVE}/pulls`)) return response(MERGED_PR);
+    throw new Error(`URL no simulada: ${value}`);
+  };
+}
+
+function poisonedRecoveryFetch() {
+  return async url => {
+    const value = String(url);
+    if (value.startsWith('https://nutretium.com/build-meta.json')) return response({ commitRef: POISONED_LIVE });
+    if (value.endsWith('/branches/main')) return response({ commit: { sha: CANDIDATE } });
+
+    if (value.includes(`/compare/${TRUSTED}...${POISONED_LIVE}`)) {
+      return response({ status: 'ahead', total_commits: 1, commits: [{ sha: POISONED_LIVE }] });
+    }
+    if (value.endsWith(`/commits/${POISONED_LIVE}/pulls`)) return response([]);
+    if (value.endsWith(`/commits/${POISONED_LIVE}`)) return response({
+      commit: { message: 'direct unreviewed production mutation' },
+      files: [{ filename: 'app.js' }],
+      parents: [{ sha: TRUSTED }]
+    });
+
+    if (value.includes(`/compare/${TRUSTED}...${CANDIDATE}`)) {
+      return response({ status: 'ahead', total_commits: 1, commits: [{ sha: CANDIDATE }] });
+    }
+    if (value.endsWith(`/commits/${CANDIDATE}/pulls`)) return response(MERGED_PR);
+
     throw new Error(`URL no simulada: ${value}`);
   };
 }
@@ -104,13 +144,38 @@ assert.strictEqual(meta.resolveCommitRef({ COMMIT_REF: 'bad', GITHUB_SHA: TRUSTE
     /Falta GITHUB_TOKEN/
   );
 
+  const verifiedLive = await guard.trustedLiveSha({
+    productionUrl: 'https://nutretium.com',
+    bootstrapSha: TRUSTED,
+    repo: REPO,
+    targetBranch: 'main',
+    token: 'test-token',
+    fetchImpl: verifiedLiveFetch()
+  });
+  assert.strictEqual(verifiedLive.sha, VERIFIED_LIVE);
+  assert.strictEqual(verifiedLive.source, 'published-build-meta-verified');
+  assert.strictEqual(verifiedLive.verifiedCommits[0]?.kind, 'merged-pr');
+
   const fallback = await guard.trustedLiveSha({
     productionUrl: 'https://nutretium.com',
     bootstrapSha: TRUSTED,
+    repo: REPO,
+    targetBranch: 'main',
+    token: 'test-token',
     fetchImpl: async () => response({ error: 'missing' }, 404)
   });
   assert.strictEqual(fallback.sha, TRUSTED);
   assert.strictEqual(fallback.source, 'bootstrap-trust-anchor');
+
+  const recovered = await guard.guardProductionDeploy({
+    env: env(),
+    config: config(),
+    fetchImpl: poisonedRecoveryFetch()
+  });
+  assert.strictEqual(recovered.allowed, true);
+  assert.strictEqual(recovered.trustedSha, TRUSTED, 'un build-meta no autorizado nunca puede convertirse en ancla');
+  assert.strictEqual(recovered.trustSource, 'bootstrap-trust-anchor');
+  assert.strictEqual(recovered.verifiedCommits[0]?.kind, 'merged-pr');
 
   console.log(JSON.stringify({ ok: true, suite: 'production-deploy-guard' }));
 })().catch(error => {

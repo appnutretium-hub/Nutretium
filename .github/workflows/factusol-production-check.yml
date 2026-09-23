@@ -1,24 +1,57 @@
 name: FACTUSOL Production Route Check
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Nutretium Full Quality Gate"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: factusol-production-check
+  cancel-in-progress: true
+
 jobs:
   verify:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
+      - name: Wait for exact production revision
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 18); do
+            if curl --fail --silent --show-error --location --connect-timeout 10 --max-time 20 \
+              -o /tmp/build-meta "https://nutretium.com/build-meta.json?factusol=$attempt"; then
+              if EXPECTED_SHA="$EXPECTED_SHA" node - <<'NODE'
+          const fs=require('fs');
+          const meta=JSON.parse(fs.readFileSync('/tmp/build-meta','utf8'));
+          const expected=String(process.env.EXPECTED_SHA||'').trim();
+          if(!/^[0-9a-f]{40}$/i.test(expected))throw new Error('EXPECTED_SHA inválido');
+          if(meta.commitRef!==expected)process.exit(2);
+          console.log('[factusol-production] revisión publicada confirmada:',meta.commitRef);
+          NODE
+              then
+                exit 0
+              fi
+            fi
+            sleep 10
+          done
+          echo "La revisión $EXPECTED_SHA no llegó a producción; FACTUSOL no se validará contra un deploy anterior." >&2
+          exit 1
+
       - name: Verify FACTUSOL page is deployed
         shell: bash
         run: |
           set -euo pipefail
           url="https://nutretium.com/factusol.html"
-          status="$(curl --silent --show-error --location --connect-timeout 10 --max-time 30 -o /tmp/factusol.html -w '%{http_code}' "$url")"
+          status="$(curl --silent --show-error --location --retry 6 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 30 -o /tmp/factusol.html -w '%{http_code}' "$url")"
           echo "FACTUSOL HTTP status: $status"
           test "$status" = "200"
           grep -qi '<title>FACTUSOL · Nutretium</title>' /tmp/factusol.html
@@ -28,7 +61,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --location --connect-timeout 10 --max-time 45 \
+          curl --fail --silent --show-error --location --retry 6 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 45 \
             -o /tmp/factusol-live.json \
             "https://nutretium.com/.netlify/functions/factusol-live-status"
           node - <<'NODE'

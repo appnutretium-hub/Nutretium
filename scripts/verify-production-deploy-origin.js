@@ -50,21 +50,6 @@ function githubHeaders(token) {
   };
 }
 
-async function trustedLiveSha({ productionUrl, bootstrapSha, fetchImpl = global.fetch }) {
-  const base = clean(productionUrl).replace(/\/+$/, '');
-  if (!/^https:\/\//i.test(base)) throw new Error('productionUrl debe usar HTTPS.');
-  try {
-    const meta = await jsonRequest(`${base}/build-meta.json?guard=${Date.now()}`, {
-      headers: { 'Cache-Control': 'no-cache' }
-    }, fetchImpl);
-    if (isSha(meta?.commitRef)) return { sha: clean(meta.commitRef), source: 'published-build-meta' };
-  } catch (error) {
-    console.warn('[deploy-origin-guard] build-meta publicado no disponible:', String(error.message || error).slice(0, 180));
-  }
-  if (!isSha(bootstrapSha)) throw new Error('No existe un SHA de producción confiable para arrancar el guard.');
-  return { sha: clean(bootstrapSha), source: 'bootstrap-trust-anchor' };
-}
-
 async function commitOrigin({ repo, sha, targetBranch, token, fetchImpl = global.fetch }) {
   const encodedRepo = repo.split('/').map(encodeURIComponent).join('/');
   const headers = githubHeaders(token);
@@ -95,6 +80,63 @@ async function candidateCommits({ repo, trustedSha, candidateSha, token, fetchIm
   return commits;
 }
 
+async function verifyAuthorizedChain({ repo, trustedSha, candidateSha, targetBranch, token, fetchImpl = global.fetch }) {
+  const commits = await candidateCommits({ repo, trustedSha, candidateSha, token, fetchImpl });
+  const toVerify = commits.length ? commits : [candidateSha];
+  const results = [];
+  for (const sha of toVerify) {
+    const origin = await commitOrigin({ repo, sha, targetBranch, token, fetchImpl });
+    results.push({ sha, ...origin });
+    if (!origin.allowed) {
+      throw new Error(`Commit no autorizado en la cadena de producción: ${sha} (${origin.kind}).`);
+    }
+  }
+  return results;
+}
+
+async function trustedLiveSha({
+  productionUrl,
+  bootstrapSha,
+  repo,
+  targetBranch = 'main',
+  token,
+  fetchImpl = global.fetch
+}) {
+  const base = clean(productionUrl).replace(/\/+$/, '');
+  const bootstrap = clean(bootstrapSha);
+  if (!/^https:\/\//i.test(base)) throw new Error('productionUrl debe usar HTTPS.');
+  if (!isSha(bootstrap)) throw new Error('No existe un SHA de producción confiable para arrancar el guard.');
+
+  try {
+    const meta = await jsonRequest(`${base}/build-meta.json?guard=${Date.now()}`, {
+      headers: { 'Cache-Control': 'no-cache' }
+    }, fetchImpl);
+    const liveSha = clean(meta?.commitRef);
+    if (!isSha(liveSha)) throw new Error('build-meta publicado no contiene un commitRef válido.');
+
+    if (liveSha === bootstrap) {
+      return { sha: bootstrap, source: 'published-build-meta-verified', verifiedCommits: [] };
+    }
+    if (!repo || !token) {
+      throw new Error('No se puede verificar el build-meta publicado sin repositorio y token de GitHub.');
+    }
+
+    const verifiedCommits = await verifyAuthorizedChain({
+      repo,
+      trustedSha: bootstrap,
+      candidateSha: liveSha,
+      targetBranch,
+      token,
+      fetchImpl
+    });
+    return { sha: liveSha, source: 'published-build-meta-verified', verifiedCommits };
+  } catch (error) {
+    console.warn('[deploy-origin-guard] build-meta publicado no es una ancla confiable:', String(error.message || error).slice(0, 220));
+  }
+
+  return { sha: bootstrap, source: 'bootstrap-trust-anchor', verifiedCommits: [] };
+}
+
 async function guardProductionDeploy({ env = process.env, fetchImpl = global.fetch, config = readConfig() } = {}) {
   if (!shouldEnforce(env)) return { enforced: false, allowed: true, reason: 'not-production-netlify-build' };
 
@@ -119,19 +161,20 @@ async function guardProductionDeploy({ env = process.env, fetchImpl = global.fet
   const trusted = await trustedLiveSha({
     productionUrl: trust.productionUrl || 'https://nutretium.com',
     bootstrapSha: trust.bootstrapSha,
+    repo,
+    targetBranch,
+    token,
     fetchImpl
   });
 
-  const commits = await candidateCommits({ repo, trustedSha: trusted.sha, candidateSha, token, fetchImpl });
-  const toVerify = commits.length ? commits : [candidateSha];
-  const results = [];
-  for (const sha of toVerify) {
-    const origin = await commitOrigin({ repo, sha, targetBranch, token, fetchImpl });
-    results.push({ sha, ...origin });
-    if (!origin.allowed) {
-      throw new Error(`Commit no autorizado en la cadena de producción: ${sha} (${origin.kind}).`);
-    }
-  }
+  const results = await verifyAuthorizedChain({
+    repo,
+    trustedSha: trusted.sha,
+    candidateSha,
+    targetBranch,
+    token,
+    fetchImpl
+  });
 
   return {
     enforced: true,
@@ -161,5 +204,6 @@ module.exports = {
   trustedLiveSha,
   commitOrigin,
   candidateCommits,
+  verifyAuthorizedChain,
   guardProductionDeploy
 };

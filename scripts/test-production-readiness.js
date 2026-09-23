@@ -1,6 +1,7 @@
 'use strict';
 const assert=require('assert');
 const sentinel=require('../netlify/functions/production-sentinel')._test;
+const siteStatus=require('../netlify/functions/site-status')._test;
 const totp=require('../netlify/lib/totp');
 const mfaReadiness=require('../netlify/lib/staff-mfa-readiness')._test;
 
@@ -42,6 +43,27 @@ assert.deepStrictEqual(sentinel.missingFrom(managedPayment),[],'Redsys gestionad
 const sharedKey=sentinel.paymentChecks({managed:true,environment:'production',commerceLive:true,merchantCode:'x',secretKey:'x',dedicatedVaultKey:false});
 assert.strictEqual(sharedKey.dedicatedVaultKey,false,'una bóveda gestionada de producción no puede reutilizar otra clave');
 
+const commercePayment={managed:true,enabled:true,environment:'production',commerceLive:true,credentialsConfigured:true,dedicatedVaultKey:true};
+assert.deepStrictEqual(
+ siteStatus.commerceBlockers({storefrontReady:true,shippingReady:true,payment:commercePayment}),
+ [],
+ 'un comercio completamente preparado no debe publicar bloqueos'
+);
+assert.deepStrictEqual(
+ siteStatus.commerceBlockers({
+  storefrontReady:true,
+  shippingReady:false,
+  payment:{...commercePayment,environment:'test',commerceLive:false,credentialsConfigured:false,dedicatedVaultKey:false}
+ }),
+ ['shipping-not-configured','payment-not-production','commerce-live-disabled','payment-credentials-missing','payment-vault-key-not-dedicated'],
+ 'site-status debe explicar cada causa de commerceReady=false sin exponer secretos'
+);
+assert.deepStrictEqual(
+ siteStatus.commerceBlockers({storefrontReady:false,shippingReady:true,payment:{...commercePayment,enabled:false}}),
+ ['storefront-not-ready','payment-disabled'],
+ 'mantenimiento/storefront y pago deshabilitado deben quedar diagnosticados'
+);
+
 assert.strictEqual(mfaReadiness.validSecret(validTotp),true,'un secreto TOTP base32 válido debe aceptarse');
 assert.strictEqual(mfaReadiness.validSecret('not-a-secret'),false,'un valor arbitrario no debe contar como TOTP válido');
 assert.strictEqual(mfaReadiness.envSecretFor('owner-private@nutretium.com',base),validTotp,'el mapa JSON legacy válido debe seguir siendo compatible');
@@ -67,4 +89,4 @@ assert.strictEqual(
  'la firma debe ser estable independientemente del orden'
 );
 
-console.log('[test-production-readiness] OK · MFA efectivo · aislamiento admin · Redsys producción · bóveda dedicada · mantenimiento · firma estable');
+console.log('[test-production-readiness] OK · MFA efectivo · aislamiento admin · Redsys producción · bóveda dedicada · diagnóstico commerceReady · mantenimiento · firma estable');

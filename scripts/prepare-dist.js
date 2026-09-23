@@ -3,11 +3,6 @@ const fs=require('fs');
 const path=require('path');
 const {writeBuildMeta}=require('./write-build-meta');
 
-// Cierre HTML obligatorio antes de construir el artefacto público. Si la
-// reparación o cualquiera de sus validaciones falla, el build se detiene y no
-// se publica un index.html incompleto.
-require('./repair-index-html');
-
 const ROOT=process.cwd();
 const DIST=path.join(ROOT,'dist');
 const PUBLIC_FILES=new Set(['_headers','_redirects','manifest.webmanifest','robots.txt','favicon.ico',path.join('.well-known','security.txt')]);
@@ -44,6 +39,23 @@ function copyTree(source,target,relative=''){
 fs.rmSync(DIST,{recursive:true,force:true});
 fs.mkdirSync(DIST,{recursive:true});
 copyTree(ROOT,DIST);
+
+// La normalización HTML es una transformación de build determinista sobre el
+// artefacto, nunca una mutación del source versionado. El script restringe el
+// destino a index.html o dist/index.html para evitar escrituras arbitrarias.
+const previousRepairMode=process.env.NUTRETIUM_HTML_REPAIR_MODE;
+const previousRepairFile=process.env.NUTRETIUM_HTML_REPAIR_FILE;
+process.env.NUTRETIUM_HTML_REPAIR_MODE='write';
+process.env.NUTRETIUM_HTML_REPAIR_FILE=path.join(DIST,'index.html');
+try{
+ delete require.cache[require.resolve('./repair-index-html')];
+ require('./repair-index-html');
+}finally{
+ if(previousRepairMode===undefined)delete process.env.NUTRETIUM_HTML_REPAIR_MODE;
+ else process.env.NUTRETIUM_HTML_REPAIR_MODE=previousRepairMode;
+ if(previousRepairFile===undefined)delete process.env.NUTRETIUM_HTML_REPAIR_FILE;
+ else process.env.NUTRETIUM_HTML_REPAIR_FILE=previousRepairFile;
+}
 
 const required=['index.html','app.js','styles.css','products-data.js','_redirects',path.join('.well-known','security.txt')];
 const missing=required.filter(file=>!fs.existsSync(path.join(DIST,file)));

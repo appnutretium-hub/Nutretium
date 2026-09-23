@@ -1,6 +1,9 @@
 'use strict';const assert=require('assert');process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';const gate=require('../netlify/functions/checkout-enterprise')._test.paymentHostAllowed;
 assert.deepStrictEqual(gate('nutretium.com',{enabled:true,credentialsConfigured:true,environment:'test',commerceLive:false}),{ok:true,mode:'test'},'el dominio público debe permitir sandbox explícito');
+assert.deepStrictEqual(gate('staging.example.com',{enabled:true,credentialsConfigured:true,environment:'test',commerceLive:false}),{ok:true,mode:'test'},'sandbox puede ejecutarse fuera del dominio público');
 assert.deepStrictEqual(gate('nutretium.com',{enabled:true,credentialsConfigured:true,environment:'production',commerceLive:false}),{ok:false,reason:'live-not-authorized'},'producción sin autorización debe bloquearse');
+assert.deepStrictEqual(gate('staging.example.com',{enabled:true,credentialsConfigured:true,environment:'production',commerceLive:true}),{ok:false,reason:'invalid-production-host'},'cobro real debe bloquearse fuera del dominio oficial');
+assert.deepStrictEqual(gate('www.nutretium.com',{enabled:true,credentialsConfigured:true,environment:'production',commerceLive:true}),{ok:true,mode:'live'},'cobro real autorizado debe permitirse solo en dominio oficial');
 assert.deepStrictEqual(gate('nutretium.com',{enabled:false,credentialsConfigured:true,environment:'test'}),{ok:false,reason:'unconfigured'},'pasarela desactivada debe bloquearse');
 assert.deepStrictEqual(gate('nutretium.com',{enabled:true,credentialsConfigured:false,environment:'test'}),{ok:false,reason:'unconfigured'},'sin credenciales debe bloquearse');
-console.log('[test-redsys-mode-gate] sandbox público permitido; cobro real sigue fail-closed');
+console.log('[test-redsys-mode-gate] sandbox permitido; cobro real restringido al dominio oficial y COMMERCE_LIVE');

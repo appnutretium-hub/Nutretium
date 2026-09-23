@@ -4,10 +4,6 @@ const BASE = process.env.E2E_BASE_URL || 'http://127.0.0.1:4173';
 const PAGES = ['/backoffice.html', '/customer-center.html', '/ops.html', '/recomendador.html'];
 const CONTROL_SELECTOR = 'button:not([disabled]), [role="button"]:not([aria-disabled="true"])';
 
-function clean(value) {
-  return String(value || '').replace(/\s+/g, ' ').trim();
-}
-
 function signature(item) {
   for (const [key, value] of [
     ['testid', item.testid],
@@ -75,12 +71,26 @@ for (const path of PAGES) {
       try { localStorage.clear(); } catch (_) {}
       try { sessionStorage.clear(); } catch (_) {}
     });
-    await page.route('**/.netlify/functions/**', route => route.abort('blockedbyclient'));
+    await page.route('**/.netlify/functions/**', route => {
+      if (path === '/ops.html') {
+        return route.fulfill({
+          status: 401,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Acceso no autorizado.' })
+        });
+      }
+      return route.abort('blockedbyclient');
+    });
 
     const initial = await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
     expect(initial, `sin respuesta para ${path}`).not.toBeNull();
     expect(initial.status(), `HTTP inválido en ${path}`).toBeLessThan(400);
     await page.waitForTimeout(100);
+
+    if (path === '/ops.html') {
+      await expect(page.locator('#login'), 'ops debe mostrar login ante 401').toBeVisible();
+      await expect(page.locator('#app'), 'ops no debe exponer panel sin autenticar').toBeHidden();
+    }
 
     const baseline = await snapshot(page);
     expect(baseline.length, `${path} debe exponer controles interactivos`).toBeGreaterThan(0);
@@ -97,7 +107,15 @@ for (const path of PAGES) {
       if (!(await control.evaluate(isSafeControl).catch(() => false))) continue;
 
       const before = runtimeErrors.length;
-      await control.dispatchEvent('click');
+      if (path === '/ops.html' && target.text.toLowerCase().includes('entrar')) {
+        await page.locator('#email').fill('qa@example.invalid');
+        await page.locator('#password').fill('invalid-password-for-e2e');
+        await control.click();
+        await expect(page.locator('#loginError')).toContainText('Acceso no autorizado.');
+        await expect(page.locator('#app')).toBeHidden();
+      } else {
+        await control.dispatchEvent('click');
+      }
       await page.waitForTimeout(75);
       expect(
         runtimeErrors.slice(before),

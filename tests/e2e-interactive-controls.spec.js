@@ -91,10 +91,6 @@ async function snapshotControls(page) {
   return snapshot;
 }
 
-function matchesTarget(item, target) {
-  return item.signature === target.signature && (!target.exact || item.occurrence === target.occurrence);
-}
-
 async function concreteDomIndex(page, target) {
   const raw = await readRawControls(page);
   let exactOccurrence = 0;
@@ -113,16 +109,19 @@ async function reloadTarget(page, path, target) {
   // current UI state. A control observed in the baseline is therefore retried
   // across bounded clean loads. Persistent absence is reported as conditional,
   // never silently converted into a functional failure or a false PASS click.
+  //
+  // Do not snapshot the complete control surface before concreteDomIndex():
+  // concreteDomIndex already performs the same presence/occurrence scan. The
+  // duplicate full-DOM pass made the home shards exceed WebKit's test timeout
+  // without increasing coverage.
   for (let attempt = 1; attempt <= TARGET_LOAD_ATTEMPTS; attempt++) {
     await page.context().clearCookies();
     // Always perform an explicit navigation. A previously dispatched click can
-    // leave Chromium between document attachments; page.reload() is racy in
+    // leave a browser between document attachments; page.reload() is racy in
     // that state and can fail with "Not attached to an active page".
     await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
     await settle(page);
 
-    const current = await snapshotControls(page);
-    if (!current.some(item => matchesTarget(item, target))) continue;
     const domIndex = await concreteDomIndex(page, target);
     if (domIndex >= 0) return { domIndex, attempts: attempt };
   }

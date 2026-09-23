@@ -15,7 +15,7 @@ permissions:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -169,23 +169,44 @@ jobs:
           node scripts/trust-inject.js
           node scripts/build-seo-pages.js
           node scripts/build-trust-audit.js
-      - name: Install browser engines
-        run: npx playwright install --with-deps chromium firefox webkit
-      - name: Start and verify static storefront
+
+  browser-e2e:
+    name: E2E · ${{ matrix.browser }}
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --omit=optional
+      - name: Build production-equivalent storefront
         run: |
-          node scripts/dev-server.js > /tmp/nutretium-server.log 2>&1 &
-          echo $! > /tmp/nutretium-server.pid
+          npm run build:css
+          node scripts/staff-login-inject.js
+          node scripts/compose-app.js
+          node --check app.js
+      - name: Install ${{ matrix.browser }} engine
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Start and verify isolated storefront
+        run: |
+          node scripts/dev-server.js > /tmp/nutretium-server-${{ matrix.browser }}.log 2>&1 &
+          echo $! > /tmp/nutretium-server-${{ matrix.browser }}.pid
           for i in $(seq 1 30); do
             if curl --fail --silent --show-error http://127.0.0.1:4173/ >/dev/null; then
               exit 0
             fi
             sleep 1
           done
-          cat /tmp/nutretium-server.log
+          cat /tmp/nutretium-server-${{ matrix.browser }}.log
           exit 1
-      - name: Browser E2E · Chromium
-        run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js tests/e2e-critical-flows.spec.js tests/e2e-checkout-resilience.spec.js tests/e2e-admin-sensitive.spec.js tests/e2e-admin-staff-sensitive.spec.js tests/e2e-interactive-controls.spec.js --browser=chromium --workers=4
-      - name: Browser E2E · Firefox
-        run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js tests/e2e-critical-flows.spec.js tests/e2e-checkout-resilience.spec.js tests/e2e-admin-sensitive.spec.js tests/e2e-admin-staff-sensitive.spec.js tests/e2e-interactive-controls.spec.js --browser=firefox --workers=4
-      - name: Browser E2E · WebKit
-        run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js tests/e2e-critical-flows.spec.js tests/e2e-checkout-resilience.spec.js tests/e2e-admin-sensitive.spec.js tests/e2e-admin-staff-sensitive.spec.js tests/e2e-interactive-controls.spec.js --browser=webkit --workers=4
+      - name: Browser E2E · ${{ matrix.browser }}
+        run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js tests/e2e-critical-flows.spec.js tests/e2e-checkout-resilience.spec.js tests/e2e-admin-sensitive.spec.js tests/e2e-admin-staff-sensitive.spec.js tests/e2e-interactive-controls.spec.js --browser=${{ matrix.browser }} --workers=1

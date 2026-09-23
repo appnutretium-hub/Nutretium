@@ -29,6 +29,16 @@ const parse=r=>JSON.parse(r.body||'{}');
  const validAfterBad=await staffLogin.handler(event({email:ownerEmail,password},wrongIp));assert.strictEqual(validAfterBad.statusCode,200,'Una contraseña owner válida debe recuperar el acceso tras errores previos');
  assert.strictEqual(parse(validAfterBad).user.mfaRequired,false);
 
+ const bruteEmail='rate-limit@nutretium.test',bruteIp='127.0.0.99';
+ for(let i=0;i<6;i++){
+  const bad=await staffLogin.handler(event({email:bruteEmail,password:'incorrecta-rate-'+i},bruteIp));
+  assert.strictEqual(bad.statusCode,401,`Intento inválido ${i+1} debe seguir respondiendo credenciales incorrectas antes del límite`);
+ }
+ const throttled=await staffLogin.handler(event({email:bruteEmail,password:'incorrecta-rate-6'},bruteIp));
+ assert.strictEqual(throttled.statusCode,429,'El séptimo intento inválido debe activar rate limit observable');
+ assert.ok(Number(throttled.headers?.['Retry-After'])>=1,'El rate limit debe indicar Retry-After');
+ assert.match(parse(throttled).error,/Demasiados intentos/i,'El cliente debe recibir un mensaje de throttle no ambiguo');
+
  await usuarios.escribe(adminEmail,base(adminEmail));
  const setupResponse=await staffLogin.handler(event({email:adminEmail,password},'127.0.0.88'));
  const setup=parse(setupResponse);
@@ -60,5 +70,5 @@ const parse=r=>JSON.parse(r.body||'{}');
  assert.ok(!stored.mfaSelfSetupPendingAt,'El estado de alta pendiente debe limpiarse tras verificar el código');
  assert.strictEqual(totp.secretFor(adminEmail,stored),setup.mfa.setupSecret,'El secreto cifrado persistido debe coincidir con el aprovisionado');
 
- console.log('[test-staff-access-recovery] OK · owner correo+contraseña · admin alta MFA guiada · código TOTP verificado · acceso recuperable');
+ console.log('[test-staff-access-recovery] OK · owner correo+contraseña · rate limit observable · admin alta MFA guiada · código TOTP verificado · acceso recuperable');
 })().catch(err=>{console.error(err);process.exit(1)});

@@ -1,0 +1,66 @@
+name: HTML Production Repair
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/repair-index-html.js'
+      - '.github/workflows/html-production-repair.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: html-production-repair
+  cancel-in-progress: false
+
+jobs:
+  repair-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Repair index.html
+        run: node scripts/repair-index-html.js
+
+      - name: Static accessibility audit
+        run: node scripts/accessibility-static-audit.js
+
+      - name: Storefront smoke test
+        run: node scripts/smoke-web.js
+
+      - name: JavaScript release check
+        run: node scripts/check-release-js.js
+
+      - name: Verify resulting diff
+        run: |
+          git diff --check
+          git diff -- index.html
+
+      - name: Commit repaired HTML
+        if: ${{ success() }}
+        run: |
+          if git diff --quiet -- index.html; then
+            echo 'index.html already compliant; no commit required.'
+            exit 0
+          fi
+          git config user.name 'nutretium-ci'
+          git config user.email 'actions@users.noreply.github.com'
+          git add index.html
+          git commit -m 'fix: harden HTML semantics accessibility and SEO'
+          git push origin HEAD:main

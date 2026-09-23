@@ -3,7 +3,13 @@
 const fs = require('fs');
 const path = require('path');
 
-const file = path.resolve(__dirname, '..', 'index.html');
+const ROOT = path.resolve(__dirname, '..');
+const requestedTarget = String(process.env.NUTRETIUM_HTML_REPAIR_FILE || '').trim();
+const file = requestedTarget ? path.resolve(requestedTarget) : path.join(ROOT, 'index.html');
+const allowedTargets = new Set([path.join(ROOT, 'index.html'), path.join(ROOT, 'dist', 'index.html')]);
+if (!allowedTargets.has(file)) throw new Error(`[repair-index-html] destino no autorizado: ${file}`);
+const mode = String(process.env.NUTRETIUM_HTML_REPAIR_MODE || 'write').trim().toLowerCase();
+if (!['write', 'check'].includes(mode)) throw new Error(`[repair-index-html] modo no soportado: ${mode}`);
 let html = fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '');
 const original = html;
 
@@ -161,12 +167,15 @@ if (!/<footer\b/i.test(html)) problems.push('falta landmark <footer>');
 if (problems.length) {
   console.error('[repair-index-html] VALIDACIÓN FALLIDA');
   for (const p of problems) console.error(' - ' + p);
-  process.exit(1);
+  throw new Error(`[repair-index-html] ${problems.length} problema(s) de cierre HTML`);
 }
 
 if (html !== original) {
+  if (mode === 'check') {
+    throw new Error('[repair-index-html] el objetivo requiere la transformación HTML determinista; ejecuta primero en modo write sobre un checkout o artefacto no persistente.');
+  }
   fs.writeFileSync(file, html, 'utf8');
-  console.log('[repair-index-html] index.html reparado y validado');
+  console.log(`[repair-index-html] ${path.relative(ROOT,file)} reparado y validado`);
 } else {
-  console.log('[repair-index-html] index.html ya cumplía las reglas auditadas');
+  console.log(`[repair-index-html] ${path.relative(ROOT,file)} ya cumplía las reglas auditadas`);
 }

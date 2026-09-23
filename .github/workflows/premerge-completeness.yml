@@ -1,0 +1,94 @@
+name: Nutretium Pre-Merge Completeness Gate
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: premerge-completeness-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  exact-production-build:
+    name: Exact Netlify production build + omitted regressions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --omit=optional
+      - name: Run regressions not explicit in Full Quality Gate
+        run: |
+          npm run test:commerce
+          npm run test:release-guards
+      - name: Execute exact Netlify build command
+        run: npm run build
+      - name: Verify deployable dist artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/index.html
+          test -s dist/app.js
+          test -s dist/styles.css
+          test -s dist/products-data.js
+          test -s dist/_redirects
+          test -s dist/.well-known/security.txt
+          test -s dist/build-meta.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const meta=JSON.parse(fs.readFileSync('dist/build-meta.json','utf8'));
+          if(!meta || typeof meta.commitRef!=='string' || !meta.commitRef.trim()){
+            throw new Error('dist/build-meta.json no contiene commitRef verificable');
+          }
+          console.log('[premerge-completeness] dist verificable para', meta.commitRef);
+          NODE
+      - name: Production dependency audit
+        run: npm audit --omit=dev --omit=optional --audit-level=high
+
+  warning-page-runtime-controls:
+    name: Runtime controls on statically-unverified pages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --omit=optional
+      - name: Compose storefront exactly as browser tests expect
+        run: |
+          npm run build:css
+          node scripts/staff-login-inject.js
+          node scripts/compose-app.js
+          node --check app.js
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Start local storefront
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/dev-server.js > /tmp/nutretium-premerge.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:4173/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/nutretium-premerge.log
+          exit 1
+      - name: Exercise controls from pages flagged by static audit
+        run: npx playwright test tests/e2e-static-warning-pages.spec.js --browser=chromium --workers=1

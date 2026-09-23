@@ -56,7 +56,11 @@ requireText('.github/workflows/quality-gate.yml', [
   'npm run test:security',
   'npm run test:enterprise',
   'Repository-wide programming integrity',
-  'Browser E2E · Chromium'
+  'browser: [chromium, firefox, webkit]',
+  'fail-fast: false',
+  'name: E2E · ${{ matrix.browser }}',
+  '--browser=${{ matrix.browser }}',
+  '--workers=1'
 ]);
 
 requireText('.github/workflows/guardian.yml', [

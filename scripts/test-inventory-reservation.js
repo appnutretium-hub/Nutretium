@@ -2,7 +2,7 @@
 
 const assert = require('assert');
 const inventory = require('../netlify/lib/inventory');
-const { normalState, commitTransform } = inventory._test;
+const { normalState, validateCommitReservation, commitTransform } = inventory._test;
 
 let count = 0;
 function test(name, fn) {
@@ -65,6 +65,36 @@ test('una reserva caducada se elimina y después el commit queda bloqueado', () 
   assert.strictEqual(state.reservations.ORDER1, undefined, 'normalState debe purgar la reserva expirada');
   const result = commitTransform(p, 'ORDER1', 2, state);
   assert.strictEqual(result.error, 'reservation-missing');
+  assert.strictEqual(state.committed, 0);
+});
+
+test('todo el batch usa un único instante de commit', () => {
+  const p = product();
+  const commitStartedAt = 1_000_000;
+  const expiresAt = commitStartedAt + 5;
+  const raw = stateWithReservation({ qty: 2, expiresAt });
+  const atStart = normalState(p, raw, commitStartedAt);
+  assert.ok(atStart.reservations.ORDER1, 'la reserva válida al inicio del callback debe conservarse durante ese batch');
+  const afterExpiry = normalState(p, raw, expiresAt + 1);
+  assert.strictEqual(afterExpiry.reservations.ORDER1, undefined, 'un callback que comienza después del vencimiento debe rechazar la reserva');
+});
+
+test('el preflight puro no muta una reserva válida', () => {
+  const p = product();
+  const state = normalState(p, stateWithReservation({ qty: 2 }));
+  const before = JSON.stringify(state);
+  const result = validateCommitReservation(p, 'ORDER1', 2, state);
+  assert.strictEqual(result.ok, true);
+  assert.strictEqual(result.idempotent, undefined);
+  assert.strictEqual(JSON.stringify(state), before, 'validar todas las líneas antes de escribir no puede consumir la reserva');
+});
+
+test('el preflight detecta una línea insuficiente antes de escribir', () => {
+  const p = product();
+  const state = normalState(p, stateWithReservation({ qty: 1 }));
+  const result = validateCommitReservation(p, 'ORDER1', 2, state);
+  assert.strictEqual(result.ok, false);
+  assert.strictEqual(result.error, 'reservation-insufficient');
   assert.strictEqual(state.committed, 0);
 });
 

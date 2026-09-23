@@ -145,7 +145,8 @@ jobs:
           if(body.commerceReady===true){
             console.log('[production-smoke] storefront operativo · comercio real preparado');
           }else{
-            console.log('[production-smoke] storefront operativo · comercio real aún no activado');
+            const blockers=Array.isArray(body.commerceBlockers)?body.commerceBlockers:['readiness-reason-unavailable'];
+            console.log('[production-smoke] storefront operativo · comercio real aún no activado · bloqueos:',blockers.join(', '));
           }
           NODE
 
@@ -169,7 +170,10 @@ jobs:
           node - <<'NODE'
           const fs=require('fs');
           const body=JSON.parse(fs.readFileSync('/tmp/status','utf8'));
-          if(body.commerceReady!==true) throw new Error('El gate exige comercio real, pero Redsys/shipping/COMMERCE_LIVE no están preparados.');
+          if(body.commerceReady!==true){
+            const blockers=Array.isArray(body.commerceBlockers)?body.commerceBlockers:['readiness-reason-unavailable'];
+            throw new Error(`El gate exige comercio real, pero sigue bloqueado por: ${blockers.join(', ')}`);
+          }
           NODE
 
       - name: Guarded automatic rollback

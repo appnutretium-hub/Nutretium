@@ -4,7 +4,7 @@ const crypto=require('crypto');
 process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
 process.env.JWT_SECRET=crypto.randomBytes(48).toString('hex');
 process.env.OWNER_EMAILS='recovery-owner@nutretium.test';
-process.env.ADMIN_EMAILS='recovery-admin@nutretium.test';
+process.env.ADMIN_EMAILS='recovery-admin@nutretium.test,recovery-mfa-rate@nutretium.test';
 process.env.REQUIRE_STAFF_MFA='true';
 process.env.CONTEXT='test';
 globalThis.__NUTRETIUM_TEST_BLOBS__=new Map();
@@ -14,7 +14,7 @@ const usuarios=require('../netlify/lib/usuarios');
 const passwords=require('../netlify/lib/passwords');
 const totp=require('../netlify/lib/totp');
 const staffLogin=require('../netlify/functions/staff-login');
-const ownerEmail='recovery-owner@nutretium.test',adminEmail='recovery-admin@nutretium.test',password='Recovery-Owner-2026!';
+const ownerEmail='recovery-owner@nutretium.test',adminEmail='recovery-admin@nutretium.test',mfaRateEmail='recovery-mfa-rate@nutretium.test',password='Recovery-Owner-2026!';
 const base=email=>({id:'recovery-'+email,name:'Recovery',surname:'Staff',email,phone:'',direccion:{},passwordHash:passwords.hashPassword(password),sessionVersion:0,createdAt:new Date().toISOString()});
 const event=(body,ip='127.0.0.55')=>({httpMethod:'POST',headers:{'content-type':'application/json','x-nf-client-connection-ip':ip},body:JSON.stringify(body)});
 const parse=r=>JSON.parse(r.body||'{}');
@@ -38,6 +38,26 @@ const parse=r=>JSON.parse(r.body||'{}');
  assert.strictEqual(throttled.statusCode,429,'El séptimo intento inválido debe activar rate limit observable');
  assert.ok(Number(throttled.headers?.['Retry-After'])>=1,'El rate limit debe indicar Retry-After');
  assert.match(parse(throttled).error,/Demasiados intentos/i,'El cliente debe recibir un mensaje de throttle no ambiguo');
+
+ await usuarios.escribe(mfaRateEmail,base(mfaRateEmail));
+ const mfaRateIp='127.0.0.101';
+ const mfaRateSetupResponse=await staffLogin.handler(event({email:mfaRateEmail,password},mfaRateIp));
+ const mfaRateSetup=parse(mfaRateSetupResponse);
+ assert.strictEqual(mfaRateSetupResponse.statusCode,401,'Admin de prueba MFA debe entrar en alta guiada');
+ assert.strictEqual(mfaRateSetup.mfaSetupRequired,true,'Admin de prueba MFA debe recibir alta TOTP');
+ assert.ok(mfaRateSetup.mfa?.setupSecret,'Alta MFA de prueba debe entregar secreto');
+ const currentMfaCode=totp.code(mfaRateSetup.mfa.setupSecret);
+ const invalidMfaCode=currentMfaCode==='000000'?'000001':'000000';
+ for(let i=0;i<6;i++){
+  const badMfa=await staffLogin.handler(event({email:mfaRateEmail,password,mfaCode:invalidMfaCode},mfaRateIp));
+  assert.strictEqual(badMfa.statusCode,401,`MFA inválido ${i+1} debe ser rechazado antes del límite`);
+  assert.strictEqual(parse(badMfa).mfaRequired,true);
+ }
+ const mfaThrottled=await staffLogin.handler(event({email:mfaRateEmail,password,mfaCode:invalidMfaCode},mfaRateIp));
+ assert.strictEqual(mfaThrottled.statusCode,429,'El séptimo MFA inválido debe activar rate limit observable');
+ assert.ok(Number(mfaThrottled.headers?.['Retry-After'])>=1,'El rate limit MFA debe indicar Retry-After');
+ assert.match(parse(mfaThrottled).error,/Demasiados intentos MFA/i,'El cliente debe recibir un mensaje explícito de throttle MFA');
+ assert.strictEqual(parse(mfaThrottled).mfaRequired,true,'El throttle MFA no debe relajar la exigencia de segundo factor');
 
  await usuarios.escribe(adminEmail,base(adminEmail));
  const setupResponse=await staffLogin.handler(event({email:adminEmail,password},'127.0.0.88'));
@@ -70,5 +90,5 @@ const parse=r=>JSON.parse(r.body||'{}');
  assert.ok(!stored.mfaSelfSetupPendingAt,'El estado de alta pendiente debe limpiarse tras verificar el código');
  assert.strictEqual(totp.secretFor(adminEmail,stored),setup.mfa.setupSecret,'El secreto cifrado persistido debe coincidir con el aprovisionado');
 
- console.log('[test-staff-access-recovery] OK · owner correo+contraseña · rate limit observable · admin alta MFA guiada · código TOTP verificado · acceso recuperable');
+ console.log('[test-staff-access-recovery] OK · owner correo+contraseña · rate limit contraseña/MFA observable · admin alta MFA guiada · código TOTP verificado · acceso recuperable');
 })().catch(err=>{console.error(err);process.exit(1)});

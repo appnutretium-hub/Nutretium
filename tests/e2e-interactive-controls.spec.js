@@ -13,6 +13,7 @@ const CONTROL_SHARDS = 4;
 const CONTROL_SELECTOR = 'button:not([disabled]), [role="button"]:not([aria-disabled="true"])';
 const UI_SETTLE_MS = 100;
 const TARGET_LOAD_ATTEMPTS = 3;
+const TARGET_NAVIGATION_TIMEOUT_MS = 15000;
 
 function isSafeControl(el) {
   if (!el || el.disabled) return false;
@@ -43,12 +44,20 @@ function descriptorSignature(item) {
 }
 
 async function settle(page) {
-  await page.waitForLoadState('load').catch(() => {});
+  // Every caller reaches this helper after page.goto(..., domcontentloaded).
+  // Waiting for the full `load` event here is both redundant and harmful to
+  // this control-wiring audit: WebKit can legitimately keep image/media work
+  // pending while the interactive DOM is already ready. The test needs a
+  // deterministic post-DOMContentLoaded tick, not completion of all resources.
   await page.waitForTimeout(UI_SETTLE_MS);
 }
 
 async function readRawControls(page) {
-  return page.locator(CONTROL_SELECTOR).evaluateAll(elements => elements.map(el => {
+  // Take an immediate DOM snapshot instead of Locator.evaluateAll(). Locators
+  // intentionally auto-wait and can remain attached to an in-flight document
+  // after a previous control navigation in WebKit. querySelectorAll() provides
+  // the exact same control inventory for this audit without that lifecycle race.
+  return page.evaluate(selector => Array.from(document.querySelectorAll(selector)).map(el => {
     const clean = value => String(value || '').replace(/\s+/g, ' ').trim();
     return {
       tag: clean(el.tagName).toLowerCase(),
@@ -61,7 +70,7 @@ async function readRawControls(page) {
       type: clean(el.getAttribute('type')),
       text: clean(el.textContent).slice(0, 240)
     };
-  }));
+  }), selector);
 }
 
 async function snapshotControls(page) {
@@ -110,16 +119,18 @@ async function reloadTarget(page, path, target) {
   // across bounded clean loads. Persistent absence is reported as conditional,
   // never silently converted into a functional failure or a false PASS click.
   //
-  // Do not snapshot the complete control surface before concreteDomIndex():
-  // concreteDomIndex already performs the same presence/occurrence scan. The
-  // duplicate full-DOM pass made the home shards exceed WebKit's test timeout
-  // without increasing coverage.
+  // Cookies and browser storage are reset once by preparePage(). Clearing the
+  // browser context before every single target created a WebKit lifecycle race
+  // and did not add coverage: these tests run against the same isolated static
+  // storefront and each target is explicitly reloaded from its canonical URL.
   for (let attempt = 1; attempt <= TARGET_LOAD_ATTEMPTS; attempt++) {
-    await page.context().clearCookies();
     // Always perform an explicit navigation. A previously dispatched click can
     // leave a browser between document attachments; page.reload() is racy in
     // that state and can fail with "Not attached to an active page".
-    await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
+    await page.goto(BASE + path, {
+      waitUntil: 'domcontentloaded',
+      timeout: TARGET_NAVIGATION_TIMEOUT_MS
+    });
     await settle(page);
 
     const domIndex = await concreteDomIndex(page, target);
@@ -147,7 +158,10 @@ async function preparePage(page, path, runtimeErrors) {
   await installDeterministicClientState(page);
   await page.route('**/.netlify/functions/**', route => route.abort('blockedbyclient'));
 
-  const response = await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
+  const response = await page.goto(BASE + path, {
+    waitUntil: 'domcontentloaded',
+    timeout: TARGET_NAVIGATION_TIMEOUT_MS
+  });
   expect(response, `sin respuesta para ${path}`).not.toBeNull();
   expect(response.status(), `HTTP inválido en ${path}`).toBeLessThan(400);
   await settle(page);
@@ -202,7 +216,10 @@ for (const path of pages) {
 
 for (const path of pages) {
   test(`formularios y enlaces sin pseudo-acciones javascript: ${path}`, async ({ page }) => {
-    const response = await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
+    const response = await page.goto(BASE + path, {
+      waitUntil: 'domcontentloaded',
+      timeout: TARGET_NAVIGATION_TIMEOUT_MS
+    });
     expect(response && response.status(), `HTTP inválido en ${path}`).toBeLessThan(400);
     await settle(page);
     const invalid = await page.locator('a[href="javascript:void(0)"], a[href="javascript:;"], form[action="javascript:void(0)"], form[action="javascript:;"]').count();

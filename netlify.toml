@@ -211,3 +211,11 @@
   from = "/*.pdf"
   to = "/index.html"
   status = 404
+[[redirects]]
+  from = "/*.patch"
+  to = "/index.html"
+  status = 404
+[[redirects]]
+  from = "/*.diff"
+  to = "/index.html"
+  status = 404

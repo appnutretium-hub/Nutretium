@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 const assert=require('assert');
 const governance=require('../netlify/lib/agent-governance');
 const runtime=require('../netlify/lib/ai-runtime');

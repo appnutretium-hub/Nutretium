@@ -54,6 +54,23 @@ sigue allí: ese necesita `git rm`.
 GitHub: `appnutretium-hub/Nutretium`, rama `main` → despliega solo en Netlify
 (proyecto `nutretium`, dominio `nutretium.com`).
 
+### Los workflows de GitHub no los puede subir el agente
+
+El agente de Netlify publica con una app de GitHub que **no tiene el permiso
+«workflows»**. Si un cambio toca `.github/workflows/`, GitHub rechaza el envío
+**completo**: no se sube ese archivo ni ninguno de los demás, aunque no tengan
+nada que ver. Ya pasó una vez y dejó dos tareas terminadas sin desplegar por
+dos líneas de un `.yml`.
+
+Así que **no edites `.github/workflows/` en una tarea del agente**. Si hace
+falta cambiar un workflow, se anota y lo aplica el usuario, que sí puede
+empujarlo. Para el caso más habitual —fijar las acciones por SHA, que es lo que
+exige `scripts/audit-workflow-pinning.js`— está `npm run fijar:workflows`
+(ensayo; `-- --aplicar` escribe) y después un `git push` suyo.
+
+La alternativa es dar a la app de Netlify el permiso *Workflows: read and
+write* en GitHub; mientras no lo tenga, la regla de arriba se mantiene.
+
 El usuario ejecuta los comandos de git él mismo y **usa PowerShell**, no cmd:
 nada de `cd /d`.
 
@@ -72,6 +89,7 @@ nada de `cd /d`.
 | `npm run fotos` | incorpora fotos nuevas del buzón (ensayo; `-- --aplicar` para escribir) |
 | `npm run catalogo` | precios, altas, bajas y fotos desde CSV (ensayo; `-- --aplicar` para escribir) |
 | `npm run panel` | lo mismo pero con pantalla, en `localhost:4180` |
+| `npm run fijar:workflows` | fija por SHA las acciones de `.github/workflows` (ensayo; `-- --aplicar` para escribir) |
 
 `stock`, `fotos` y `catalogo` **no escriben nada sin `--aplicar`**: enseñan qué
 harían y te dejan revisarlo. El panel hace lo mismo en pantalla: antes de

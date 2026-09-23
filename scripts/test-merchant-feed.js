@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 const assert=require('assert');
 const feed=require('../netlify/functions/merchant-feed')._test;
 let count=0;function t(name,fn){fn();count++;console.log('✓',name)}

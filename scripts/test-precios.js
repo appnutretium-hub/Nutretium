@@ -1,6 +1,7 @@
 // Pruebas de la valoración de carritos en el servidor.
 // Uso: node scripts/test-precios.js   (sale con código 1 si algo falla)
 'use strict';
+require('./test-env');
 const path = require('path').join(__dirname, '..') + '/';
 const { valorarCarrito } = require(path+'netlify/lib/catalogo.js');
 const { NUTRETIUM_PRODUCTS } = require(path+'products-data.js');

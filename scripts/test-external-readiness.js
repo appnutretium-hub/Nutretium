@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 const assert=require('assert');
 const readiness=require('../netlify/lib/external-readiness');
 function response(json,status=200){return{ok:status>=200&&status<300,status,json:async()=>json};}

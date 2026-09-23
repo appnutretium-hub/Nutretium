@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 
 process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
 process.env.JWT_SECRET='secreto-de-pruebas-con-mas-de-32-caracteres';
@@ -49,7 +50,9 @@ async function main(){
   // Otro SKU para no interferir con la prueba de commit anterior.
   const checkoutProduct=NUTRETIUM_PRODUCTS.find(p=>p.active!==false&&(p.stock===null||p.stock>2)&&p.id!==product.id);
   assert(checkoutProduct,'Hace falta un segundo producto vendible para probar checkout.');
-  const body={items:[{id:checkoutProduct.id,code:checkoutProduct.code,qty:1}],guest:guest()};
+  // Las condiciones de contratación se aceptan en la petición: sin ellas el
+  // checkout responde 422 `terms-required` antes de valorar nada.
+  const body={items:[{id:checkoutProduct.id,code:checkoutProduct.code,qty:1}],termsAccepted:true,termsVersion:'2026-09-20',guest:guest()};
   const first=await checkout(event(body,'checkout-idempotent-0001'));
   assert.equal(first.statusCode,200,first.body);
   const data=JSON.parse(first.body);

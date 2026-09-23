@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 const assert=require('assert');
 const crypto=require('crypto');
 process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
@@ -60,5 +61,27 @@ const parse=r=>JSON.parse(r.body||'{}');
  assert.ok(!stored.mfaSelfSetupPendingAt,'El estado de alta pendiente debe limpiarse tras verificar el código');
  assert.strictEqual(totp.secretFor(adminEmail,stored),setup.mfa.setupSecret,'El secreto cifrado persistido debe coincidir con el aprovisionado');
 
- console.log('[test-staff-access-recovery] OK · owner correo+contraseña · admin alta MFA guiada · código TOTP verificado · acceso recuperable');
+ // El freno del acceso interno tiene que notarse: al agotar los intentos la
+ // respuesta cambia a 429 con Retry-After. Antes devolvía el mismo 401 que una
+ // contraseña incorrecta, así que consumir el contador no cambiaba nada y el
+ // auditor del sitio publicado lo detectaba como freno inexistente.
+ const frenoIp='127.0.0.91',frenoEmail='recovery-freno@nutretium.test';
+ await usuarios.escribe(frenoEmail,base(frenoEmail));
+ let frenada=null;
+ for(let i=0;i<15&&!frenada;i++){
+  const r=await staffLogin.handler(event({email:frenoEmail,password:'incorrecta-'+i},frenoIp));
+  if(r.statusCode!==401)frenada=r;
+ }
+ assert.ok(frenada,'Repetir contraseñas incorrectas debe acabar frenando el acceso interno');
+ assert.strictEqual(frenada.statusCode,429,'El acceso interno frenado debe responder 429, no un 401 indistinguible');
+ assert.ok(Number(frenada.headers['Retry-After'])>=1,'El 429 debe decir cuánto hay que esperar');
+ // Y frena también un correo que no existe, para no revelar cuáles lo están.
+ let frenadaDesconocida=null;
+ for(let i=0;i<15&&!frenadaDesconocida;i++){
+  const r=await staffLogin.handler(event({email:'no-existe@nutretium.test',password:'incorrecta-'+i},'127.0.0.92'));
+  if(r.statusCode!==401)frenadaDesconocida=r;
+ }
+ assert.strictEqual(frenadaDesconocida?.statusCode,429,'El freno debe contar igual para correos que no existen');
+
+ console.log('[test-staff-access-recovery] OK · owner correo+contraseña · admin alta MFA guiada · código TOTP verificado · acceso recuperable · freno con 429');
 })().catch(err=>{console.error(err);process.exit(1)});

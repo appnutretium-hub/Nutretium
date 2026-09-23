@@ -42,6 +42,17 @@ const ETIQUETAS = {
 /** Solo España de momento: los envíos que anuncia la web son nacionales. */
 const CP_ESPANA = /^[0-9]{5}$/;
 
+/**
+ * ¿Es un código postal válido para enviar un pedido?
+ *
+ * Existe para que `netlify/lib/shipping.js` no tenga su propia regla: tenía una
+ * más laxa (3 a 12 caracteres alfanuméricos) y daba por bueno un «3900» que el
+ * alta de la ficha rechazaba. Ese es exactamente el fallo que describe
+ * CLAUDE.md con las dos listas de productos: dos validadores para lo mismo y
+ * uno deja pasar lo que el otro corta.
+ */
+const cpValido = (cp) => CP_ESPANA.test(String(cp ?? '').trim());
+
 /** Deja la dirección en su forma canónica, con todos los campos como texto. */
 function normaliza(entrada) {
   const dir = {};
@@ -75,7 +86,7 @@ function revisa(entrada) {
     }
   }
 
-  if (!CP_ESPANA.test(dir.cp)) {
+  if (!cpValido(dir.cp)) {
     return 'El código postal tiene que ser de cinco cifras.';
   }
 
@@ -93,4 +104,6 @@ function comoTexto(entrada) {
     .filter(Boolean).join(' · ');
 }
 
-module.exports = { CAMPOS, OBLIGATORIOS, MAX, ETIQUETAS, normaliza, revisa, completa, comoTexto };
+module.exports = {
+  CAMPOS, OBLIGATORIOS, MAX, ETIQUETAS, normaliza, revisa, completa, comoTexto, cpValido,
+};

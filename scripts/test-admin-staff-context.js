@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 // Adaptador exclusivo de test. Las pruebas históricas pasan un campo `token`
 // al helper local; aquí ese token se transforma en la cookie interna de staff
 // ANTES de cargar admin.js. Así conservamos la cobertura del catálogo sin

@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 
 const assert = require('assert');
 const fs = require('fs');
@@ -22,10 +23,13 @@ for (const raw of active) {
 const invalid = pim.normalize({ id:999, name:'Prueba', ean:'12345', active:true });
 assert.strictEqual(invalid.gtin, null, 'Un EAN de longitud inválida no debe publicarse como GTIN');
 
+// Se comprueba el HTML que PINTA el generador, no la carpeta que deja el
+// build: `producto/` y `categoria/` las crea `npm run build`, así que leerlas
+// hacía fallar la prueba en un clon recién bajado (y, peor, la dejaba pasar
+// leyendo las de un build viejo).
+const generador = require('./build-seo-pages.js');
 const first = pim.normalize(active[0]);
-const productPage = path.join(root,'producto',`${pim.slugify(first.name)}-${first.id}`,'index.html');
-assert(fs.existsSync(productPage), 'Debe generarse HTML estático de producto');
-const productHtml = fs.readFileSync(productPage,'utf8');
+const productHtml = generador.renderProductPage(first);
 assert(productHtml.includes(`<h1 class="title">${first.name.replace(/&/g,'&amp;')}`) || productHtml.includes(first.name), 'La ficha estática debe contener el producto');
 assert(productHtml.includes('rel="canonical"'), 'La ficha estática debe tener canonical');
 assert.strictEqual((productHtml.match(/rel="canonical"/g)||[]).length, 1, 'La ficha estática debe tener un único canonical');
@@ -39,14 +43,25 @@ assert(productHtml.indexOf('/product-pim.js') < productHtml.indexOf('/product-va
 
 const category = NUTRETIUM_CATEGORIES.find(c => active.some(p => p.category === c));
 assert(category, 'Debe existir una categoría activa');
-const categoryPage = path.join(root,'categoria',pim.slugify(category),'index.html');
-assert(fs.existsSync(categoryPage), 'Debe generarse landing estática de categoría');
-const categoryHtml = fs.readFileSync(categoryPage,'utf8');
+const categorySlug = pim.slugify(category);
+const categoryHtml = generador.collectionPage({
+  kind:'categoria', label:category, slug:categorySlug,
+  list:active.map(pim.normalize).filter(p => p.category === category),
+  description:`Compra ${category.toLowerCase()} disponibles en el catálogo online de Nutretium.`,
+});
 assert(categoryHtml.includes('"@type":"CollectionPage"'), 'La categoría debe tener CollectionPage schema');
 assert(categoryHtml.includes('"@type":"ItemList"'), 'La categoría debe tener ItemList schema');
 
 const brands = [...new Set(active.map(p=>p.brand).filter(Boolean))];
-if (brands.length) assert(fs.existsSync(path.join(root,'marca',pim.slugify(brands[0]),'index.html')), 'Debe generarse landing de marca');
+if (brands.length) {
+  const brandHtml = generador.collectionPage({
+    kind:'marca', label:brands[0], slug:pim.slugify(brands[0]),
+    list:active.map(pim.normalize).filter(p => p.brand === brands[0]),
+    description:`Productos de ${brands[0]} publicados actualmente en Nutretium.`,
+  });
+  assert(brandHtml.includes('rel="canonical"'), 'La landing de marca debe tener canonical');
+  assert(brandHtml.includes(`/marca/${pim.slugify(brands[0])}`), 'La landing de marca debe apuntar a su propia URL');
+}
 
 const sitemap = fs.readFileSync(path.join(root,'sitemap.xml'),'utf8');
 assert(sitemap.includes('/condiciones'), 'Sitemap debe incluir condiciones de contratación');

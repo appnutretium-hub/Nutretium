@@ -1,5 +1,6 @@
 'use strict';
 const settings=require('./settings');
+const direccion=require('./direccion');
 function env(name){return String(process.env[name]||'').trim()}
 function envCents(name){const v=env(name);if(v==='')return null;const n=Number(v);return Number.isInteger(n)&&n>=0?n:null}
 function envPolicy(){return{managed:false,enabled:env('SHIPPING_ENABLED')==='true',rateCents:envCents('SHIPPING_RATE_CENTS'),freeFromCents:envCents('SHIPPING_FREE_FROM_CENTS'),country:env('SHIPPING_COUNTRY')||'España',label:env('SHIPPING_LABEL')||'Envío',methods:[],source:'env'}}
@@ -14,7 +15,10 @@ function quoteWithPolicy(p,{subtotalCents,address}){
  if(!p?.enabled)return{ok:false,reason:p?.managed?'shipping-disabled':'shipping-not-configured',error:p?.managed?'Los envíos online están desactivados en Ajustes.':'La política de envío todavía no está configurada.'};
  const country=String(address&&(address.pais||address.country)||'').trim(),cp=String(address&&(address.cp||address.postalCode)||'').trim();
  if(!country)return{ok:false,reason:'country-required',error:'Indica el país de envío.'};
- if(!/^[0-9A-Za-z -]{3,12}$/.test(cp))return{ok:false,reason:'postal-code',error:'El código postal de envío no es válido.'};
+ // El código postal lo valida direccion.js, que es quien decide el formato en
+ // el alta de la ficha: tener aquí una regla propia daba por bueno al cotizar
+ // un CP que el alta rechazaba.
+ if(!direccion.cpValido(cp))return{ok:false,reason:'postal-code',error:'El código postal de envío no es válido.'};
  const method=matchingMethod(p,address);
  if(method===false)return{ok:false,reason:'zone-not-supported',error:'No hay una tarifa de envío activa para este código postal.'};
  if(method){const free=method.freeFromCents!==null&&method.freeFromCents!==undefined&&Number(subtotalCents)>=method.freeFromCents;return{ok:true,shippingCents:free?0:method.rateCents,free,label:method.name||p.label||'Envío',country:method.country||country,freeFromCents:method.freeFromCents,eta:method.eta||'',methodId:method.id||null,source:p.source||'unknown'}}

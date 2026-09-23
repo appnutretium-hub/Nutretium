@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 const assert=require('assert');
 const nexus=require('../netlify/lib/nexus-core');
 const governance=require('../netlify/lib/agent-governance');

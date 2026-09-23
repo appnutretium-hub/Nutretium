@@ -14,7 +14,7 @@ const PUBLIC_FILES=new Set(['_headers','_redirects','manifest.webmanifest','robo
 const PUBLIC_EXT=new Set(['.html','.js','.css','.svg','.png','.jpg','.jpeg','.webp','.avif','.gif','.ico','.xml','.webmanifest','.woff','.woff2']);
 const ROOT_DENY=new Set(['dist','node_modules','netlify','scripts','src','tests','.git','.github','.netlify','.claude','.vscode','_backup_pre_actualizacion']);
 const ROOT_FILE_DENY=new Set(['commerce-core.js','commerce-core.css','enterprise-storefront.js','commerce-account-sync.js','customer-session-hardening.js','franchise-trust.js','tailwind.config.js']);
-const NEVER_PUBLIC_EXT=new Set(['.md','.txt','.csv','.xlsx','.xls','.pdf','.env','.toml','.lock','.map']);
+const NEVER_PUBLIC_EXT=new Set(['.md','.txt','.csv','.xlsx','.xls','.pdf','.env','.toml','.lock','.map','.patch','.diff']);
 
 function allowedFile(full,relative){
  const base=path.basename(relative),ext=path.extname(base).toLowerCase();

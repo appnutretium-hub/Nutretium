@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 const assert=require('assert');
 process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
 process.env.JWT_SECRET=process.env.JWT_SECRET||'test-only-jwt-secret-with-sufficient-entropy-123456789';

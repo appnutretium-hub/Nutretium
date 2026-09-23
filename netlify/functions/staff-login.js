@@ -93,7 +93,12 @@ exports.handler = async event => {
   const verification = user ? verifyPasswordRecord(password, user.passwordHash) : { ok:false, needsRehash:false };
   if (!user || role === 'client' || !verification.ok) {
     const passwordGate=await checkThrottle(event,email,'password');
-    if(!passwordGate.ok)return response(401,{error:'Credenciales incorrectas.'});
+    // Al agotar los intentos se responde 429 con Retry-After, como hacen el
+    // login de cliente (auth.js) y el resto de endpoints con freno. Antes esta
+    // rama devolvía el mismo 401 que una contraseña incorrecta: el contador se
+    // consumía, pero bloquear y fallar eran indistinguibles, así que el freno
+    // del acceso interno —el más privilegiado— no frenaba nada.
+    if(!passwordGate.ok){const seconds=passwordGate.retryAfter;return response(429,{error:`Demasiados intentos incorrectos. Prueba otra vez dentro de ${Math.max(1,Math.ceil(seconds/60))} minutos.`},{'Retry-After':String(seconds)})}
     return response(401, { error: 'Credenciales incorrectas.' });
   }
   await clearAttempts(event,email,'password');
@@ -110,7 +115,8 @@ exports.handler = async event => {
     if(user?.mfaSelfSetupPendingAt&&!mfaCode)return response(401,mfaSetupBody(email,secret));
     if (!mfaCode) return response(401, {error: 'Introduce el código de 6 dígitos de tu aplicación de autenticación.',mfaRequired: true});
     const mfaGate=await checkThrottle(event,email,'mfa');
-    if(!mfaGate.ok)return response(401,{error:'Código MFA incorrecto.',mfaRequired:true});
+    // Igual que arriba: bloqueado no puede parecerse a código incorrecto.
+    if(!mfaGate.ok){const seconds=mfaGate.retryAfter;return response(429,{error:`Demasiados códigos incorrectos. Prueba otra vez dentro de ${Math.max(1,Math.ceil(seconds/60))} minutos.`,mfaRequired:true},{'Retry-After':String(seconds)})}
     if (!verifyTotp(secret, mfaCode)) return response(401, { error: 'Código MFA incorrecto.', mfaRequired: true });
     const once=await mfaReplay.consume(email,mfaCode);
     if(!once.ok)return response(once.code==='MFA_REPLAY_GUARD_UNAVAILABLE'?503:409,{error:once.error,code:once.code,mfaRequired:true});

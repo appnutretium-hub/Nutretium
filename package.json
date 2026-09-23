@@ -48,6 +48,7 @@
     "test:admin-security": "node scripts/test-admin-security.js",
     "test:redsys-mode-gate": "node scripts/test-redsys-mode-gate.js",
     "test:managed-checkout-payment": "node scripts/test-managed-checkout-payment.js",
+    "fijar:workflows": "node scripts/fijar-acciones-workflows.js",
     "test:release-guards": "node scripts/test-release-guards.js"
   },
   "engines": {

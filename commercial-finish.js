@@ -3,10 +3,12 @@
    accesibilidad de compra y conexión con educación/reseñas sin tocar pagos. */
 (function(){
 'use strict';
-const SESSION='nutretium_user';
+// Quién tiene sesión lo dice sesion-cliente.js: la sesión viaja en la cookie
+// HttpOnly y el token ya no se guarda en localStorage. El token solo se manda
+// si es uno heredado de antes del cambio.
 const esc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const slugify=(v)=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
-const session=()=>{try{return JSON.parse(localStorage.getItem(SESSION)||'null')}catch{return null}};
+const sesion=window.NutretiumSesion;
 const money=(n)=>Number(n||0).toLocaleString('es-ES',{style:'currency',currency:'EUR'});
 
 function ensureStyle(){
@@ -106,9 +108,8 @@ function installVerifiedReviews(){
     if(typeof reviewStarValue==='undefined'||!reviewStarValue)return fail('Selecciona una valoración.');
     if(!author)return fail('Escribe tu nombre.');
     if(!text)return fail('Escribe un comentario.');
-    const s=session();
     try{
-      const res=await fetch('/.netlify/functions/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'submit',review:{author,product,rating:reviewStarValue,text},token:s?.token||null})});
+      const res=await sesion.pide('/.netlify/functions/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'submit',review:{author,product,rating:reviewStarValue,text},token:sesion.tokenHeredado()||null})});
       const data=await res.json().catch(()=>({}));
       if(!res.ok)throw new Error(data.error||'No se pudo enviar la reseña.');
       if(typeof closeModal==='function')closeModal('reviewModal');

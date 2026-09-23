@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 const assert=require('assert');const hooks=require('../netlify/lib/webhooks');const worker=require('../netlify/functions/notification-worker')._test;const totp=require('../netlify/lib/totp');const guest=require('../netlify/lib/guest-access');const refund=require('../netlify/functions/refund-redsys')._test;let n=0;function t(name,fn){fn();n++;console.log('✓',name)}
 t('firma webhook HMAC estable',()=>assert.strictEqual(hooks.signature('secret','body'),hooks.signature('secret','body')));
 t('firma cambia con payload',()=>assert.notStrictEqual(hooks.signature('secret','body'),hooks.signature('secret','body2')));

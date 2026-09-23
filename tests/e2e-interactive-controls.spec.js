@@ -104,13 +104,11 @@ async function concreteDomIndex(page, target) {
 }
 
 async function reloadTarget(page, path, target) {
-  // A baseline target is resolved directly against the freshly loaded DOM.
-  // Avoid rebuilding/deduplicating the complete control snapshot for every
-  // target: on Firefox that O(targets * controls) work could exhaust the test
-  // budget on large storefront pages. Full snapshotting remains the baseline
-  // source of truth; bounded clean reloads preserve conditional-control checks.
+  // Cookie isolation is established once by installDeterministicClientState().
+  // Re-clearing the browser context for every target is both redundant and very
+  // expensive in WebKit. Each navigation still starts with empty local/session
+  // storage because the init script runs for every new document.
   for (let attempt = 1; attempt <= TARGET_LOAD_ATTEMPTS; attempt++) {
-    await page.context().clearCookies();
     await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
     await settle(page);
 
@@ -121,10 +119,15 @@ async function reloadTarget(page, path, target) {
 }
 
 async function installDeterministicClientState(page) {
+  // Install the storage reset before the first navigation. Playwright re-runs
+  // addInitScript for every document created by subsequent page.goto() calls.
   await page.addInitScript(() => {
     try { window.localStorage.clear(); } catch (_) {}
     try { window.sessionStorage.clear(); } catch (_) {}
   });
+  // Cookies are cleared once per isolated Playwright test context. Repeating
+  // this inside reloadTarget caused WebKit to spend the shard timeout in
+  // browser-context IPC rather than exercising controls.
   await page.context().clearCookies();
 }
 
@@ -137,7 +140,16 @@ async function preparePage(page, path, runtimeErrors) {
   page.on('dialog', dialog => dialog.dismiss().catch(() => {}));
 
   await installDeterministicClientState(page);
-  await page.route('**/.netlify/functions/**', route => route.abort('blockedbyclient'));
+  await page.route('**/.netlify/functions/**', route => {
+    const request = route.request();
+    const url = new URL(request.url());
+    // The storefront legitimately reads public reviews during initialization.
+    // Keep that read deterministic instead of aborting it as a network error.
+    if (request.method() === 'GET' && url.pathname.endsWith('/reviews')) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ reviews: [] }) });
+    }
+    return route.abort('blockedbyclient');
+  });
 
   const response = await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
   expect(response, `sin respuesta para ${path}`).not.toBeNull();

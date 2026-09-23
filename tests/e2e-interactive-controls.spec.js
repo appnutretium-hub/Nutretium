@@ -14,6 +14,7 @@ const CONTROL_SELECTOR = 'button:not([disabled]), [role="button"]:not([aria-disa
 const UI_SETTLE_MS = 100;
 const TARGET_LOAD_ATTEMPTS = 3;
 const TARGET_NAVIGATION_TIMEOUT_MS = 15000;
+const FUNCTION_STUB_BODY = JSON.stringify({ ok: false, error: 'E2E_FUNCTION_UNAVAILABLE' });
 
 function isSafeControl(el) {
   if (!el || el.disabled) return false;
@@ -50,6 +51,17 @@ async function settle(page) {
   // pending while the interactive DOM is already ready. The test needs a
   // deterministic post-DOMContentLoaded tick, not completion of all resources.
   await page.waitForTimeout(UI_SETTLE_MS);
+}
+
+async function stopResidualNavigation(page) {
+  // A safe control may intentionally assign window.location. This suite checks
+  // that the handler executes without runtime errors; destination/navigation
+  // correctness is covered by the dedicated navigation suites. Stopping any
+  // residual document load prevents WebKit from racing that navigation against
+  // the next canonical page.goto().
+  if (page.isClosed()) return;
+  await page.evaluate(() => window.stop()).catch(() => {});
+  await page.waitForTimeout(25);
 }
 
 async function readRawControls(page) {
@@ -124,9 +136,7 @@ async function reloadTarget(page, path, target) {
   // and did not add coverage: these tests run against the same isolated static
   // storefront and each target is explicitly reloaded from its canonical URL.
   for (let attempt = 1; attempt <= TARGET_LOAD_ATTEMPTS; attempt++) {
-    // Always perform an explicit navigation. A previously dispatched click can
-    // leave a browser between document attachments; page.reload() is racy in
-    // that state and can fail with "Not attached to an active page".
+    await stopResidualNavigation(page);
     await page.goto(BASE + path, {
       waitUntil: 'domcontentloaded',
       timeout: TARGET_NAVIGATION_TIMEOUT_MS
@@ -156,7 +166,15 @@ async function preparePage(page, path, runtimeErrors) {
   page.on('dialog', dialog => dialog.dismiss().catch(() => {}));
 
   await installDeterministicClientState(page);
-  await page.route('**/.netlify/functions/**', route => route.abort('blockedbyclient'));
+  // The static E2E server intentionally has no Netlify runtime. Returning an
+  // explicit 503 models that dependency as unavailable without using
+  // route.abort(), which WebKit surfaces as a pageerror ('access control checks')
+  // even though the failure was created by the test harness itself.
+  await page.route('**/.netlify/functions/**', route => route.fulfill({
+    status: 503,
+    contentType: 'application/json; charset=utf-8',
+    body: FUNCTION_STUB_BODY
+  }));
 
   const response = await page.goto(BASE + path, {
     waitUntil: 'domcontentloaded',
@@ -198,7 +216,8 @@ for (const path of pages) {
         // Dedicated quality/E2E suites in this same gate cover actionability,
         // layout and accessibility with real browser interactions.
         await control.dispatchEvent('click');
-        await page.waitForTimeout(50);
+        await page.waitForTimeout(75);
+        await stopResidualNavigation(page);
 
         expect(
           runtimeErrors.slice(beforeErrors),

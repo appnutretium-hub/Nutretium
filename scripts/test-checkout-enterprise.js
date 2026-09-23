@@ -1,3 +1,6 @@
+'use strict';
+require('./test-env');
+
 'use strict';const assert=require('assert');const q=require('../netlify/lib/checkout-enterprise');let n=0;function t(name,fn){fn();n++;console.log('✓',name)}
 t('España se normaliza a ES',()=>assert.strictEqual(q.country('España'),'ES'));
 t('regla postal específica gana a la general',()=>{const r=q.selectShippingRule([{id:'general',status:'active',country:'ES',priceCents:500,isDefault:true},{id:'local',status:'active',country:'ES',postalPrefixes:['39'],priceCents:200}],{pais:'España',cp:'39001'});assert.strictEqual(r.id,'local')});

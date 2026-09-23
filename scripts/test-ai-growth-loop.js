@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 const assert=require('assert');
 const growth=require('../netlify/lib/ai-growth-loop');
 const verified=status=>({status,records:1});

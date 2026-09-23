@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 
 const assert=require('assert');
 const workforce=require('../netlify/lib/enterprise-workforce');

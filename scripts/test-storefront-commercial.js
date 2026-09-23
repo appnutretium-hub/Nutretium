@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 
 const fs = require('fs');
 const assert = require('assert');

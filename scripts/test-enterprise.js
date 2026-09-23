@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 const assert=require('assert');const schema=require('../netlify/lib/enterprise-schema');const a=require('../netlify/lib/enterprise-actions');
 let n=0;function t(name,fn){fn();n++;console.log('✓',name)}
 t('rechaza almacén sin campos obligatorios',()=>assert.strictEqual(schema.validate('warehouses',{}).ok,false));

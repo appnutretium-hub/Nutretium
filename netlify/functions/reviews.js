@@ -6,7 +6,7 @@
 const crypto=require('crypto');
 const {cabecerasCORS}=require('../lib/cors');
 const {getBlobStore}=require('../lib/blob-store');
-const {verifyUserToken}=require('../lib/session');
+const sesionCliente=require('../lib/session');const {verifyUserToken}=sesionCliente;
 const CORS=cabecerasCORS('GET, POST, OPTIONS');
 const clean=(v,n)=>String(v||'').trim().slice(0,n);
 async function getStore(){return getBlobStore('reviews')}
@@ -28,7 +28,7 @@ exports.handler=async function(event){
   if(body.action!=='submit')return{statusCode:400,headers:CORS,body:JSON.stringify({error:'Acción no reconocida.'})};
   const review=body.review||{};if(!review.author||!review.product||!review.rating||!review.text)return{statusCode:400,headers:CORS,body:JSON.stringify({error:'Faltan campos obligatorios.'})};
   const rating=Math.round(Number(review.rating));if(!Number.isFinite(rating)||rating<1||rating>5)return{statusCode:400,headers:CORS,body:JSON.stringify({error:'Valoración inválida.'})};
-  const product=clean(review.product,100),verified=await verifiedPurchase(body.token,product);
+  const product=clean(review.product,100),verified=await verifiedPurchase(sesionCliente.customerEventToken(event,body.token),product);
   const newReview={id:crypto.randomUUID(),author:clean(review.author,60),product,rating,text:clean(review.text,500),date:new Date().toISOString().slice(0,10),approved:false,verifiedPurchase:verified};
   const reviews=await readReviews();reviews.unshift(newReview);await writeReviews(reviews);
   return{statusCode:201,headers:CORS,body:JSON.stringify({success:true,pendingModeration:true,verifiedPurchase:verified,message:'Gracias. Tu reseña se publicará tras ser revisada.'})};

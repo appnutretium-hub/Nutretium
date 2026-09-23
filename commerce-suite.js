@@ -1,8 +1,10 @@
 /* NUTRETIUM Commerce Suite — integración de cuenta, checkout, cross-sell y analítica */
 (function(){
 'use strict';
-const SESSION='nutretium_user';
-const session=()=>{try{return JSON.parse(localStorage.getItem(SESSION)||'null')}catch{return null}};
+// Quién tiene sesión lo dice sesion-cliente.js: la sesión viaja en la cookie
+// HttpOnly y el token ya no se guarda en localStorage. El token solo se manda
+// si es uno heredado de antes del cambio.
+const sesion=window.NutretiumSesion;
 const consent=()=>{try{const raw=JSON.parse(localStorage.getItem('nutretium_cookies')||'null');return !!(raw&&raw.version===1&&raw.analitica===true)}catch{return false}};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function track(name){try{if(consent())fetch('/.netlify/functions/analytics-event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name}),keepalive:true}).catch(()=>{})}catch{}}
@@ -15,7 +17,7 @@ window.initiateRedsysPayment=function(){ if(typeof getCartItemCount==='function'
 if(typeof window.addToCart==='function'&&!window.addToCart.__suite){const original=window.addToCart;const wrapped=function(){const r=original.apply(this,arguments);track('add_to_cart');return r};wrapped.__suite=true;window.addToCart=wrapped;}
 
 // Guarda carrito en servidor para cuentas autenticadas. El servidor vuelve a valorar precios.
-function saveCartServer(){const s=session();if(!s?.token||typeof cart==='undefined')return;const items=Array.from(cart.values()).map(i=>({id:i.product.id,code:i.product.code,qty:i.quantity}));fetch('/.netlify/functions/saved-cart',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.token},body:JSON.stringify({items})}).catch(()=>{});}
+function saveCartServer(){if(!sesion.activa()||typeof cart==='undefined')return;const items=Array.from(cart.values()).map(i=>({id:i.product.id,code:i.product.code,qty:i.quantity}));sesion.pide('/.netlify/functions/saved-cart',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items})}).catch(()=>{});}
 if(typeof window.updateCartUI==='function'&&!window.updateCartUI.__suiteSave){const original=window.updateCartUI;const wrapped=function(){const r=original.apply(this,arguments);clearTimeout(window.__nutCartTimer);window.__nutCartTimer=setTimeout(saveCartServer,450);return r};wrapped.__suiteSave=true;window.updateCartUI=wrapped;}
 
 // Reseñas: la sesión se manda al servidor para que pueda verificar la compra.
@@ -29,8 +31,7 @@ if(typeof window.submitReview==='function'){
     const rating=typeof reviewStarValue!=='undefined'?reviewStarValue:0;
     if(!product||!rating||!author||!text){if(err){err.textContent='Completa producto, valoración, nombre y comentario.';err.classList.remove('hidden')}return;}
     try{
-      const s=session();
-      const r=await fetch('/.netlify/functions/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'submit',token:s?.token||null,review:{author,product,rating,text}})});
+      const r=await sesion.pide('/.netlify/functions/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'submit',token:sesion.tokenHeredado()||null,review:{author,product,rating,text}})});
       const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'No se pudo enviar la reseña.');
       if(typeof closeModal==='function')closeModal('reviewModal');
       if(typeof showToast==='function')showToast(d.verifiedPurchase?'Reseña recibida · compra verificada':'Reseña recibida para moderación');

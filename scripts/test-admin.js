@@ -12,6 +12,12 @@
 // internet ni hacen commits de verdad, pero sí comprueban QUÉ se habría subido.
 // ─────────────────────────────────────────────────────────────────────────────
 'use strict';
+require('./test-env');
+// El adaptador de contexto de staff tiene que cargarse ANTES que admin.js.
+// Se requiere aquí, y no solo con el `-r` de `npm run test:admin`, para que
+// `node scripts/test-admin.js` a secas también funcione: sin él la prueba
+// reventaba con un TypeError en lugar de decir qué faltaba.
+require('./test-admin-staff-context.js');
 
 const fs = require('fs');
 const path = require('path');

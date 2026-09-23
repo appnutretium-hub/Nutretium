@@ -1,3 +1,6 @@
+'use strict';
+require('./test-env');
+
 'use strict';const assert=require('assert');process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';const gate=require('../netlify/functions/checkout-enterprise')._test.paymentHostAllowed;
 assert.deepStrictEqual(gate('nutretium.com',{enabled:true,credentialsConfigured:true,environment:'test',commerceLive:false}),{ok:true,mode:'test'},'el dominio público debe permitir sandbox explícito');
 assert.deepStrictEqual(gate('nutretium.com',{enabled:true,credentialsConfigured:true,environment:'production',commerceLive:false}),{ok:false,reason:'live-not-authorized'},'producción sin autorización debe bloquearse');

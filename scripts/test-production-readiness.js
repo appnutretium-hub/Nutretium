@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 const assert=require('assert');
 const sentinel=require('../netlify/functions/production-sentinel')._test;
 const totp=require('../netlify/lib/totp');

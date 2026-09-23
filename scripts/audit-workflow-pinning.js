@@ -29,27 +29,34 @@ function validateLocalUse(workflowName, spec) {
   return true;
 }
 
-for (const name of fs.readdirSync(workflowDir).filter((f) => /\.ya?ml$/i.test(f)).sort()) {
-  const source = fs.readFileSync(path.join(workflowDir, name), 'utf8');
-  for (const match of source.matchAll(/\buses:\s*([^\s#]+)(?:\s*#.*)?$/gm)) {
-    const spec = match[1];
-    if (validateLocalUse(name, spec)) continue;
+function audita() {
+  for (const name of fs.readdirSync(workflowDir).filter((f) => /\.ya?ml$/i.test(f)).sort()) {
+    const source = fs.readFileSync(path.join(workflowDir, name), 'utf8');
+    for (const match of source.matchAll(/\buses:\s*([^\s#]+)(?:\s*#.*)?$/gm)) {
+      const spec = match[1];
+      if (validateLocalUse(name, spec)) continue;
 
-    const at = spec.lastIndexOf('@');
-    if (at < 1) {
-      failures.push(`${name}: acción externa sin referencia fija: ${spec}`);
-      continue;
+      const at = spec.lastIndexOf('@');
+      if (at < 1) {
+        failures.push(`${name}: acción externa sin referencia fija: ${spec}`);
+        continue;
+      }
+      const action = spec.slice(0, at);
+      const ref = spec.slice(at + 1);
+      if (!/^[0-9a-f]{40}$/i.test(ref)) failures.push(`${name}: ${action} no está fijada a SHA inmutable (${ref}).`);
+      if (expected[action] && ref.toLowerCase() !== expected[action]) failures.push(`${name}: ${action} usa SHA distinto del v7 verificado (${ref}).`);
     }
-    const action = spec.slice(0, at);
-    const ref = spec.slice(at + 1);
-    if (!/^[0-9a-f]{40}$/i.test(ref)) failures.push(`${name}: ${action} no está fijada a SHA inmutable (${ref}).`);
-    if (expected[action] && ref.toLowerCase() !== expected[action]) failures.push(`${name}: ${action} usa SHA distinto del v7 verificado (${ref}).`);
   }
+
+  if (failures.length) {
+    console.error('[workflow-pinning] FAIL');
+    failures.forEach((item) => console.error(` - ${item}`));
+    process.exit(1);
+  }
+  console.log('[workflow-pinning] OK · acciones externas fijadas por SHA; referencias locales confinadas al mismo commit');
 }
 
-if (failures.length) {
-  console.error('[workflow-pinning] FAIL');
-  failures.forEach((item) => console.error(` - ${item}`));
-  process.exit(1);
-}
-console.log('[workflow-pinning] OK · acciones externas fijadas por SHA; referencias locales confinadas al mismo commit');
+// Los SHA se exportan para que `scripts/fijar-acciones-workflows.js` los aplique
+// sin copiarlos: una sola lista, como el resto de validadores del proyecto.
+module.exports = { SHA_ESPERADOS: expected };
+if (require.main === module) audita();

@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 
 const assert = require('assert');
 const provider = require('../netlify/lib/provider-client');

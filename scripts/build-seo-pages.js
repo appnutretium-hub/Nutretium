@@ -5,7 +5,7 @@ const path = require('path');
 const { NUTRETIUM_PRODUCTS = [], NUTRETIUM_CATEGORIES = [] } = require('../products-data.js');
 const pim = require('../product-pim.js');
 
-const ROOT = process.cwd();
+const ROOT = path.join(__dirname, '..');
 const ORIGIN = 'https://nutretium.com';
 const products = NUTRETIUM_PRODUCTS.filter(p => p && p.active !== false).map(pim.normalize);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -57,9 +57,25 @@ function collectionPage({kind, label, slug, list, description}) {
   return layout({title:`${label} | Nutretium Santander`,description,canonical,body,schema});
 }
 
-function buildProductPages() {
-  const source = fs.readFileSync(path.join(ROOT,'producto.html'),'utf8');
-  for (const p of products) {
+let plantillaFicha = null;
+function productTemplate() {
+  if (plantillaFicha === null) plantillaFicha = fs.readFileSync(path.join(ROOT,'producto.html'),'utf8');
+  return plantillaFicha;
+}
+
+/**
+ * Pinta la ficha estática de un producto y DEVUELVE el HTML, sin tocar disco.
+ *
+ * Está separado de buildProductPages() para que scripts/test-pim-seo.js pueda
+ * comprobar el canonical, los schemas y el orden de los scripts sin que haga
+ * falta haber construido el sitio antes: la prueba leía `producto/<slug>/`, que
+ * es una carpeta que genera el build, así que en un clon recién bajado fallaba
+ * aunque el generador estuviese perfecto.
+ */
+function renderProductPage(raw) {
+  const source = productTemplate();
+  const p = raw && raw.slug ? raw : pim.normalize(raw);
+  {
     const canonical = abs(productUrl(p));
     const description = (p.description || pim.factualDescription(p)).slice(0,155);
     const available = typeof p.stock !== 'number' || p.stock > 0;
@@ -83,7 +99,13 @@ function buildProductPages() {
       .replace(/<link\s+rel="canonical"[^>]*>/i, `<link rel="canonical" href="${canonical}">`)
       .replace('</head>', `  <meta property="og:type" content="product"><meta property="og:title" content="${esc(p.name)} | NUTRETIUM"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${canonical}">${p.images?.[0]?`<meta property="og:image" content="${esc(abs('/'+p.images[0].replace(/^\//,'')))}">`:''}<script id="nt-product-schema" type="application/ld+json">${json(productSchema)}</script><script id="nt-breadcrumb-schema" type="application/ld+json">${json(breadcrumb)}</script>\n</head>`)
       .replace('<main id="app" class="wrap"></main>', `<main id="app" class="wrap">${pre}</main>`);
-    writeRoute('producto', `${pim.slugify(p.name)}-${p.id}`, html);
+    return html;
+  }
+}
+
+function buildProductPages() {
+  for (const p of products) {
+    writeRoute('producto', `${pim.slugify(p.name)}-${p.id}`, renderProductPage(p));
   }
 }
 
@@ -120,10 +142,16 @@ function buildSitemap(brands) {
   return urls.size;
 }
 
-cleanDir('categoria'); cleanDir('marca'); cleanDir('objetivo'); cleanDir('producto');
-buildProductPages();
-const brands = buildCollections();
-const count = buildSitemap(brands);
-const audit = pim.audit(products);
-fs.writeFileSync(path.join(ROOT,'pim-audit.json'),JSON.stringify({...audit,generatedAt:new Date().toISOString()},null,2),'utf8');
-console.log(`[build-seo-pages] ${products.length} productos · ${brands.length} marcas · sitemap ${count} URLs · GTIN verificados ${audit.withGtin}/${audit.active}`);
+// Requerido como módulo (las pruebas) no escribe nada: solo expone el
+// generador. Como script hace el build de siempre.
+if (require.main === module) {
+  cleanDir('categoria'); cleanDir('marca'); cleanDir('objetivo'); cleanDir('producto');
+  buildProductPages();
+  const brands = buildCollections();
+  const count = buildSitemap(brands);
+  const audit = pim.audit(products);
+  fs.writeFileSync(path.join(ROOT,'pim-audit.json'),JSON.stringify({...audit,generatedAt:new Date().toISOString()},null,2),'utf8');
+  console.log(`[build-seo-pages] ${products.length} productos · ${brands.length} marcas · sitemap ${count} URLs · GTIN verificados ${audit.withGtin}/${audit.active}`);
+}
+
+module.exports = { renderProductPage, collectionPage, productUrl, products };

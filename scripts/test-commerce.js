@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 const assert=require('assert');
 const {slugify,escapeXml,productPath,categoryPath,buildSitemap}=require('../netlify/lib/seo');
 const settings=require('../netlify/lib/settings');

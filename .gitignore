@@ -4,6 +4,21 @@ node_modules/
 # Artefacto público que genera scripts/prepare-dist.js en cada build.
 dist/
 
+# Páginas estáticas de SEO e informe del PIM: los genera
+# scripts/build-seo-pages.js en cada build a partir de products-data.js, así
+# que se rehacen solas y no se versionan. (Las carpetas sí se publican: las
+# copia prepare-dist.js leyendo el disco, no git. `pim-audit.json` es interno
+# y no se copia porque .json no está en la lista de extensiones públicas.)
+/producto/
+/categoria/
+/marca/
+/objetivo/
+pim-audit.json
+
+# Informe del auditor del sitio publicado (scripts/live-security-audit.js):
+# es el resultado de una ejecución concreta, no código.
+live-security-report.json
+
 # Variables de entorno (nunca subir claves)
 .env
 .env.*

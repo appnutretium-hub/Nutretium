@@ -108,6 +108,7 @@ async function submitLogin() {
     updateAuthUI();
     closeModal('loginModal');
     showToast(`Bienvenido/a, ${data.user.name} 👋`);
+    if (volverTrasEntrar) { const destino = volverTrasEntrar; volverTrasEntrar = ''; setTimeout(() => { location.href = destino }, 600) }
   } catch (err) {
     showFieldError(errEl, err.message);
   }
@@ -156,6 +157,35 @@ function logout() {
   updateAuthUI();
   closeProfileDropdown();
   showToast('Sesión cerrada.');
+}
+
+// Las otras páginas mandan aquí a quien tiene que identificarse: «Mi Nutretium»
+// enlaza /?login=1 y cuenta.js redirige ahí después de cambiar la contraseña.
+// Nadie leía el parámetro, así que ese botón dejaba al cliente en la portada
+// sin nada abierto y sin explicación.
+let volverTrasEntrar = '';   // a dónde volver cuando la sesión se pide desde otra página
+
+function abreSesionSiLaPideLaUrl() {
+  const params = new URLSearchParams(location.search);
+  const modal = params.get('login') === '1' ? 'loginModal'
+    : params.get('register') === '1' ? 'registerModal' : '';
+  if (!modal) return;
+
+  // El parámetro se limpia siempre: si se queda en la URL, recargar o volver
+  // atrás vuelve a abrir el formulario, incluso con la sesión ya iniciada.
+  history.replaceState({}, '', location.pathname + (location.hash || ''));
+  if (currentUser) return;   // ya hay sesión: no hay nada que pedir
+
+  // Quien llega desde «Mi Nutretium» quería entrar ahí, no quedarse en la
+  // portada: al identificarse se le devuelve a la página de la que venía.
+  try {
+    const vuelta = new URL(document.referrer || '', location.href);
+    if (vuelta.origin === location.origin && vuelta.pathname !== location.pathname) volverTrasEntrar = vuelta.pathname;
+  } catch { /* sin referrer no hay vuelta que dar */ }
+
+  openModal(modal);
+  const primero = modal === 'loginModal' ? 'loginEmail' : 'regName';
+  setTimeout(() => document.getElementById(primero)?.focus(), 150);
 }
 
 function showFieldError(el, msg) {
@@ -1373,10 +1403,14 @@ async function saveProfile() {
   setProfileNotice('', false);
 
   try {
+    // La sesión va en la cookie HttpOnly, que el navegador manda sola en las
+    // peticiones al propio dominio. Aquí se enviaba currentUser.token, que ya
+    // no existe: llegaba un token vacío y quien decidía era la cookie.
     const res = await fetch('/.netlify/functions/auth', {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'update', token: currentUser.token, ...datos }),
+      body: JSON.stringify({ action: 'update', ...datos }),
     });
     const cuerpo = await res.json().catch(() => ({}));
 
@@ -1418,9 +1452,9 @@ async function openOrders() {
   openModal('infoModal');
 
   try {
-    const res = await fetch('/.netlify/functions/orders', {
-      headers: { Authorization: `Bearer ${currentUser.token}` },
-    });
+    // Igual que arriba: la cookie identifica al cliente. La cabecera mandaba
+    // literalmente «Bearer undefined» desde que el token dejó de guardarse.
+    const res = await fetch('/.netlify/functions/orders', { credentials: 'same-origin' });
 
     if (res.status === 401) {
       setInfoBody('<p>Tu sesión ha caducado. Vuelve a iniciar sesión para ver tus pedidos.</p>');
@@ -1533,6 +1567,7 @@ async function initiateRedsysPayment() {
   try {
     const response = await fetch('/.netlify/functions/redsys', {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         // El importe REAL lo calcula el servidor con los precios del catálogo.
@@ -1546,9 +1581,8 @@ async function initiateRedsysPayment() {
           code: i.product.code,
           qty: i.quantity,
         })),
-        // Si hay sesión, el pedido queda asociado al usuario. El servidor
-        // saca el email del token firmado, no de aquí.
-        token: currentUser?.token || null,
+        // Si hay sesión, el pedido queda asociado al usuario: el servidor saca
+        // el email de la cookie de sesión firmada, no de aquí.
       }),
     });
 
@@ -1855,6 +1889,7 @@ document.addEventListener('DOMContentLoaded', () => {
   iniciaConsentimiento();
   loadSession();
   updateAuthUI();
+  abreSesionSiLaPideLaUrl();   // /?login=1 desde «Mi Nutretium»
   loadProducts();   // pinta el catálogo de products-data.js
   pintaMarcas();    // chips de marca del panel de filtros, sacados del catálogo
   loadReviews();    // fetches from DB, falls back to local

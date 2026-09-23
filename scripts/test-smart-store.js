@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 const assert=require('assert');
 const E=require('../smart-store-engine.js');
 const feed=require('../netlify/functions/catalog-json.js')._test;

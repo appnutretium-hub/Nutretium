@@ -32,6 +32,14 @@ async function verifyEventSession(event,options={}){
  const headers=event?.headers||{},token=bearerValue(headers)||cookieValue(headers,CUSTOMER_COOKIE);
  if(!token)throw new Error('Token ausente');return verifyUserToken(token,options);
 }
+// El token de cliente que trae una petición, por orden de preferencia: cookie
+// HttpOnly, cabecera Authorization y, por último, el token heredado que algún
+// navegador todavía mande en el cuerpo. Está aquí para que ningún endpoint
+// vuelva a mirar solo el cuerpo: el navegador ya no guarda ningún token.
+function customerEventToken(event,legacyToken){
+ const headers=event?.headers||{};
+ return cookieValue(headers,CUSTOMER_COOKIE)||bearerValue(headers)||(legacyToken?String(legacyToken):null);
+}
 function customerSessionCookie(token,maxAge=CUSTOMER_SESSION_TTL_SECONDS){return `${CUSTOMER_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${Math.max(0,Number(maxAge)||0)}`}
 function clearCustomerSessionCookie(){return customerSessionCookie('',0)}
 async function verifyCustomerEventSession(event,options={}){
@@ -57,4 +65,4 @@ async function verifyStaffEventSession(event,options={}){
  const bearer=bearerValue(event.headers||{});if(!bearer)throw new Error('Sesión interna ausente');
  const verified=await verifyUserToken(bearer,{requireUser:options.requireUser!==false});validateStaffClaims(verified.claims,'staff-login');defense.assertSessionBinding(event,verified.claims);return{...verified,source:'bearer'};
 }
-module.exports={verifyUserToken,verifyEventSession,verifyCustomerEventSession,verifyStaffEventSession,cookieValue,bearerValue,customerSessionCookie,clearCustomerSessionCookie,CUSTOMER_COOKIE,CUSTOMER_SESSION_TTL_SECONDS,STAFF_COOKIE};
+module.exports={verifyUserToken,verifyEventSession,customerEventToken,verifyCustomerEventSession,verifyStaffEventSession,cookieValue,bearerValue,customerSessionCookie,clearCustomerSessionCookie,CUSTOMER_COOKIE,CUSTOMER_SESSION_TTL_SECONDS,STAFF_COOKIE};

@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 const crypto=require('crypto');
 process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
 process.env.JWT_SECRET=crypto.randomBytes(48).toString('hex');
@@ -51,7 +52,16 @@ const customerBearer=signJWT({sub:user.id,email,kind:'customer',sv:0,exp:Math.fl
  const list=await adminAudit.handler(event({action:'list',limit:20},{cookie:cookiePair}));assert.strictEqual(list.statusCode,200,'El endpoint de auditoría debe aceptar cookie owner');assert.strictEqual(parse(list).events.length,12);
  const verifyEndpoint=await adminAudit.handler(event({action:'verify',limit:100},{cookie:cookiePair}));assert.strictEqual(verifyEndpoint.statusCode,200);assert.strictEqual(parse(verifyEndpoint).valid,true);
  const head=await getBlobStore('security-audit').get('chain-head',{type:'json'});const latest=await getBlobStore('security-audit').get(head.key,{type:'json'});await getBlobStore('security-audit').setJSON(head.key,{...latest,action:'TAMPERED'});const tampered=await audit.verify(100);assert.strictEqual(tampered.valid,false,'Una alteración debe romper la verificación criptográfica');
- const adminHtml=fs.readFileSync('admin.html','utf8'),backofficeHtml=fs.readFileSync('backoffice.html','utf8');assert(adminHtml.includes('/staff-session-bridge.js'),'El build debe inyectar el puente en admin');assert(backofficeHtml.includes('/staff-session-bridge.js'),'El build debe inyectar el puente en backoffice');
+ // Se comprueba la inyección, no el archivo ya inyectado: los tags los añade
+ // `npm run build`, así que leer admin.html a secas fallaba en un clon recién
+ // bajado y, al contrario, podía pasar por un build viejo que dejó el tag.
+ const inyector=require('./staff-login-inject.js');
+ for(const page of ['admin.html','backoffice.html']){
+  assert(inyector.bridgePages.has(page),`El build debe inyectar el puente en ${page}`);
+  const inyectado=inyector.inject(page,fs.readFileSync(page,'utf8'));
+  assert(inyectado.includes('/staff-session-bridge.js'),`El build debe inyectar el puente en ${page}`);
+  assert(inyector.inject(page,inyectado)===inyectado,`La inyección de ${page} debe ser idempotente`);
+ }
  const bridge=fs.readFileSync('staff-session-bridge.js','utf8');assert(bridge.includes("STAFF_LOGIN_ENDPOINT='/.netlify/functions/staff-login'"),'El puente debe reconocer el login específico de staff');assert(bridge.includes('exchangeStaffToken(token)'),'El login de staff debe canjear el JWT por la cookie interna');assert(!bridge.includes('localStorage.setItem(SESSION)'),'El puente no debe persistir el JWT interno');assert(bridge.includes('if(this===window.localStorage&&key===KEY)return;'),'El puente debe bloquear persistencia del usuario interno en localStorage');
  const loginUi=fs.readFileSync('staff-login-ui.js','utf8');assert(!/localStorage\.setItem\(\s*KEY\b/.test(loginUi),'La UI de acceso interno no debe persistir datos o tokens de staff en localStorage');
  const logout=await adminSession.handler(event({action:'logout'},{cookie:cookiePair}));assert.strictEqual(logout.statusCode,200);assert(/Max-Age=0/.test(logout.headers['Set-Cookie']),'Logout debe expirar la cookie');

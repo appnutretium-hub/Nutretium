@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 const assert = require('assert');
 const { FactusolClient, normalizeRows } = require('../netlify/lib/factusol-client');
 const { FactusolCommerce } = require('../netlify/lib/factusol-commerce');

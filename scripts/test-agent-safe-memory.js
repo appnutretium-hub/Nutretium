@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 
 process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
 const assert=require('assert');

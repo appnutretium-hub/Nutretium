@@ -7,7 +7,8 @@ const root = process.cwd();
 const requiredFiles = [
   'index.html','app.js','products-data.js','styles.css','trust-fixes.js',
   'franchise-trust.js','commerce-pro.js','final-hardening.js','producto.html','producto.js',
-  'product-pim.js','product-variants.js','commerce-core.js','ayuda.html','condiciones.html','netlify.toml','netlify/functions/redsys-notify.js','netlify/lib/email.js'
+  'product-pim.js','product-variants.js','commerce-core.js','ayuda.html','condiciones.html','netlify.toml','netlify/functions/redsys-notify.js','netlify/lib/email.js',
+  'sesion-cliente.js','cuenta.html','cuenta.js','checkout.html'
 ];
 
 const failures = [];
@@ -66,6 +67,41 @@ if (!failures.length) {
   ['buildStoreOrderEmail','buildCustomerOrderEmail','Idempotency-Key'].forEach(token => {
     if (!email.includes(token)) failures.push(`Email transaccional incompleto: ${token}`);
   });
+
+  // ── Sesión de cliente ───────────────────────────────────────────────────
+  // La sesión va en la cookie HttpOnly y el token ya no se guarda en el
+  // navegador: quien pregunte por `.token` para saber si hay sesión deja fuera
+  // a quien acaba de entrar. Todo eso vive en sesion-cliente.js, así que cada
+  // página que lo necesite tiene que cargarlo ANTES que sus scripts.
+  const paginasConSesion = {
+    'index.html': ['app.js','wishlist-sync.js','commerce-suite.js','commercial-finish.js','pro-qa-fixes.js'],
+    'cuenta.html': ['cuenta.js'],
+    'producto.html': ['product-engagement.js'],
+    'checkout.html': ['checkout.js'],
+  };
+  // Se busca la etiqueta, no el nombre del archivo: los comentarios del HTML
+  // nombran scripts y falsearían el orden.
+  const posicionDeScript = (html, src) => {
+    const i = html.indexOf(`src="${src}"`), j = html.indexOf(`src="/${src}"`);
+    return i >= 0 && j >= 0 ? Math.min(i, j) : Math.max(i, j);
+  };
+  for (const [pagina, consumidores] of Object.entries(paginasConSesion)) {
+    const html = read(pagina);
+    const posicion = posicionDeScript(html, 'sesion-cliente.js');
+    if (posicion < 0) { failures.push(`${pagina} no carga sesion-cliente.js`); continue; }
+    consumidores.forEach(src => {
+      const uso = posicionDeScript(html, src);
+      if (uso >= 0 && uso < posicion) failures.push(`${pagina} carga ${src} antes de sesion-cliente.js`);
+    });
+  }
+  ['cuenta.js','checkout.js','product-engagement.js','wishlist-sync.js','commerce-account-sync.js','commerce-suite.js','commercial-finish.js','pro-qa-fixes.js','enterprise-storefront.js']
+    .forEach(archivo => {
+      const codigo = read(archivo);
+      // Ni el nombre del almacén: la sesión se pregunta al helper y a nadie más.
+      if (codigo.includes('nutretium_user')) failures.push(`${archivo} lee la sesión del almacén del navegador en vez de sesion-cliente.js`);
+      // currentUser guarda el perfil, y el perfil nunca lleva token.
+      if (/currentUser\??\.token/.test(codigo)) failures.push(`${archivo} decide la sesión por un token que el navegador ya no guarda`);
+    });
 
   const notify = read('netlify/functions/redsys-notify.js');
   ['buildStoreOrderEmail','buildCustomerOrderEmail','PENDING_FULFILMENT','nutretium-order-customer','nutretium-order-store'].forEach(token => {

@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 
 const assert = require('assert');
 const policy = require('../netlify/lib/main-origin-policy');

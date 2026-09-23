@@ -185,17 +185,25 @@ async function authBoundaryProbe() {
   add('JSON inválido falla cerrado sin 5xx', invalidJson.status >= 400 && invalidJson.status < 500, 'medium', `status=${invalidJson.status}`);
 }
 
+// El freno de staff-login permite PASSWORD_LIMIT intentos (10) en cada ventana
+// de 5 minutos, así que con 7 peticiones no podía saltar nunca: la comprobación
+// daba «freno inexistente» aunque funcionara. Se prueba con margen sobre ese
+// tope y se corta en cuanto frena, para no insistir sobre el sitio publicado
+// más de lo necesario.
+const RATE_LIMIT_ATTEMPTS = 13;
+
 async function rateLimitProbe() {
   const id = crypto.randomBytes(8).toString('hex');
   const email = `security-audit-${id}@example.invalid`;
   const statuses = [];
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < RATE_LIMIT_ATTEMPTS; i++) {
     const res = await oneRequest(new URL('/.netlify/functions/staff-login', TARGET), {
       method: 'POST',
       headers: { Origin: TARGET.origin, 'Sec-Fetch-Site': 'same-origin', 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password: `invalid-${id}-${i}` }),
     });
     statuses.push(res.status);
+    if (res.status === 429 || res.status === 503) break;
     await sleep(250);
   }
   const throttled = statuses.some(status => status === 429 || status === 503);

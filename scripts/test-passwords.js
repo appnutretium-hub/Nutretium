@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 const assert=require('assert');
 const crypto=require('crypto');
 const passwords=require('../netlify/lib/passwords');

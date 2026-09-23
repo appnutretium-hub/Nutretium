@@ -12,6 +12,7 @@
 // y lo comprueba en memoria. La última prueba verifica justo eso.
 // ─────────────────────────────────────────────────────────────────────────────
 'use strict';
+require('./test-env');
 
 const fs = require('fs');
 const path = require('path');

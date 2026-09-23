@@ -1,4 +1,5 @@
 'use strict';
+require('./test-env');
 
 const assert=require('assert');
 const federation=require('../netlify/lib/federated-ai-router');

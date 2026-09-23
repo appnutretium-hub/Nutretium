@@ -1,14 +1,16 @@
 'use strict';
 const crypto=require('crypto');
 const enterprise=require('../lib/enterprise-store');
-const {tokenFromHeader}=require('../lib/jwt');
-const {verifyUserToken}=require('../lib/session');
+const sesionCliente=require('../lib/session');
+const {verifyUserToken}=sesionCliente;
 const {cabecerasCORS}=require('../lib/cors');
 const CORS=cabecerasCORS('POST, OPTIONS');
 const ALLOWED=new Set(['nt_product_view','nt_search_select','nt_add_to_cart','nt_wishlist_add','nt_wishlist_remove','nt_compare_add','nt_compare_remove','nt_compare_open','nt_catalog_filter','nt_catalog_sort','nt_category_view','nt_begin_checkout','nt_purchase','nt_search','nt_remove_from_cart']);
 const response=(s,b)=>({statusCode:s,headers:{...CORS,'Cache-Control':'no-store'},body:JSON.stringify(b)});
 async function authenticatedConsent(event){
- const token=tokenFromHeader(event.headers||{});if(!token)return null;
+ // La sesión llega por cookie HttpOnly: mirar solo la cabecera dejaba sin
+ // atribuir los eventos de todo cliente identificado.
+ const token=sesionCliente.customerEventToken(event);if(!token)return null;
  let verified;try{verified=await verifyUserToken(token,{requireUser:true})}catch{return false}
  const id=`${verified.email}:analytics`,record=await enterprise.get('consent-settings',id).catch(()=>null);
  return record?.status==='granted'?verified.email:false;

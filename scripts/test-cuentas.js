@@ -2,6 +2,7 @@
 // NUTRETIUM — pruebas de las cuentas de cliente
 // ─────────────────────────────────────────────────────────────────────────────
 'use strict';
+require('./test-env');
 
 process.env.JWT_SECRET = 'secreto-de-pruebas-con-mas-de-32-caracteres-de-sobra';
 process.env.URL = 'https://nutretium.com';

@@ -1,7 +1,7 @@
 'use strict';
 const {exigeAdmin}=require('../lib/admin');
 const {cabecerasCORS}=require('../lib/cors');
-const settings=require('../lib/settings');
+const shipping=require('../lib/shipping');
 const paymentConfig=require('../lib/payment-config');
 const {assessExternalReadiness}=require('../lib/external-readiness');
 const CORS=cabecerasCORS('GET, OPTIONS');
@@ -11,9 +11,8 @@ exports.handler=async function(event){
  if(event.httpMethod!=='GET')return reply(405,{error:'Method Not Allowed'});
  const auth=await exigeAdmin(event);if(!auth.ok)return reply(auth.statusCode,{error:auth.error});
  try{
-  const [commerce,payment]=await Promise.all([settings.read(),paymentConfig.resolve()]);
-  const env=payment.managed?{...process.env,REDSYS_ENV:payment.environment,COMMERCE_LIVE:payment.commerceLive?'true':'false',REDSYS_SECRET_KEY:payment.secretKey||'',REDSYS_MERCHANT_CODE:payment.merchantCode||'',REDSYS_TERMINAL:payment.terminal||'1'}:process.env;
-  return reply(200,await assessExternalReadiness({env,shipping:commerce.shipping}));
+  const [shippingPolicy,payment]=await Promise.all([shipping.policy(),paymentConfig.resolve()]);
+  return reply(200,await assessExternalReadiness({env:process.env,shipping:shippingPolicy,payment}));
  }catch(error){
   console.error('[admin-external-readiness]',error);
   return reply(503,{ready:false,error:'No se pudo verificar el estado externo.',checkedAt:new Date().toISOString()});

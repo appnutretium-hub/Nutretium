@@ -71,6 +71,49 @@ jobs:
           echo "La revisión esperada $EXPECTED_SHA no está publicada; no se hará rollback de una versión sana." >&2
           exit 1
 
+      - name: Verify admin access surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://nutretium.com"
+          curl --fail --silent --show-error --location --retry 6 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 30 -o /tmp/admin "$base/admin.html"
+          grep -Fq 'id="formAcceso"' /tmp/admin
+          grep -Fq '/staff-session-bridge.js' /tmp/admin
+          grep -Fq '/staff-login-ui.js' /tmp/admin
+
+          login_code="$(curl --silent --show-error --connect-timeout 10 --max-time 30 \
+            -o /tmp/staff-login-probe -w '%{http_code}' \
+            -X POST \
+            -H 'Origin: https://nutretium.com' \
+            -H 'Content-Type: application/json' \
+            --data '{"email":"admin-smoke-invalid@nutretium.invalid","password":"invalid-smoke-password"}' \
+            "$base/.netlify/functions/staff-login")"
+          if [[ "$login_code" != "401" ]]; then
+            echo "El endpoint staff-login no respondió con el rechazo seguro esperado (HTTP $login_code)." >&2
+            cat /tmp/staff-login-probe >&2 || true
+            exit 1
+          fi
+          node - <<'NODE'
+          const fs=require('fs');
+          const body=JSON.parse(fs.readFileSync('/tmp/staff-login-probe','utf8'));
+          if(!/credenciales incorrectas/i.test(String(body.error||'')))throw new Error('staff-login no devolvió el contrato de rechazo esperado.');
+          NODE
+
+          session_code="$(curl --silent --show-error --connect-timeout 10 --max-time 30 \
+            -o /tmp/admin-session-probe -w '%{http_code}' \
+            -X POST \
+            -H 'Origin: https://nutretium.com' \
+            -H 'Content-Type: application/json' \
+            -H 'X-Nutretium-Request: production-admin-smoke-0001' \
+            --data '{"action":"status"}' \
+            "$base/.netlify/functions/admin-session")"
+          if [[ "$session_code" != "401" ]]; then
+            echo "El endpoint admin-session no rechazó de forma segura una sesión ausente (HTTP $session_code)." >&2
+            cat /tmp/admin-session-probe >&2 || true
+            exit 1
+          fi
+          echo '[production-smoke] superficie admin operativa · bridge HttpOnly + login MFA + sesión interna responden'
+
       - name: Verify Guardian runtime is live
         shell: bash
         run: |

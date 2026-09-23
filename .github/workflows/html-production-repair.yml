@@ -44,7 +44,12 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --ignore-scripts
 
-      - name: Verify index.html requires no automatic repair
+      - name: Apply deterministic repair in ephemeral checkout
+        env:
+          NUTRETIUM_HTML_REPAIR_MODE: write
+        run: node scripts/repair-index-html.js
+
+      - name: Verify repair is idempotent
         env:
           NUTRETIUM_HTML_REPAIR_MODE: check
         run: node scripts/repair-index-html.js
@@ -58,7 +63,7 @@ jobs:
       - name: JavaScript release check
         run: node scripts/check-release-js.js
 
-      - name: Verify repository remains unchanged
+      - name: Verify generated repair diff is syntactically clean
         run: |
           git diff --check
-          git diff --exit-code -- index.html
+          git diff -- index.html

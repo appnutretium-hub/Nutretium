@@ -43,8 +43,10 @@ async function clearAttempts(event,email,kind){
   const scopes=kind==='mfa'?['staff-login-mfa-v2']:kind==='password'?['staff-login-password-v2','staff-login']:['staff-login-password-v2','staff-login-mfa-v2','staff-login'];
   await Promise.all(scopes.map(scope=>reset({scope,event,extra:email}).catch(()=>false)));
 }
-function privilegedMfaExempt(role){return String(role||'')==='owner'}
-function mfaRequiredFor(role,user){return !privilegedMfaExempt(role) && (String(role||'')==='admin'||security.staffMfaRequired()||user?.mfaEnabled===true)}
+function mfaRequiredFor(role,user){
+  const normalized=String(role||'').toLowerCase();
+  return normalized==='owner'||normalized==='admin'||security.staffMfaRequired()||user?.mfaEnabled===true;
+}
 function mfaSetupBody(email,secret){
   return {
     error:'Configura MFA para continuar. Añade la clave a tu aplicación de autenticación e introduce el código de 6 dígitos.',
@@ -128,4 +130,4 @@ exports.handler = async event => {
   const token = signJWT({sub: user.id,email,role,kind: 'staff-login',mfa: mfaVerified,sv: Number(user.sessionVersion || 0),fp:binding.fp,jti:binding.jti,exp: Math.floor(Date.now() / 1000) + security.STAFF_LOGIN_TTL_SECONDS});
   return response(200, {user: {id: user.id,name: user.name,surname: user.surname,email: user.email,phone: user.phone,role,token,mfa: mfaVerified,mfaRequired:requireMfa,expiresIn:security.STAFF_LOGIN_TTL_SECONDS}});
 };
-exports._test = { verifyPassword, upgradeHashIfNeeded, checkThrottle, clearAttempts, privilegedMfaExempt, mfaRequiredFor, mfaSetupBody, beginMfaSelfSetup, completeMfaSelfSetup };
+exports._test = { verifyPassword, upgradeHashIfNeeded, checkThrottle, clearAttempts, mfaRequiredFor, mfaSetupBody, beginMfaSelfSetup, completeMfaSelfSetup };

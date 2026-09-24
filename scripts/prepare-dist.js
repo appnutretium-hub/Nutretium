@@ -3,9 +3,9 @@ const fs=require('fs');
 const path=require('path');
 const {writeBuildMeta}=require('./write-build-meta');
 
-// Cierre HTML obligatorio antes de construir el artefacto público. Si la
-// reparación o cualquiera de sus validaciones falla, el build se detiene y no
-// se publica un index.html incompleto.
+// La optimización de carga y el cierre HTML se aplican sobre el mismo checkout
+// antes de copiar el artefacto público. Ambos pasos son deterministas e idempotentes.
+require('./performance-html');
 require('./repair-index-html');
 
 const ROOT=process.cwd();
@@ -45,7 +45,7 @@ fs.rmSync(DIST,{recursive:true,force:true});
 fs.mkdirSync(DIST,{recursive:true});
 copyTree(ROOT,DIST);
 
-const required=['index.html','app.js','styles.css','products-data.js','_redirects',path.join('.well-known','security.txt')];
+const required=['index.html','app.js','styles.css','products-data.js','progressive-catalog.js','_redirects',path.join('.well-known','security.txt')];
 const missing=required.filter(file=>!fs.existsSync(path.join(DIST,file)));
 if(missing.length)throw new Error(`Build dist incompleto. Faltan: ${missing.join(', ')}`);
 for(const sourceOnly of ROOT_FILE_DENY)if(fs.existsSync(path.join(DIST,sourceOnly)))throw new Error(`Build dist expone una capa fuente: ${sourceOnly}`);
@@ -63,8 +63,6 @@ function audit(dir,relative=''){
 audit(DIST);
 if(forbidden.length)throw new Error(`El artefacto público contiene archivos internos: ${forbidden.join(', ')}`);
 
-// Metadato público mínimo para que el smoke de producción pueda demostrar qué
-// commit está realmente publicado. No incluye secretos ni configuración interna.
 writeBuildMeta();
 
 let files=0,bytes=0;

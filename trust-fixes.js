@@ -198,12 +198,9 @@
       if ((section.textContent || '').includes('Compras superiores a')) section.style.display = 'none';
     });
 
-    /* Promo ribbon: keep brand/location, not unverified discounts. */
-    const promo = document.body.querySelector('body > div.bg-gradient-to-r');
-    if (promo) {
-      const p = promo.querySelector('p');
-      if (p) p.textContent = 'NUTRETIUM SANTANDER · SUPLEMENTACIÓN DEPORTIVA · ALIMENTACIÓN SALUDABLE';
-    }
+    /* The top promo ribbon is already factual in the built HTML. Rewriting its
+       text after first paint made the mobile banner wrap and pushed the whole
+       header/main down by 50px, creating avoidable CLS. Keep it static. */
 
     /* Footer brand copy: factual, local and concrete. */
     const why = Array.from(document.querySelectorAll('footer h4')).find((h) => (h.textContent || '').trim() === 'Por qué Nutretium');

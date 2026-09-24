@@ -28,23 +28,22 @@ const customerBearer=signJWT({sub:user.id,email,kind:'customer',sv:0,exp:Math.fl
 
 (async()=>{
  await usuarios.escribe(email,user);
- assert.strictEqual(staffLogin._test.privilegedMfaExempt('owner'),true,'Owner debe poder acceder con correo y contraseña sin MFA');
- assert.strictEqual(staffLogin._test.privilegedMfaExempt('admin'),false,'Admin no queda exento de MFA');
- assert.strictEqual(staffLogin._test.privilegedMfaExempt('manager'),false,'Manager no queda exento por rol');
+ assert.strictEqual(staffLogin._test.mfaRequiredFor('owner',{mfaEnabled:false}),true,'Owner exige MFA siempre');
  assert.strictEqual(staffLogin._test.mfaRequiredFor('admin',{mfaEnabled:false}),true,'Admin exige MFA siempre');
- assert.strictEqual(staffLogin._test.mfaRequiredFor('owner',{mfaEnabled:true}),false,'Owner usa acceso por contraseña aunque exista configuración MFA antigua');
  assert.strictEqual(staffLogin._test.mfaRequiredFor('manager',{mfaEnabled:false}),true,'La política global exige MFA al resto del personal');
  const generated=totp.generateSecret();assert(/^[A-Z2-7]+$/.test(generated),'El secreto generado debe ser Base32');const sealed=totp.sealSecret(generated);assert.notStrictEqual(sealed,generated,'El secreto no debe persistirse en claro');assert.strictEqual(totp.openSecret(sealed),generated,'El cifrado MFA debe ser reversible con la clave del servidor');
 
  const customerExchange=await adminSession.handler(event({action:'exchange'},{authorization:`Bearer ${customerBearer}`}));
  assert.strictEqual(customerExchange.statusCode,401,'Un JWT de cliente nunca puede convertirse en sesión interna');
- const ownerExchange=await adminSession.handler(event({action:'exchange'},{authorization:`Bearer ${staffToken(false)}`}));
- assert.strictEqual(ownerExchange.statusCode,200,'Owner debe poder crear sesión interna sin MFA');
- assert.strictEqual(parse(ownerExchange).mfa,false,'La sesión owner debe reflejar que no usó MFA');
+ const ownerWithoutMfa=await adminSession.handler(event({action:'exchange'},{authorization:`Bearer ${staffToken(false)}`}));
+ assert.strictEqual(ownerWithoutMfa.statusCode,401,'Owner no puede crear sesión interna sin MFA');
+ assert.strictEqual(parse(ownerWithoutMfa).code,'STAFF_MFA_REQUIRED','El rechazo owner sin MFA debe ser explícito');
+ const ownerExchange=await adminSession.handler(event({action:'exchange'},{authorization:`Bearer ${staffToken(true)}`}));
+ assert.strictEqual(ownerExchange.statusCode,200,'Owner con MFA debe poder crear sesión interna');
+ assert.strictEqual(parse(ownerExchange).mfa,true,'La sesión owner debe reflejar MFA verificado');
  const ownerCookie=ownerExchange.headers['Set-Cookie'];assert(ownerCookie&&/nt_staff_session=/.test(ownerCookie),'Debe emitirse la cookie interna');assert(/HttpOnly/i.test(ownerCookie),'La cookie debe ser HttpOnly');assert(/Secure/i.test(ownerCookie),'La cookie debe ser Secure');assert(/SameSite=Strict/i.test(ownerCookie),'La cookie debe ser SameSite=Strict');
  const cookiePair=ownerCookie.split(';')[0];
- const status=await adminSession.handler(event({action:'status'},{cookie:cookiePair}));assert.strictEqual(status.statusCode,200,'La cookie owner debe autenticar la sesión interna');assert.strictEqual(parse(status).email,email);assert.strictEqual(parse(status).mfa,false);
- const exchange=await adminSession.handler(event({action:'exchange'},{authorization:`Bearer ${staffToken(true)}`}));assert.strictEqual(exchange.statusCode,200,'Owner con MFA también debe seguir siendo compatible');
+ const status=await adminSession.handler(event({action:'status'},{cookie:cookiePair}));assert.strictEqual(status.statusCode,200,'La cookie owner debe autenticar la sesión interna');assert.strictEqual(parse(status).email,email);assert.strictEqual(parse(status).mfa,true);
 
  const writes=await Promise.all(Array.from({length:12},(_,i)=>audit.append({event:event({},{}),actor:email,action:'TEST_EVENT',resource:`resource-${i}`,metadata:{i,token:'must-redact'}})));assert.strictEqual(writes.length,12);assert(writes.every(row=>row.metadata.token==='[REDACTED]'),'El audit log debe censurar tokens');
  const verification=await audit.verify(100);assert.strictEqual(verification.valid,true,'La cadena concurrente debe ser válida');assert.strictEqual(verification.checked,12,'Debe verificar los 12 eventos');
@@ -55,5 +54,5 @@ const customerBearer=signJWT({sub:user.id,email,kind:'customer',sv:0,exp:Math.fl
  const bridge=fs.readFileSync('staff-session-bridge.js','utf8');assert(bridge.includes("STAFF_LOGIN_ENDPOINT='/.netlify/functions/staff-login'"),'El puente debe reconocer el login específico de staff');assert(bridge.includes('exchangeStaffToken(token)'),'El login de staff debe canjear el JWT por la cookie interna');assert(!bridge.includes('localStorage.setItem(SESSION)'),'El puente no debe persistir el JWT interno');assert(bridge.includes('if(this===window.localStorage&&key===KEY)return;'),'El puente debe bloquear persistencia del usuario interno en localStorage');
  const loginUi=fs.readFileSync('staff-login-ui.js','utf8');assert(!/localStorage\.setItem\(\s*KEY\b/.test(loginUi),'La UI de acceso interno no debe persistir datos o tokens de staff en localStorage');
  const logout=await adminSession.handler(event({action:'logout'},{cookie:cookiePair}));assert.strictEqual(logout.statusCode,200);assert(/Max-Age=0/.test(logout.headers['Set-Cookie']),'Logout debe expirar la cookie');
- console.log('[test-admin-security] OK · owner password-only · browser-bound session · MFA admin · cookie HttpOnly · auditoría íntegra');
+ console.log('[test-admin-security] OK · owner/admin MFA · browser-bound session · cookie HttpOnly · auditoría íntegra');
 })().catch(err=>{console.error(err);process.exit(1)});

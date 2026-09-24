@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const requestedTarget = String(process.env.NUTRETIUM_HTML_REPAIR_FILE || '').trim();
@@ -107,8 +108,14 @@ if (problems.length) {
 }
 if (html !== original) {
   if (mode === 'check') throw new Error('[repair-index-html] el objetivo requiere la transformación HTML determinista; ejecuta primero en modo write sobre un checkout o artefacto no persistente.');
+  const iteration = Number(process.env.NUTRETIUM_HTML_REPAIR_ITERATION || 0);
+  if (!Number.isInteger(iteration) || iteration < 0 || iteration >= 5) throw new Error('[repair-index-html] la transformación no alcanza un punto fijo seguro en 5 iteraciones.');
   fs.writeFileSync(file, html, 'utf8');
-  console.log(`[repair-index-html] ${path.relative(ROOT,file)} reparado y validado`);
+  console.log(`[repair-index-html] ${path.relative(ROOT,file)} reparado y validado · iteración ${iteration + 1}`);
+  execFileSync(process.execPath,[__filename],{
+    stdio:'inherit',
+    env:{...process.env,NUTRETIUM_HTML_REPAIR_ITERATION:String(iteration + 1)}
+  });
 } else {
   console.log(`[repair-index-html] ${path.relative(ROOT,file)} ya cumplía las reglas auditadas`);
 }

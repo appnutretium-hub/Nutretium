@@ -1,5 +1,8 @@
 'use strict';
 const settings=require('./settings');
+// El CP de España lo valida direccion.js: un solo validador, igual que al cobrar.
+const {CP_ESPANA}=require('./direccion');
+const ES_NOMBRES=new Set(['españa','espana','spain','es']);
 function env(name){return String(process.env[name]||'').trim()}
 function envCents(name){const v=env(name);if(v==='')return null;const n=Number(v);return Number.isInteger(n)&&n>=0?n:null}
 function envPolicy(){return{managed:false,enabled:env('SHIPPING_ENABLED')==='true',rateCents:envCents('SHIPPING_RATE_CENTS'),freeFromCents:envCents('SHIPPING_FREE_FROM_CENTS'),country:env('SHIPPING_COUNTRY')||'España',label:env('SHIPPING_LABEL')||'Envío',methods:[],source:'env'}}
@@ -15,6 +18,7 @@ function quoteWithPolicy(p,{subtotalCents,address}){
  const country=String(address&&(address.pais||address.country)||'').trim(),cp=String(address&&(address.cp||address.postalCode)||'').trim();
  if(!country)return{ok:false,reason:'country-required',error:'Indica el país de envío.'};
  if(!/^[0-9A-Za-z -]{3,12}$/.test(cp))return{ok:false,reason:'postal-code',error:'El código postal de envío no es válido.'};
+ if(ES_NOMBRES.has(country.toLowerCase())&&!CP_ESPANA.test(cp))return{ok:false,reason:'postal-code',error:'El código postal tiene que ser de cinco cifras.'};
  const method=matchingMethod(p,address);
  if(method===false)return{ok:false,reason:'zone-not-supported',error:'No hay una tarifa de envío activa para este código postal.'};
  if(method){const free=method.freeFromCents!==null&&method.freeFromCents!==undefined&&Number(subtotalCents)>=method.freeFromCents;return{ok:true,shippingCents:free?0:method.rateCents,free,label:method.name||p.label||'Envío',country:method.country||country,freeFromCents:method.freeFromCents,eta:method.eta||'',methodId:method.id||null,source:p.source||'unknown'}}

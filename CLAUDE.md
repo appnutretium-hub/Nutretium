@@ -72,11 +72,59 @@ nada de `cd /d`.
 | `npm run fotos` | incorpora fotos nuevas del buzón (ensayo; `-- --aplicar` para escribir) |
 | `npm run catalogo` | precios, altas, bajas y fotos desde CSV (ensayo; `-- --aplicar` para escribir) |
 | `npm run panel` | lo mismo pero con pantalla, en `localhost:4180` |
+| `npm run ia:reparar` | IA local (Ollama) que pasa las pruebas y repara lo que falla durante horas (ensayo; `-- --aplicar` para escribir) |
+| `npm run ia:estado` | cómo va la IA reparadora y qué parches lleva |
+| `npm run ia:probar` | todas las pruebas de una vez; `-- 0007` prueba solo ese parche y sus criterios |
+| `npm run test:ia` | la IA reparadora con un Ollama falso: lo que NO deja cambiar y las 7 etapas — 92 casos |
 
 `stock`, `fotos` y `catalogo` **no escriben nada sin `--aplicar`**: enseñan qué
 harían y te dejan revisarlo. El panel hace lo mismo en pantalla: antes de
 guardar enseña la lista de altas, bajas y cambios y pide confirmación. Mantén
 esa costumbre si añades más herramientas de estas.
+
+## IA reparadora (`npm run ia:reparar`)
+
+`scripts/ia-reparador.js` es solo la línea de comandos; el trabajo está en
+`scripts/ia/` (un módulo por responsabilidad, ninguno pasa de 300 líneas —
+`npm run test:ia` lo comprueba). Pone al Ollama del equipo a pasar las pruebas
+y reparar lo que falla durante horas; con todo en verde revisa archivos y
+apunta posibles errores. Guía para el cliente: `docs/IA-REPARADORA.md`.
+
+**Cada caso que falla es un tiquet que recorre siete etapas**
+(`scripts/ia/flujo.js`, una etapa por archivo en `scripts/ia/etapas/`):
+1 tiquet enriquecido → 2 plan en .md con **mapa de criterios de aceptación** →
+3 implementación → 4 revisión de código → 5 QA → 6 release → 7 address-review.
+Cada etapa deja su documento numerado en `.ia-reparador/tiquets/<suite>-<clave>/`.
+Los criterios CA-1 a CA-6 son fijos y los comprueba una máquina
+(`scripts/ia/criterios.js`); los del plan, la revisión. Bloqueantes de la
+revisión vuelven a la 3; sugerencias van a la 7 como parche aparte con
+`depende`, que no puede deshacerse el principal mientras esté aplicado.
+
+La regla que la sostiene: **una propuesta de la IA solo es una reparación si
+hace pasar una prueba que fallaba sin romper ninguna de las verdes**, verificado
+en una copia aparte (`node_modules/.cache/ia-reparador`). La revisión de código
+solo puede vetar, nunca aprobar lo que QA rechaza. Lo que no respalda una
+prueba (los hallazgos de la revisión de archivos) va al informe y no se aplica.
+Por eso `revisaCambio()` le prohíbe tocar pruebas, `products-data.js`,
+`netlify.toml`, `package.json`, su propio código, quitar comprobaciones de
+seguridad o inventar secretos: si amplías lo que puede tocar, amplía también
+`npm run test:ia`.
+
+**Corrección única**: `scripts/ia/correcciones.js` guarda cada error por su
+huella entre sesiones. Un error corregido que reaparece NO se corrige otra vez
+(queda para una persona); lo verificado en ensayo se reutiliza con `--aplicar`
+sin preguntar a la IA; una propuesta descartada no se vuelve a probar. Un
+error, un tiquet, un parche (`.ia-reparador/parches/NNNN-*.json`), que se
+prueba con `npm run ia:probar -- NNNN` y se deshace con `--revertir NNNN`.
+
+Autónoma: callada por defecto (`--detalle` para ver pasos), espera a Ollama si
+no está en vez de caerse, `--segundo-plano` la desengancha de la consola y
+`--parar` la detiene al acabar el paso en curso (archivo `PARAR`).
+
+Las pruebas corren con un entorno sin secretos (`entornoLimpio`), y Ollama
+tiene que ser local: el código no sale del equipo. Su informe, tiquets, parches
+y copias van en `.ia-reparador/` (en `.gitignore`; `prepare-dist.js` ya excluye
+las carpetas que empiezan por punto).
 
 ## Reglas del catálogo
 

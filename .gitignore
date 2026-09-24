@@ -45,3 +45,7 @@ scripts/_*
 # instrucción. Las tratadas sí, en sources/productos/.
 sources/_nuevas/*
 !sources/_nuevas/LEEME.md
+
+# IA reparadora (npm run ia:reparar): informe, estado y copias de seguridad de
+# tu equipo. El espacio de pruebas vive en node_modules/.cache/ia-reparador.
+.ia-reparador/

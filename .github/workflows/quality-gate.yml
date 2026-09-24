@@ -70,6 +70,7 @@ jobs:
           node --check scripts/test-staff-access-recovery.js
           node --check scripts/build-seo-pages.js
           node --check scripts/compose-app.js
+          node --check scripts/performance-probe.js
           node --check scripts/test-external-readiness.js
           node --check scripts/test-zero-trust-security.js
           node --check scripts/test-defense-in-depth.js
@@ -179,6 +180,8 @@ jobs:
           done
           cat /tmp/nutretium-server.log
           exit 1
+      - name: Performance probe · throttled Chromium
+        run: node scripts/performance-probe.js
       - name: Browser E2E · Chromium
         run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js tests/e2e-critical-flows.spec.js tests/e2e-checkout-resilience.spec.js tests/e2e-admin-sensitive.spec.js tests/e2e-admin-staff-sensitive.spec.js tests/e2e-interactive-controls.spec.js --browser=chromium --workers=1
       - name: Browser E2E · Firefox

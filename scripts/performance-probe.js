@@ -37,9 +37,32 @@ const BASE = process.env.E2E_BASE_URL || 'http://127.0.0.1:4173';
   await cdp.send('Emulation.setCPUThrottlingRate',{rate:4});
 
   await page.addInitScript(()=>{
-    window.__ntPerf={lcp:0,cls:0,longTasks:[]};
+    const rect=r=>r?{x:Math.round(r.x),y:Math.round(r.y),width:Math.round(r.width),height:Math.round(r.height)}:null;
+    const label=node=>{
+      if(!node||node.nodeType!==1)return null;
+      const id=node.id?`#${node.id}`:'';
+      const classes=node.classList&&node.classList.length?'.'+[...node.classList].slice(0,3).join('.'):'';
+      return `${String(node.tagName||'').toLowerCase()}${id}${classes}`.slice(0,180);
+    };
+    window.__ntPerf={lcp:0,cls:0,longTasks:[],layoutShifts:[]};
     try{new PerformanceObserver(list=>{for(const e of list.getEntries())window.__ntPerf.lcp=Math.max(window.__ntPerf.lcp,e.startTime||0)}).observe({type:'largest-contentful-paint',buffered:true})}catch(_){ }
-    try{new PerformanceObserver(list=>{for(const e of list.getEntries())if(!e.hadRecentInput)window.__ntPerf.cls+=(e.value||0)}).observe({type:'layout-shift',buffered:true})}catch(_){ }
+    try{new PerformanceObserver(list=>{
+      for(const e of list.getEntries()){
+        if(e.hadRecentInput)continue;
+        window.__ntPerf.cls+=(e.value||0);
+        if(window.__ntPerf.layoutShifts.length<20){
+          window.__ntPerf.layoutShifts.push({
+            value:Number((e.value||0).toFixed(4)),
+            startTime:Math.round(e.startTime||0),
+            sources:(e.sources||[]).slice(0,8).map(source=>({
+              node:label(source.node),
+              previousRect:rect(source.previousRect),
+              currentRect:rect(source.currentRect)
+            }))
+          });
+        }
+      }
+    }).observe({type:'layout-shift',buffered:true})}catch(_){ }
     try{new PerformanceObserver(list=>{for(const e of list.getEntries())window.__ntPerf.longTasks.push({start:e.startTime,duration:e.duration})}).observe({type:'longtask',buffered:true})}catch(_){ }
   });
 
@@ -61,6 +84,7 @@ const BASE = process.env.E2E_BASE_URL || 'http://127.0.0.1:4173';
     const scripts=resources.filter(r=>r.initiatorType==='script');
     const images=resources.filter(r=>r.initiatorType==='img');
     const longTasks=window.__ntPerf?.longTasks||[];
+    const layoutShifts=window.__ntPerf?.layoutShifts||[];
     return {
       domContentLoaded:Math.round(nav?.domContentLoadedEventEnd||0),
       load:Math.round(nav?.loadEventEnd||0),
@@ -75,6 +99,7 @@ const BASE = process.env.E2E_BASE_URL || 'http://127.0.0.1:4173';
       transferredKB:Math.round(bytes/1024),
       longTaskCount:longTasks.length,
       totalBlockingApproxMs:Math.round(longTasks.reduce((n,t)=>n+Math.max(0,t.duration-50),0)),
+      layoutShifts,
       heavy
     };
   });

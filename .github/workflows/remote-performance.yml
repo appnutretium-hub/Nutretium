@@ -26,23 +26,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --omit=optional
-      - name: Wait for Netlify preview to settle
+      - name: Allow deploy preview to settle
+        run: sleep 45
+      - name: Verify preview responds
         shell: bash
         env:
           PREVIEW_URL: https://deploy-preview-${{ github.event.pull_request.number }}--nutretium.netlify.app
-        run: |
-          set -euo pipefail
-          for i in $(seq 1 90); do
-            if curl --fail --silent --show-error "$PREVIEW_URL/" >/dev/null 2>&1; then
-              echo 'Preview accesible. Esperando estabilización del despliegue...'
-              sleep 30
-              curl --fail --silent --show-error "$PREVIEW_URL/" >/dev/null
-              exit 0
-            fi
-            sleep 5
-          done
-          echo 'El Deploy Preview no quedó accesible a tiempo.' >&2
-          exit 1
+        run: curl --connect-timeout 5 --max-time 15 --retry 3 --retry-delay 5 --fail --silent --show-error "$PREVIEW_URL/" >/dev/null
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Probe deployed preview

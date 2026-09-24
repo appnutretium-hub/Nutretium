@@ -168,7 +168,6 @@ jobs:
           node scripts/audit-workflow-pinning.js
       - name: Build final HTML trust audit
         run: |
-          node scripts/trust-inject.js
           node scripts/build-seo-pages.js
           node scripts/build-trust-audit.js
           node scripts/performance-html.js

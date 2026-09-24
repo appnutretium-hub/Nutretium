@@ -12,46 +12,72 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  probe-preview:
+  probe-candidate:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
-      PREVIEW_URL: https://deploy-preview-${{ github.event.pull_request.number }}--nutretium.netlify.app
       EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Checkout exact PR head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 22
           cache: npm
-      - name: Install locked dependencies
-        run: npm ci --omit=optional
-      - name: Wait for exact Netlify Deploy Preview
+      - name: Verify checkout identity
         shell: bash
         run: |
           set -euo pipefail
-          for attempt in $(seq 1 90); do
-            if body="$(curl --connect-timeout 5 --max-time 15 --fail --silent --show-error "$PREVIEW_URL/build-meta.json" 2>/dev/null)"; then
-              ref="$(printf '%s' "$body" | node -e "let s='';process.stdin.setEncoding('utf8');process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{try{process.stdout.write(String(JSON.parse(s).commitRef||''))}catch(_){process.exit(2)}})")" || ref=""
-              if [ "$ref" = "$EXPECTED_SHA" ]; then
-                echo "[candidate-performance] Deploy Preview exacto disponible para $EXPECTED_SHA"
-                exit 0
-              fi
-              echo "[candidate-performance] preview aún no corresponde al SHA esperado (actual: ${ref:-sin-meta})"
-            else
-              echo "[candidate-performance] preview todavía no disponible"
-            fi
-            sleep 4
-          done
-          echo "[candidate-performance] FAIL: Netlify no expuso el Deploy Preview del SHA exacto $EXPECTED_SHA"
-          exit 1
-      - name: Verify preview is publicly reachable
-        run: curl --connect-timeout 5 --max-time 15 --fail --silent --show-error "$PREVIEW_URL/" >/dev/null
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_SHA"
+          echo "[candidate-performance] checkout exacto: $actual"
+      - name: Install locked dependencies
+        run: npm ci --omit=optional
+      - name: Build exact Netlify artifact
+        env:
+          COMMIT_REF: ${{ github.event.pull_request.head.sha }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          CONTEXT: deploy-preview
+        run: npm run build
+      - name: Verify artifact identity and completeness
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/index.html
+          test -s dist/app.js
+          test -s dist/styles.css
+          test -s dist/products-data.js
+          test -s dist/build-meta.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const meta=JSON.parse(fs.readFileSync('dist/build-meta.json','utf8'));
+          const expected=String(process.env.EXPECTED_SHA||'');
+          if(meta.commitRef!==expected){
+            throw new Error(`build-meta commitRef ${meta.commitRef||'null'} != ${expected}`);
+          }
+          console.log('[candidate-performance] artefacto exacto', JSON.stringify(meta));
+          NODE
+      - name: Enforce static performance budgets
+        run: node scripts/performance-budget.js
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+      - name: Start final dist artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory dist >/tmp/nutretium-candidate-performance.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:4173/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/nutretium-candidate-performance.log
+          exit 1
       - name: Probe exact candidate under mobile throttling
         env:
-          E2E_BASE_URL: ${{ env.PREVIEW_URL }}
+          E2E_BASE_URL: http://127.0.0.1:4173
         run: node scripts/performance-probe.js

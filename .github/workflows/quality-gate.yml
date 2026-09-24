@@ -29,7 +29,10 @@ jobs:
           npm run build:css
           node scripts/staff-login-inject.js
           node scripts/compose-app.js
+          node scripts/performance-html.js
+          NUTRETIUM_HTML_REPAIR_MODE=write node scripts/repair-index-html.js
           node --check app.js
+          node --check progressive-catalog.js
       - name: Core and enterprise tests
         run: |
           npm test
@@ -67,6 +70,9 @@ jobs:
           node --check wishlist-sync.js
           node --check staff-session-bridge.js
           node --check staff-login-ui.js
+          node --check progressive-catalog.js
+          node --check scripts/performance-html.js
+          node --check scripts/performance-probe.js
           node --check scripts/test-staff-access-recovery.js
           node --check scripts/build-seo-pages.js
           node --check scripts/compose-app.js
@@ -162,9 +168,10 @@ jobs:
           node scripts/audit-workflow-pinning.js
       - name: Build final HTML trust audit
         run: |
-          node scripts/trust-inject.js
           node scripts/build-seo-pages.js
           node scripts/build-trust-audit.js
+          node scripts/performance-html.js
+          NUTRETIUM_HTML_REPAIR_MODE=check node scripts/repair-index-html.js
       - name: Install browser engines
         run: npx playwright install --with-deps chromium firefox webkit
       - name: Start and verify static storefront
@@ -179,6 +186,8 @@ jobs:
           done
           cat /tmp/nutretium-server.log
           exit 1
+      - name: Performance probe · throttled Chromium
+        run: node scripts/performance-probe.js
       - name: Browser E2E · Chromium
         run: npx playwright test tests/e2e-storefront.spec.js tests/e2e-quality.spec.js tests/e2e-critical-flows.spec.js tests/e2e-checkout-resilience.spec.js tests/e2e-admin-sensitive.spec.js tests/e2e-admin-staff-sensitive.spec.js tests/e2e-interactive-controls.spec.js --browser=chromium --workers=1
       - name: Browser E2E · Firefox

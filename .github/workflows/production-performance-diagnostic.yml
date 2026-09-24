@@ -1,0 +1,83 @@
+name: Candidate Performance Diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: candidate-performance-diagnostic-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  probe-candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Verify checkout identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_SHA"
+          echo "[candidate-performance] checkout exacto: $actual"
+      - name: Install locked dependencies
+        run: npm ci --omit=optional
+      - name: Build exact Netlify artifact
+        env:
+          COMMIT_REF: ${{ github.event.pull_request.head.sha }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          CONTEXT: deploy-preview
+        run: npm run build
+      - name: Verify artifact identity and completeness
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/index.html
+          test -s dist/app.js
+          test -s dist/styles.css
+          test -s dist/products-data.js
+          test -s dist/build-meta.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const meta=JSON.parse(fs.readFileSync('dist/build-meta.json','utf8'));
+          const expected=String(process.env.EXPECTED_SHA||'');
+          if(meta.commitRef!==expected){
+            throw new Error(`build-meta commitRef ${meta.commitRef||'null'} != ${expected}`);
+          }
+          console.log('[candidate-performance] artefacto exacto', JSON.stringify(meta));
+          NODE
+      - name: Enforce static performance budgets
+        run: node scripts/performance-budget.js
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Start final dist artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory dist >/tmp/nutretium-candidate-performance.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:4173/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/nutretium-candidate-performance.log
+          exit 1
+      - name: Probe exact candidate under mobile throttling
+        env:
+          E2E_BASE_URL: http://127.0.0.1:4173
+        run: node scripts/performance-probe.js

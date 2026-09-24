@@ -20,14 +20,23 @@ const event=(body,ip='127.0.0.55')=>({httpMethod:'POST',headers:{'content-type':
 const parse=r=>JSON.parse(r.body||'{}');
 (async()=>{
  await usuarios.escribe(ownerEmail,base(ownerEmail));
- const first=await staffLogin.handler(event({email:ownerEmail,password}));
- assert.strictEqual(first.statusCode,200,'Owner debe acceder directamente con correo y contraseña');
- assert.strictEqual(parse(first).user.role,'owner');
- assert.strictEqual(parse(first).user.mfa,false,'Owner no debe requerir MFA');
- assert.strictEqual(parse(first).user.mfaRequired,false,'Owner no debe recibir segundo factor');
+ const ownerSetupResponse=await staffLogin.handler(event({email:ownerEmail,password}));
+ const ownerSetup=parse(ownerSetupResponse);
+ assert.strictEqual(ownerSetupResponse.statusCode,401,'Owner sin MFA debe entrar en alta guiada');
+ assert.strictEqual(ownerSetup.mfaRequired,true,'Owner debe exigir MFA');
+ assert.strictEqual(ownerSetup.mfaSetupRequired,true,'Primer acceso owner debe indicar configuración MFA');
+ assert.ok(/^[A-Z2-7]{16,}$/.test(ownerSetup.mfa?.setupSecret||''),'Owner debe recibir un secreto TOTP Base32 válido');
+ const ownerCode=totp.code(ownerSetup.mfa.setupSecret);
+ const ownerOk=await staffLogin.handler(event({email:ownerEmail,password,mfaCode:ownerCode}));
+ assert.strictEqual(ownerOk.statusCode,200,'Owner debe acceder tras verificar MFA');
+ assert.strictEqual(parse(ownerOk).user.role,'owner');
+ assert.strictEqual(parse(ownerOk).user.mfa,true,'Owner debe entrar con MFA verificado');
+ assert.strictEqual(parse(ownerOk).user.mfaRequired,true,'Owner debe mantener segundo factor obligatorio');
+
  const wrongIp='127.0.0.77';for(let i=0;i<5;i++){const bad=await staffLogin.handler(event({email:ownerEmail,password:'incorrecta-'+i},wrongIp));assert.strictEqual(bad.statusCode,401)}
- const validAfterBad=await staffLogin.handler(event({email:ownerEmail,password},wrongIp));assert.strictEqual(validAfterBad.statusCode,200,'Una contraseña owner válida debe recuperar el acceso tras errores previos');
- assert.strictEqual(parse(validAfterBad).user.mfaRequired,false);
+ const freshOwner=await usuarios.lee(ownerEmail);const ownerSecret=totp.secretFor(ownerEmail,freshOwner);const validOwnerCode=totp.code(ownerSecret,Date.now()+30000);
+ const validAfterBad=await staffLogin.handler(event({email:ownerEmail,password,mfaCode:validOwnerCode},wrongIp));assert.strictEqual(validAfterBad.statusCode,200,'Credenciales owner válidas con MFA deben recuperar el acceso tras errores previos');
+ assert.strictEqual(parse(validAfterBad).user.mfaRequired,true);
 
  await usuarios.escribe(adminEmail,base(adminEmail));
  const setupResponse=await staffLogin.handler(event({email:adminEmail,password},'127.0.0.88'));
@@ -60,5 +69,5 @@ const parse=r=>JSON.parse(r.body||'{}');
  assert.ok(!stored.mfaSelfSetupPendingAt,'El estado de alta pendiente debe limpiarse tras verificar el código');
  assert.strictEqual(totp.secretFor(adminEmail,stored),setup.mfa.setupSecret,'El secreto cifrado persistido debe coincidir con el aprovisionado');
 
- console.log('[test-staff-access-recovery] OK · owner correo+contraseña · admin alta MFA guiada · código TOTP verificado · acceso recuperable');
+ console.log('[test-staff-access-recovery] OK · owner/admin alta MFA guiada · código TOTP verificado · acceso recuperable');
 })().catch(err=>{console.error(err);process.exit(1)});

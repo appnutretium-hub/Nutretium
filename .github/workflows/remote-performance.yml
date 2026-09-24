@@ -1,0 +1,52 @@
+name: Netlify Preview Performance Probe
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-performance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --omit=optional
+      - name: Wait for exact Netlify preview
+        shell: bash
+        env:
+          PREVIEW_URL: https://deploy-preview-${{ github.event.pull_request.number }}--nutretium.netlify.app
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 90); do
+            body="$(curl --silent --show-error --fail "$PREVIEW_URL/build-meta.json" 2>/dev/null || true)"
+            if [ -n "$body" ]; then
+              ref="$(printf '%s' "$body" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{process.stdout.write(String(JSON.parse(s).commitRef||''))}catch{}})")"
+              echo "preview commitRef=$ref expected=$EXPECTED_SHA"
+              if [ "$ref" = "$EXPECTED_SHA" ]; then exit 0; fi
+            fi
+            sleep 5
+          done
+          echo 'El Deploy Preview exacto no quedó disponible a tiempo.' >&2
+          exit 1
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Probe exact deployed preview
+        env:
+          E2E_BASE_URL: https://deploy-preview-${{ github.event.pull_request.number }}--nutretium.netlify.app
+        run: node scripts/performance-probe.js

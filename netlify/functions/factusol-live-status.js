@@ -1,4 +1,5 @@
 'use strict';
+const { requireStaff } = require('../lib/staff');
 
 const { FactusolCommerce } = require('../lib/factusol-commerce');
 const { cabecerasCORS } = require('../lib/cors');
@@ -79,6 +80,11 @@ async function probe() {
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
   if (event.httpMethod !== 'GET') return json(405, { error: 'Method Not Allowed' });
+
+  // Consulta el ERP en directo: solo personal, como factusol-status. Antes era
+  // un GET anónimo que cualquiera podía lanzar contra FACTUSOL.
+  const auth = await requireStaff(event, 'platform.read');
+  if (!auth.ok) return json(auth.statusCode, { error: auth.error });
 
   const now = Date.now();
   if (cached && cached.until > now) return json(200, cached.payload);

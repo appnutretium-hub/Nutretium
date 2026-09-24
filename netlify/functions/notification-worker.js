@@ -23,9 +23,16 @@ async function sendChannel(template, job) {
   return { ok: ['accepted', 'queued', 'sent', 'delivered'].includes(String(data.status || 'accepted').toLowerCase()), provider: data.provider || prefix.toLowerCase(), providerMessageId: data.id || data.messageId || null };
 }
 
+// Comparación en tiempo constante: con !== se puede ir adivinando el secreto
+// carácter a carácter midiendo cuánto tarda en fallar.
+function mismoSecreto(recibido, esperado) {
+  const a = Buffer.from(String(recibido || '')), b = Buffer.from(String(esperado));
+  return a.length === b.length && require('crypto').timingSafeEqual(a, b);
+}
+
 exports.handler = async function (event = {}) {
   const cronSecret = process.env.CRON_SECRET || '';
-  if (cronSecret && String(event.headers?.['x-nutretium-cron'] || '') !== cronSecret) return { statusCode: 401, body: JSON.stringify({ ok: false, error: 'unauthorized' }) };
+  if (cronSecret && !mismoSecreto(event.headers?.['x-nutretium-cron'], cronSecret)) return { statusCode: 401, body: JSON.stringify({ ok: false, error: 'unauthorized' }) };
   try {
     const jobs = (await enterprise.list('notification-jobs', { limit: 250 })).filter(job => job.status === 'queued').slice(0, 50);
     const templates = await enterprise.list('notification-templates', { limit: 250 });

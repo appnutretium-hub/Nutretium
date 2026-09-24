@@ -116,7 +116,7 @@ function buildSitemap(brands) {
   products.forEach(p => urls.add(abs(productUrl(p))));
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...urls].map((u,i)=>`  <url><loc>${esc(u)}</loc><changefreq>${i===0?'daily':'weekly'}</changefreq><priority>${i===0?'1.0':'0.7'}</priority></url>`).join('\n')}\n</urlset>\n`;
   fs.writeFileSync(path.join(ROOT,'sitemap.xml'),xml,'utf8');
-  fs.writeFileSync(path.join(ROOT,'robots.txt'),`User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /backoffice\nDisallow: /settings\nDisallow: /control\nDisallow: /checkout\nDisallow: /mi-nutretium\nSitemap: ${ORIGIN}/sitemap.xml\n`,'utf8');
+  fs.writeFileSync(path.join(ROOT,'robots.txt'),`User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /backoffice\nDisallow: /settings\nDisallow: /control\nDisallow: /checkout\nDisallow: /mi-nutretium\nDisallow: /cuenta\nDisallow: /mi-cuenta\nDisallow: /pedido\nDisallow: /ops\nDisallow: /enterprise\nDisallow: /factusol\nDisallow: /ai-corporation\nDisallow: /product-editor\nDisallow: /catalog-management\nDisallow: /financial-dashboard\nDisallow: /customer-center\nDisallow: /staff-mfa-setup\nDisallow: /administracion\nDisallow: /clientes-admin\nDisallow: /finanzas-admin\nDisallow: /catalogo-admin\nSitemap: ${ORIGIN}/sitemap.xml\n`,'utf8');
   return urls.size;
 }
 

@@ -93,4 +93,4 @@ function comoTexto(entrada) {
     .filter(Boolean).join(' · ');
 }
 
-module.exports = { CAMPOS, OBLIGATORIOS, MAX, ETIQUETAS, normaliza, revisa, completa, comoTexto };
+module.exports = { CAMPOS, OBLIGATORIOS, MAX, ETIQUETAS, CP_ESPANA, normaliza, revisa, completa, comoTexto };

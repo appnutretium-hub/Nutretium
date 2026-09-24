@@ -30,9 +30,21 @@ async function consume({scope,event,extra='',limit=10,windowMs=10*60*1000,allowD
  }
  return degradedResult({scope,event,extra,limit,windowMs,allowDegradedFallback});
 }
+// Mira si la clave ya está castigada SIN gastar un intento. Sirve para frenar
+// antes de comprobar la contraseña: si no, acertar durante el castigo entraba
+// igual y el freno no frenaba nada. Si el almacén no responde devuelve
+// degraded y quien llama decide; el login sigue fallando cerrado con consume().
+async function consulta({scope,event,extra='',limit=10,windowMs=10*60*1000}){
+ const store=getBlobStore(`rate-${scope}`);if(!store||typeof store.getWithMetadata!=='function')return{blocked:false,degraded:true};
+ let entry=null;try{entry=await store.getWithMetadata(keyFor(scope,event,extra),{type:'json',consistency:'strong'})}catch{return{blocked:false,degraded:true}}
+ const state=entry?.data,now=Date.now();
+ if(!state||!Number.isFinite(Number(state.startedAt))||now-Number(state.startedAt)>=windowMs)return{blocked:false};
+ if((Number(state.count)||0)<limit)return{blocked:false};
+ return{blocked:true,retryAfter:Math.max(1,Math.ceil((windowMs-(now-Number(state.startedAt)))/1000))};
+}
 async function reset({scope,event,extra=''}){
  const rawKey=keyFor(scope,event,extra);FALLBACK_ROOT.delete(`${scope}:${rawKey}`);
  const store=getBlobStore(`rate-${scope}`);if(!store)return true;
  try{await store.delete(rawKey);return true}catch{return false}
 }
-module.exports={consume,reset,ipOf,keyFor,fallbackConsume,degradedResult};
+module.exports={consume,consulta,reset,ipOf,keyFor,fallbackConsume,degradedResult};

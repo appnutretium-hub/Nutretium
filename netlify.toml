@@ -115,7 +115,9 @@
 [[headers]]
   for = "/sources/productos/*"
   [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    # Sin immutable: el panel sustituye la foto en la MISMA ruta y con un año de
+    # caché inmutable el cliente seguía viendo la vieja. Un día y revalidación.
+    Cache-Control = "public, max-age=86400, stale-while-revalidate=604800"
 
 [[redirects]]
   from = "/sitemap.xml"
@@ -170,10 +172,6 @@
 [[redirects]]
   from = "/checkout"
   to = "/checkout.html"
-  status = 200
-[[redirects]]
-  from = "/recomendador"
-  to = "/smart-shop.html"
   status = 200
 [[redirects]]
   from = "/control"

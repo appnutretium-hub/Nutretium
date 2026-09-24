@@ -28,7 +28,8 @@ se falla cerrado sin credenciales, y una notificación manipulada se rechaza con
    404. Si Redsys no llega, el pago se cobra y el pedido nunca pasa a `PAID`.
 
 **Bloqueante aparte para el pase a real:** el banco exige que la mayoría de
-productos tengan foto. Van **58 de 153** (§ 6): eran 30, y subieron de golpe al
+productos tengan foto. Van **77 de los 80 publicados** (84 de 152 contando los
+no publicados; § 6): eran 30, y subieron de golpe al
 recuperar 18 fotos que estaban subidas pero que el catálogo había dejado de
 apuntar — ver «La ruta de la foto la calcula el servidor».
 
@@ -65,18 +66,66 @@ nada de `cd /d`.
 | `npm run test:redsys` | el TPV por dentro, sin tocar el banco — 24 casos |
 | `npm run test:catalogo` | la hoja de catálogo: lo que NO deja publicar — 43 casos |
 | `npm run test:admin` | el panel online: quién entra y qué se sube — 44 casos |
-| `npm run test:cuentas` | cuentas: rol, ficha, dirección y freno al login — 39 casos |
+| `npm run test:cuentas` | cuentas: rol, ficha, dirección y freno al login — 46 casos |
 | `npm run dev` | servidor estático en `localhost:4173` (sin funciones: los `/.netlify/functions/*` dan 404, es normal) |
 | `npm run build:css` | recompila `styles.css` con Tailwind |
 | `npm run stock` | actualiza el stock desde CSV (ensayo; `-- --aplicar` para escribir) |
 | `npm run fotos` | incorpora fotos nuevas del buzón (ensayo; `-- --aplicar` para escribir) |
 | `npm run catalogo` | precios, altas, bajas y fotos desde CSV (ensayo; `-- --aplicar` para escribir) |
 | `npm run panel` | lo mismo pero con pantalla, en `localhost:4180` |
+| `npm run ia:reparar` | IA local (Ollama) que pasa las pruebas y repara lo que falla durante horas (ensayo; `-- --aplicar` para escribir) |
+| `npm run ia:estado` | cómo va la IA reparadora y qué parches lleva |
+| `npm run ia:probar` | todas las pruebas de una vez; `-- 0007` prueba solo ese parche y sus criterios |
+| `npm run test:ia` | la IA reparadora con un Ollama falso: lo que NO deja cambiar y las 7 etapas — 92 casos |
 
 `stock`, `fotos` y `catalogo` **no escriben nada sin `--aplicar`**: enseñan qué
 harían y te dejan revisarlo. El panel hace lo mismo en pantalla: antes de
 guardar enseña la lista de altas, bajas y cambios y pide confirmación. Mantén
 esa costumbre si añades más herramientas de estas.
+
+## IA reparadora (`npm run ia:reparar`)
+
+`scripts/ia-reparador.js` es solo la línea de comandos; el trabajo está en
+`scripts/ia/` (un módulo por responsabilidad, ninguno pasa de 300 líneas —
+`npm run test:ia` lo comprueba). Pone al Ollama del equipo a pasar las pruebas
+y reparar lo que falla durante horas; con todo en verde revisa archivos y
+apunta posibles errores. Guía para el cliente: `docs/IA-REPARADORA.md`.
+
+**Cada caso que falla es un tiquet que recorre siete etapas**
+(`scripts/ia/flujo.js`, una etapa por archivo en `scripts/ia/etapas/`):
+1 tiquet enriquecido → 2 plan en .md con **mapa de criterios de aceptación** →
+3 implementación → 4 revisión de código → 5 QA → 6 release → 7 address-review.
+Cada etapa deja su documento numerado en `.ia-reparador/tiquets/<suite>-<clave>/`.
+Los criterios CA-1 a CA-6 son fijos y los comprueba una máquina
+(`scripts/ia/criterios.js`); los del plan, la revisión. Bloqueantes de la
+revisión vuelven a la 3; sugerencias van a la 7 como parche aparte con
+`depende`, que no puede deshacerse el principal mientras esté aplicado.
+
+La regla que la sostiene: **una propuesta de la IA solo es una reparación si
+hace pasar una prueba que fallaba sin romper ninguna de las verdes**, verificado
+en una copia aparte (`node_modules/.cache/ia-reparador`). La revisión de código
+solo puede vetar, nunca aprobar lo que QA rechaza. Lo que no respalda una
+prueba (los hallazgos de la revisión de archivos) va al informe y no se aplica.
+Por eso `revisaCambio()` le prohíbe tocar pruebas, `products-data.js`,
+`netlify.toml`, `package.json`, su propio código, quitar comprobaciones de
+seguridad o inventar secretos: si amplías lo que puede tocar, amplía también
+`npm run test:ia`.
+
+**Corrección única**: `scripts/ia/correcciones.js` guarda cada error por su
+huella entre sesiones. Un error corregido que reaparece NO se corrige otra vez
+(queda para una persona); lo verificado en ensayo se reutiliza con `--aplicar`
+sin preguntar a la IA; una propuesta descartada no se vuelve a probar. Un
+error, un tiquet, un parche (`.ia-reparador/parches/NNNN-*.json`), que se
+prueba con `npm run ia:probar -- NNNN` y se deshace con `--revertir NNNN`.
+
+Autónoma: callada por defecto (`--detalle` para ver pasos), espera a Ollama si
+no está en vez de caerse, `--segundo-plano` la desengancha de la consola y
+`--parar` la detiene al acabar el paso en curso (archivo `PARAR`).
+
+Las pruebas corren con un entorno sin secretos (`entornoLimpio`), y Ollama
+tiene que ser local: el código no sale del equipo. Su informe, tiquets, parches
+y copias van en `.ia-reparador/` (en `.gitignore`; `prepare-dist.js` ya excluye
+las carpetas que empiezan por punto).
 
 ## Reglas del catálogo
 
@@ -260,6 +309,13 @@ pasar el CSV. Detalle en `AUDITORIA_CATALOGO.md` § 10.
 
 ## Sin cuenta y sin dirección no se cobra
 
+> **Desfase conocido (24/09/2026):** esta sección describe `redsys.js`, que es
+> el cobro del carrito de `index.html` (`app.js`, `commerce-pro.js`). Pero
+> `checkout.html` cobra por `checkout.js`, que **sí admite invitado** con nombre,
+> correo y dirección completos (sin ellos: 401 `guest-required`). Se ha
+> mantenido así a propósito para no quitar una funcionalidad en uso; unificar
+> los dos caminos de cobro es una decisión pendiente, no un arreglo.
+
 Se acabaron los pedidos de invitado. `redsys.js` comprueba **antes de valorar el
 carrito y antes de firmar nada**: sin sesión responde 401 (`motivo: 'sin-sesion'`)
 y sin dirección de envío completa, 422 (`motivo: 'sin-direccion'`). El `motivo`
@@ -342,7 +398,7 @@ Variables de entorno y qué se rompe si falta cada una: `.env.example` y
 
 ## Fotos de producto
 
-58 de 153 productos tienen foto. La lista de las que faltan, **partida por
+77 de los 80 productos publicados tienen foto (84 de 152 en total). La lista de las que faltan, **partida por
 proveedor**, se genera sola en `sources/productos/FOTOS_PENDIENTES.md` — se
 rehace con `npm run fotos -- --aplicar` aunque el buzón esté vacío.
 
@@ -367,14 +423,23 @@ los 53 que son recetas de la casa y no existen en internet.
 
 ## Nada interno se publica
 
-`publish = "."` sirve la carpeta entera, así que el comando de build de
-`netlify.toml` borra de la copia desplegada el listado del ERP en PDF, el Excel,
-la auditoría, el TODO, los backups, `scripts` (donde vive el panel), y las
-carpetas de trabajo `sources/_stock`, `sources/_nuevas` y `sources/_catalogo`.
-Hay además reglas 404 como red de seguridad, incluida `/sources/_*`.
+Se publica `dist/`, no la raíz: `npm run build` acaba en `scripts/prepare-dist.js`,
+que copia **solo** lo que pasa su lista blanca (extensiones web, nada de `.md`,
+`.csv`, `.pdf`, `.xlsx`, `.toml`; fuera `scripts`, `netlify`, `node_modules` y
+las carpetas que empiezan por punto; de `sources/` solo imágenes). Hay además
+reglas 404 como red de seguridad, incluida `/sources/_*`.
 
-Si añades un documento interno nuevo, mételo en las tres listas: el `rm -rf` del
-build, `.gitignore`, y comprueba que el toml sigue parseando.
+Si añades un documento interno nuevo con una extensión que la lista blanca deja
+pasar (`.js`, `.html`, `.json`…), añádelo a `ROOT_FILE_DENY` o `ROOT_DENY` en
+`prepare-dist.js` y a `.gitignore`.
+
+El build **reescribe fuentes** en la raíz: `robots.txt`, `sitemap.xml`,
+`pim-audit.json` y las carpetas `producto/`, `categoria/`, `marca/` y
+`objetivo/` (las genera `build-seo-pages.js`), además de `app.js`, `index.html`
+y `styles.css`. Por eso `robots.txt` se edita en la plantilla de
+`build-seo-pages.js`, no en el archivo. Las inyecciones de
+`staff-login-inject.js` ya están también en el HTML fuente (son idempotentes),
+para que las pruebas no dependan de haber hecho un build antes.
 
 **`admin.html` y `admin.js` sí se publican, y está bien.** Son el panel de la
 tienda: llevan `noindex` para que no salgan en Google, pero no protegen nada por
@@ -386,6 +451,28 @@ clave ni ninguna lista que no pueda leer un desconocido.
 veces ya**, la última con `sed -i` (se come los backslashes). Usa Node y
 construye el backslash con `String.fromCharCode(92)`, y verifica siempre después
 con `grep -c -F '\n' netlify.toml` → debe dar `0`.
+
+## Piezas añadidas el 24/09/2026 (auditoría)
+
+* **`scripts/entorno-pruebas.js`**: las pruebas que cargan funciones lo requieren
+  primero y vacían `process.env` hasta la lista de `entornoLimpio`. Sin eso,
+  con las variables del sitio puestas (`COMMERCE_LIVE`, `REDSYS_ENV`…) fallaban
+  pruebas que estaban bien.
+* **Freno al login de verdad** (`consulta()` en `netlify/lib/rate-limit.js`): se
+  mira el castigo **antes** de comprobar la contraseña. Antes, acertar durante
+  los 15 minutos entraba igual. Cuenta también para las cuentas de dueño. La
+  clave sigue siendo IP + correo a propósito: solo por correo, cualquiera podría
+  bloquear la cuenta de otro.
+* **`netlify/lib/error-publico.js`**: el cliente solo ve el mensaje de un error
+  si lleva `statusCode` o un código conocido; el resto va a `console.error` y
+  se responde un texto genérico. Úsalo en funciones nuevas en vez de devolver
+  `err.message`.
+* **`sw.js`** (caché `nutretium-shell-v3`): JS, CSS y el shell van **red
+  primero** (la caché es solo para sin conexión); imágenes y fuentes, caché y
+  refresco en segundo plano. Con caché primero, un despliegue no llegaba a quien
+  ya había entrado. Si cambias la estrategia, sube la versión.
+* **Fotos**: `/sources/productos/*` ya no es `immutable` (un día +
+  `stale-while-revalidate`), porque el panel sustituye la foto en la misma ruta.
 
 ## CSS
 

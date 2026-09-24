@@ -8,6 +8,23 @@ const BASE = process.env.E2E_BASE_URL || 'http://127.0.0.1:4173';
   const browser=await chromium.launch({headless:true});
   const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1});
   const page=await context.newPage();
+  const cspReports=[];
+  page.on('request',request=>{
+    try{
+      if(!request.url().includes('/.netlify/functions/csp-report'))return;
+      const raw=request.postData()||'';
+      const parsed=raw?JSON.parse(raw):null;
+      const report=parsed?.['csp-report']||parsed||{};
+      cspReports.push({
+        directive:report['violated-directive']||report.violatedDirective||'',
+        effectiveDirective:report['effective-directive']||report.effectiveDirective||'',
+        blockedUri:report['blocked-uri']||report.blockedURL||report.blockedUri||'',
+        sourceFile:report['source-file']||report.sourceFile||'',
+        lineNumber:report['line-number']||report.lineNumber||null,
+        disposition:report.disposition||''
+      });
+    }catch(_){ }
+  });
   const cdp=await context.newCDPSession(page);
   await cdp.send('Network.enable');
   await cdp.send('Network.emulateNetworkConditions',{
@@ -61,7 +78,9 @@ const BASE = process.env.E2E_BASE_URL || 'http://127.0.0.1:4173';
       heavy
     };
   });
+  const uniqueReports=[...new Map(cspReports.map(report=>[JSON.stringify(report),report])).values()];
   console.log('[performance-probe] HTTP',response?.status(),'wallMs',Date.now()-started);
   console.log('[performance-probe]',JSON.stringify(data,null,2));
+  console.log('[performance-probe:csp]',JSON.stringify({count:cspReports.length,unique:uniqueReports},null,2));
   await browser.close();
 })().catch(err=>{console.error('[performance-probe] FAIL',err);process.exit(1)});

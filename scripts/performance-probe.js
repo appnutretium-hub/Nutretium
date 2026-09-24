@@ -44,7 +44,20 @@ const BASE = process.env.E2E_BASE_URL || 'http://127.0.0.1:4173';
       const classes=node.classList&&node.classList.length?'.'+[...node.classList].slice(0,3).join('.'):'';
       return `${String(node.tagName||'').toLowerCase()}${id}${classes}`.slice(0,180);
     };
-    window.__ntPerf={lcp:0,cls:0,longTasks:[],layoutShifts:[]};
+    const fontState=()=>({
+      status:document.fonts?.status||'unsupported',
+      inter400:Boolean(document.fonts?.check?.('400 16px Inter')),
+      inter700:Boolean(document.fonts?.check?.('700 16px Inter')),
+      inter900:Boolean(document.fonts?.check?.('900 16px Inter'))
+    });
+    window.__ntPerf={lcp:0,cls:0,longTasks:[],layoutShifts:[],fontEvents:[]};
+    try{
+      window.__ntPerf.fontEvents.push({type:'init',at:Math.round(performance.now()),...fontState()});
+      document.fonts?.addEventListener?.('loading',()=>window.__ntPerf.fontEvents.push({type:'loading',at:Math.round(performance.now()),...fontState()}));
+      document.fonts?.addEventListener?.('loadingdone',()=>window.__ntPerf.fontEvents.push({type:'loadingdone',at:Math.round(performance.now()),...fontState()}));
+      document.fonts?.addEventListener?.('loadingerror',()=>window.__ntPerf.fontEvents.push({type:'loadingerror',at:Math.round(performance.now()),...fontState()}));
+      document.fonts?.ready?.then(()=>window.__ntPerf.fontEvents.push({type:'ready',at:Math.round(performance.now()),...fontState()}));
+    }catch(_){ }
     try{new PerformanceObserver(list=>{for(const e of list.getEntries())window.__ntPerf.lcp=Math.max(window.__ntPerf.lcp,e.startTime||0)}).observe({type:'largest-contentful-paint',buffered:true})}catch(_){ }
     try{new PerformanceObserver(list=>{
       for(const e of list.getEntries()){
@@ -54,6 +67,7 @@ const BASE = process.env.E2E_BASE_URL || 'http://127.0.0.1:4173';
           window.__ntPerf.layoutShifts.push({
             value:Number((e.value||0).toFixed(4)),
             startTime:Math.round(e.startTime||0),
+            font:fontState(),
             sources:(e.sources||[]).slice(0,8).map(source=>({
               node:label(source.node),
               previousRect:rect(source.previousRect),
@@ -74,17 +88,20 @@ const BASE = process.env.E2E_BASE_URL || 'http://127.0.0.1:4173';
     const paints=Object.fromEntries(performance.getEntriesByType('paint').map(x=>[x.name,x.startTime]));
     const resources=performance.getEntriesByType('resource').map(r=>({
       name:new URL(r.name).pathname,
+      host:new URL(r.name).host,
       initiatorType:r.initiatorType,
       duration:Math.round(r.duration),
       transferSize:r.transferSize||0,
       decodedBodySize:r.decodedBodySize||0
     }));
-    const heavy=[...resources].sort((a,b)=>(b.duration-a.duration)).slice(0,20);
+    const heavy=[...resources].sort((a,b)=>(b.duration-a.duration)).slice(0,25);
+    const fontResources=resources.filter(r=>/fonts\.(?:googleapis|gstatic)\.com/i.test(r.host)||/\.(?:woff2?|ttf|otf)(?:$|\?)/i.test(r.name));
     const bytes=resources.reduce((n,r)=>n+(r.transferSize||r.decodedBodySize||0),0);
     const scripts=resources.filter(r=>r.initiatorType==='script');
     const images=resources.filter(r=>r.initiatorType==='img');
     const longTasks=window.__ntPerf?.longTasks||[];
     const layoutShifts=window.__ntPerf?.layoutShifts||[];
+    const fontEvents=window.__ntPerf?.fontEvents||[];
     return {
       domContentLoaded:Math.round(nav?.domContentLoadedEventEnd||0),
       load:Math.round(nav?.loadEventEnd||0),
@@ -99,6 +116,8 @@ const BASE = process.env.E2E_BASE_URL || 'http://127.0.0.1:4173';
       transferredKB:Math.round(bytes/1024),
       longTaskCount:longTasks.length,
       totalBlockingApproxMs:Math.round(longTasks.reduce((n,t)=>n+Math.max(0,t.duration-50),0)),
+      fontEvents,
+      fontResources,
       layoutShifts,
       heavy
     };

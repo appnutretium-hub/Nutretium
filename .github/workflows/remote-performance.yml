@@ -30,15 +30,16 @@ jobs:
         shell: bash
         env:
           PREVIEW_URL: https://deploy-preview-${{ github.event.pull_request.number }}--nutretium.netlify.app
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
           set -euo pipefail
           for i in $(seq 1 90); do
             body="$(curl --silent --show-error --fail "$PREVIEW_URL/build-meta.json" 2>/dev/null || true)"
             if [ -n "$body" ]; then
               ref="$(printf '%s' "$body" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{process.stdout.write(String(JSON.parse(s).commitRef||''))}catch{}})")"
-              echo "preview commitRef=$ref expected=$EXPECTED_SHA"
-              if [ "$ref" = "$EXPECTED_SHA" ]; then exit 0; fi
+              echo "preview commitRef=$ref head=$EXPECTED_HEAD_SHA merge=$EXPECTED_MERGE_SHA"
+              if [ "$ref" = "$EXPECTED_HEAD_SHA" ] || [ "$ref" = "$EXPECTED_MERGE_SHA" ]; then exit 0; fi
             fi
             sleep 5
           done

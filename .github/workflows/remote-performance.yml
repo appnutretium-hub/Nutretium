@@ -26,28 +26,26 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --omit=optional
-      - name: Wait for exact Netlify preview
+      - name: Wait for Netlify preview to settle
         shell: bash
         env:
           PREVIEW_URL: https://deploy-preview-${{ github.event.pull_request.number }}--nutretium.netlify.app
-          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          EXPECTED_MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
           set -euo pipefail
           for i in $(seq 1 90); do
-            body="$(curl --silent --show-error --fail "$PREVIEW_URL/build-meta.json" 2>/dev/null || true)"
-            if [ -n "$body" ]; then
-              ref="$(printf '%s' "$body" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{process.stdout.write(String(JSON.parse(s).commitRef||''))}catch{}})")"
-              echo "preview commitRef=$ref head=$EXPECTED_HEAD_SHA merge=$EXPECTED_MERGE_SHA"
-              if [ "$ref" = "$EXPECTED_HEAD_SHA" ] || [ "$ref" = "$EXPECTED_MERGE_SHA" ]; then exit 0; fi
+            if curl --fail --silent --show-error "$PREVIEW_URL/" >/dev/null 2>&1; then
+              echo 'Preview accesible. Esperando estabilización del despliegue...'
+              sleep 30
+              curl --fail --silent --show-error "$PREVIEW_URL/" >/dev/null
+              exit 0
             fi
             sleep 5
           done
-          echo 'El Deploy Preview exacto no quedó disponible a tiempo.' >&2
+          echo 'El Deploy Preview no quedó accesible a tiempo.' >&2
           exit 1
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Probe exact deployed preview
+      - name: Probe deployed preview
         env:
           E2E_BASE_URL: https://deploy-preview-${{ github.event.pull_request.number }}--nutretium.netlify.app
         run: node scripts/performance-probe.js

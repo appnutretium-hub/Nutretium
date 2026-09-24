@@ -1,0 +1,53 @@
+name: Nutretium Netlify Production Revision Diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/netlify-production-diagnostic.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Read live production build metadata
+        shell: bash
+        env:
+          EXPECTED_MAIN_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location \
+            --retry 6 --retry-delay 5 --retry-all-errors \
+            --connect-timeout 10 --max-time 30 \
+            -D /tmp/build-meta-headers \
+            -o /tmp/build-meta \
+            "https://nutretium.com/build-meta.json?diagnostic=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          EXPECTED_MAIN_SHA="$EXPECTED_MAIN_SHA" node - <<'NODE'
+          const fs = require('fs');
+          const expected = String(process.env.EXPECTED_MAIN_SHA || '').trim();
+          const meta = JSON.parse(fs.readFileSync('/tmp/build-meta', 'utf8'));
+          const safe = {
+            expectedMainSha: expected || null,
+            liveCommitRef: meta.commitRef ?? null,
+            liveBranch: meta.branch ?? null,
+            liveContext: meta.context ?? null,
+            liveGeneratedAt: meta.generatedAt ?? null,
+            exactMatch: Boolean(expected && meta.commitRef === expected)
+          };
+          console.log('[netlify-production-diagnostic]');
+          console.log(JSON.stringify(safe, null, 2));
+          if (!/^[0-9a-f]{40}$/i.test(String(meta.commitRef || ''))) {
+            throw new Error('Producción no expone un commitRef válido de 40 caracteres.');
+          }
+          NODE
+
+      - name: Report Netlify response identity headers
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Ei '^(age|cache-control|date|etag|last-modified|server|x-nf-request-id):' /tmp/build-meta-headers || true

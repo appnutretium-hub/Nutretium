@@ -29,7 +29,10 @@ jobs:
           npm run build:css
           node scripts/staff-login-inject.js
           node scripts/compose-app.js
+          node scripts/performance-html.js
+          NUTRETIUM_HTML_REPAIR_MODE=write node scripts/repair-index-html.js
           node --check app.js
+          node --check progressive-catalog.js
       - name: Core and enterprise tests
         run: |
           npm test
@@ -67,10 +70,12 @@ jobs:
           node --check wishlist-sync.js
           node --check staff-session-bridge.js
           node --check staff-login-ui.js
+          node --check progressive-catalog.js
+          node --check scripts/performance-html.js
+          node --check scripts/performance-probe.js
           node --check scripts/test-staff-access-recovery.js
           node --check scripts/build-seo-pages.js
           node --check scripts/compose-app.js
-          node --check scripts/performance-probe.js
           node --check scripts/test-external-readiness.js
           node --check scripts/test-zero-trust-security.js
           node --check scripts/test-defense-in-depth.js
@@ -166,6 +171,8 @@ jobs:
           node scripts/trust-inject.js
           node scripts/build-seo-pages.js
           node scripts/build-trust-audit.js
+          node scripts/performance-html.js
+          NUTRETIUM_HTML_REPAIR_MODE=check node scripts/repair-index-html.js
       - name: Install browser engines
         run: npx playwright install --with-deps chromium firefox webkit
       - name: Start and verify static storefront

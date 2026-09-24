@@ -20,6 +20,32 @@ if (!/<meta\s+name=["']robots["']/i.test(html)) {
 if (!/<meta\s+property=["']og:locale["']/i.test(html)) {
   html = html.replace(/(<meta\s+property=["']og:type["'][^>]*>)/i,'  <meta property="og:locale" content="es_ES" />\n$1');
 }
+
+// Rendimiento: la portada no necesita bloquear el primer render esperando una
+// fuente de terceros. La familia ya tiene system-ui como fallback en Tailwind.
+// Eliminamos únicamente los recursos de Google Fonts conocidos de esta página;
+// no tocamos otros <link> externos que pudieran añadirse en el futuro.
+html = html
+  .replace(/\s*<link\s+rel=["']preconnect["']\s+href=["']https:\/\/fonts\.googleapis\.com["']\s*\/?>/gi, '')
+  .replace(/\s*<link\s+href=["']https:\/\/fonts\.googleapis\.com\/css2\?family=Inter:[^"']+["']\s+rel=["']stylesheet["']\s*\/?>/gi, '');
+
+// Los scripts clásicos estaban al final del body pero seguían creando una
+// cascada bloqueante de descarga/ejecución. `defer` conserva el orden entre
+// scripts, ejecuta antes de DOMContentLoaded y permite descargar en paralelo.
+html = html.replace(/<script\b(?![^>]*\b(?:defer|async)\b)([^>]*\bsrc=["'][^"']+["'][^>]*)><\/script>/gi, '<script defer$1></script>');
+
+// Evitar trabajo de layout/paint de tarjetas y paneles que todavía no son
+// visibles. content-visibility se ignora de forma segura en navegadores que no
+// lo soporten; visibility mantiene las transiciones de los modales existentes.
+if (!/id=["']nutretium-perf-css["']/i.test(html)) {
+  html = html.replace(/<\/head>/i, `  <style id="nutretium-perf-css">
+    .modal-backdrop:not(.open), .chat-pop:not(.open) { visibility: hidden; }
+    .modal-backdrop.open, .chat-pop.open { visibility: visible; }
+    .product-card { content-visibility: auto; contain-intrinsic-size: 430px; }
+    #about, #contact, #location, footer { content-visibility: auto; contain-intrinsic-size: 800px; }
+  </style>\n</head>`);
+}
+
 if (!/<header\b/i.test(html)) {
   const promoMarker = '  <!-- ══════════════════════════════════════════\n       TOP PROMO BANNER (CINTA DE ANUNCIOS)';
   const start = html.indexOf(promoMarker);

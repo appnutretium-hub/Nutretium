@@ -131,6 +131,6 @@ exports.handler = async event => {
   await clearAttempts(event,email);
   const binding=defense.newSessionBinding(event);
   const token = signJWT({sub: user.id,email,role,kind: 'staff-login',mfa: mfaVerified,sv: Number(user.sessionVersion || 0),fp:binding.fp,jti:binding.jti,exp: Math.floor(Date.now() / 1000) + security.STAFF_LOGIN_TTL_SECONDS});
-  return response(200, {user: {id: user.id,name: user.name,surname,email:user.email,phone:user.phone,role,token,mfa:mfaVerified,mfaRequired:requireMfa,expiresIn:security.STAFF_LOGIN_TTL_SECONDS}});
+  return response(200, {user: {id: user.id,name: user.name,surname: user.surname,email: user.email,phone: user.phone,role,token,mfa: mfaVerified,mfaRequired:requireMfa,expiresIn:security.STAFF_LOGIN_TTL_SECONDS}});
 };
 exports._test = { verifyPassword, upgradeHashIfNeeded, checkThrottle, clearAttempts, throttleResponse, mfaRequiredFor, mfaSetupBody, beginMfaSelfSetup, completeMfaSelfSetup };

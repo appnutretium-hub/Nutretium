@@ -34,7 +34,7 @@ const parse=r=>JSON.parse(r.body||'{}');
  assert.strictEqual(parse(ownerOk).user.mfaRequired,true,'Owner debe mantener segundo factor obligatorio');
 
  const wrongIp='127.0.0.77';for(let i=0;i<5;i++){const bad=await staffLogin.handler(event({email:ownerEmail,password:'incorrecta-'+i},wrongIp));assert.strictEqual(bad.statusCode,401)}
- const freshOwner=await usuarios.lee(ownerEmail);const validOwnerCode=totp.code(totp.secretFor(ownerEmail,freshOwner));
+ const freshOwner=await usuarios.lee(ownerEmail);const ownerSecret=totp.secretFor(ownerEmail,freshOwner);const validOwnerCode=totp.code(ownerSecret,Date.now()+30000);
  const validAfterBad=await staffLogin.handler(event({email:ownerEmail,password,mfaCode:validOwnerCode},wrongIp));assert.strictEqual(validAfterBad.statusCode,200,'Credenciales owner válidas con MFA deben recuperar el acceso tras errores previos');
  assert.strictEqual(parse(validAfterBad).user.mfaRequired,true);
 

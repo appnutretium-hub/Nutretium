@@ -1,5 +1,5 @@
 /*
-  Content-Security-Policy-Report-Only: default-src 'self'; object-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' https:; connect-src 'self' https:; frame-src https://www.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://sis.redsys.es https://sis-t.redsys.es https://sis-t.redsys.es:25443; report-uri /.netlify/functions/csp-report
+  Content-Security-Policy-Report-Only: default-src 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' https:; connect-src 'self' https:; frame-src https://www.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://sis.redsys.es https://sis-t.redsys.es https://sis-t.redsys.es:25443; report-uri /.netlify/functions/csp-report
 /admin-center*
   X-Robots-Tag: noindex, nofollow
   Cache-Control: no-store

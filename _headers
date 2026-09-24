@@ -36,3 +36,9 @@
 /cuenta.html
   X-Robots-Tag: noindex, nofollow
   Cache-Control: no-store, max-age=0
+# La plantilla vacía de ficha no debe indexarse: las fichas reales son /producto/<slug>-<id>,
+# que se generan a partir de ella y heredan sus meta, por eso el noindex va en cabecera y no en el HTML.
+/producto.html
+  X-Robots-Tag: noindex, follow
+/producto
+  X-Robots-Tag: noindex, follow

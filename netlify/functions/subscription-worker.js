@@ -67,10 +67,17 @@ async function renew(subscription) {
   }
 }
 
+// Comparación en tiempo constante: con !== se puede ir adivinando el secreto
+// carácter a carácter midiendo cuánto tarda en fallar.
+function mismoSecreto(recibido, esperado) {
+  const a = Buffer.from(String(recibido || '')), b = Buffer.from(String(esperado));
+  return a.length === b.length && require('crypto').timingSafeEqual(a, b);
+}
+
 exports.handler = async function (event = {}) {
   if (String(process.env.SUBSCRIPTION_WORKER_ENABLED || '').toLowerCase() !== 'true') return { statusCode: 503, body: JSON.stringify({ ok: false, error: 'subscription_worker_disabled' }) };
   const cronSecret = process.env.CRON_SECRET || '';
-  if (cronSecret && String(event.headers?.['x-nutretium-cron'] || '') !== cronSecret) return { statusCode: 401, body: JSON.stringify({ ok: false, error: 'unauthorized' }) };
+  if (cronSecret && !mismoSecreto(event.headers?.['x-nutretium-cron'], cronSecret)) return { statusCode: 401, body: JSON.stringify({ ok: false, error: 'unauthorized' }) };
   try {
     const rows = (await store.list('subscriptions', { limit: 1000 })).filter(item => due(item)).slice(0, 50);
     const results = [];

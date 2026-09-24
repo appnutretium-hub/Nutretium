@@ -1,4 +1,5 @@
 'use strict';
+require('./entorno-pruebas');
 const crypto=require('crypto');
 process.env.NUTRETIUM_TEST_MEMORY_BLOBS='true';
 process.env.JWT_SECRET=crypto.randomBytes(48).toString('hex');

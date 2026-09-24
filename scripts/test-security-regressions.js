@@ -1,4 +1,5 @@
 'use strict';
+require('./entorno-pruebas');
 const assert=require('assert');
 const crypto=require('crypto');
 const fs=require('fs');

@@ -7,13 +7,14 @@ const staff=require('../lib/staff');
 const {hashPassword,verifyPassword}=require('../lib/passwords');
 const usuarios=require('../lib/usuarios');
 const direccion=require('../lib/direccion');
-const {consume,reset}=require('../lib/rate-limit');
+const {consume,consulta,reset}=require('../lib/rate-limit');
 const {connectBlobs}=require('../lib/netlify-blobs-runtime');
 const CORS=cabecerasCORS('POST, GET, OPTIONS'),readUser=usuarios.lee;
 const MAX_NOMBRE=60,MAX_TELEFONO=20,TELEFONO_VALIDO=/^[0-9 +().-]*$/,MAX_INTENTOS=5,VENTANA_MS=15*60*1000;
 function revisaFicha({name,surname,phone}){if(!name)return'El nombre es obligatorio.';if(name.length>MAX_NOMBRE)return'El nombre no puede pasar de '+MAX_NOMBRE+' caracteres.';if(surname.length>MAX_NOMBRE)return'Los apellidos no pueden pasar de '+MAX_NOMBRE+' caracteres.';if(phone.length>MAX_TELEFONO)return'El teléfono no puede pasar de '+MAX_TELEFONO+' caracteres.';if(phone&&!TELEFONO_VALIDO.test(phone))return'El teléfono solo puede llevar números, espacios y los signos + ( ) . -';if([name,surname,phone].some(c=>/[<>]/.test(c)))return'Ni el nombre ni los apellidos ni el teléfono pueden llevar «<» ni «>».';return null}
 function fichaPublica(user,extra){return Object.assign({id:user.id,name:user.name,surname:user.surname,email:user.email,phone:user.phone,direccion:direccion.normaliza(user.direccion),direccionCompleta:direccion.completa(user.direccion),role:staff.roleFor(user.email)},extra||{})}
 const response=(statusCode,payload,headers=CORS)=>({statusCode,headers,body:JSON.stringify(payload)});
+function demasiadosIntentos(retryAfter){const seconds=Math.max(1,Number(retryAfter)||60);return response(429,{error:`Demasiados intentos incorrectos. Prueba otra vez dentro de ${Math.max(1,Math.ceil(seconds/60))} minutos.`},{...CORS,'Retry-After':String(seconds)})}
 function customerToken(user,email){return signJWT({sub:user.id,email,kind:'customer',sv:Number(user.sessionVersion||0),exp:Math.floor(Date.now()/1000)+session.CUSTOMER_SESSION_TTL_SECONDS})}
 function authenticatedResponse(statusCode,user,email){const token=customerToken(user,email);return response(statusCode,{user:fichaPublica(user,{token}),sessionTransport:'cookie',legacyToken:true},{...CORS,'Set-Cookie':session.customerSessionCookie(token),'Cache-Control':'no-store'})}
 function profileResponse(user,verified){const headers={...CORS,'Cache-Control':'no-store'};if(verified.source!=='cookie')headers['Set-Cookie']=session.customerSessionCookie(customerToken(user,verified.email));return response(200,{user:fichaPublica(user),sessionTransport:verified.source==='cookie'?'cookie':'cookie-upgraded'},headers)}
@@ -23,11 +24,14 @@ exports.handler=async function(event){
  let body;try{body=JSON.parse(event.body||'{}')}catch{return response(400,{error:'Invalid JSON'})}
  if(body.action==='register'){const{name,surname='',email,password,phone=''}=body;if(!name||!email||!password)return response(400,{error:'Nombre, email y contraseña son obligatorios.'});if(password.length<8)return response(400,{error:'La contraseña debe tener al menos 8 caracteres.'});const ficha={name:name.trim(),surname:surname.trim(),phone:phone.trim()},problemaFicha=revisaFicha(ficha);if(problemaFicha)return response(400,{error:problemaFicha});const dir=direccion.normaliza(body.direccion),problemaDir=direccion.revisa(dir);if(problemaDir)return response(400,{error:problemaDir});const emailLower=email.toLowerCase().trim(),id=crypto.randomUUID(),user={id,name:ficha.name,surname:ficha.surname,email:emailLower,phone:ficha.phone,direccion:dir,passwordHash:hashPassword(password),sessionVersion:0,createdAt:new Date().toISOString()};let created;try{created=await usuarios.crea(emailLower,user)}catch{return response(503,{error:'No se ha podido crear la cuenta en este momento.'})}if(!created)return response(409,{error:'Ya existe una cuenta con ese email.'});return authenticatedResponse(201,user,emailLower)}
  if(body.action==='login'){
-  const{email,password}=body;if(!email||!password)return response(400,{error:'Email y contraseña son obligatorios.'});const emailLower=email.toLowerCase().trim(),isOwner=staff.roleFor(emailLower)==='owner';
+  const{email,password}=body;if(!email||!password)return response(400,{error:'Email y contraseña son obligatorios.'});const emailLower=email.toLowerCase().trim(),limite={scope:'login',event,extra:emailLower,limit:MAX_INTENTOS,windowMs:VENTANA_MS};
+  // El castigo se mira ANTES de comprobar la contraseña: con 5 fallos se espera
+  // aunque la siguiente sea la buena. Vale también para el propietario: la clave
+  // del contador incluye la IP, así que castigar no deja fuera al dueño real.
+  const castigo=await consulta(limite);if(castigo.blocked)return demasiadosIntentos(castigo.retryAfter);
   const user=await readUser(emailLower),verification=user?verifyPassword(password,user.passwordHash):{ok:false,needsRehash:false};
   if(user&&verification.ok){await upgradeHashIfNeeded(emailLower,password,user,verification);await Promise.all([reset({scope:'login',event,extra:emailLower}),reset({scope:'staff-login',event,extra:emailLower}),reset({scope:'staff-login-password-v2',event,extra:emailLower})].map(p=>Promise.resolve(p).catch(()=>false)));return authenticatedResponse(200,user,emailLower)}
-  if(isOwner)return response(401,{error:'Email o contraseña incorrectos.'});
-  const gate=await consume({scope:'login',event,extra:emailLower,limit:MAX_INTENTOS,windowMs:VENTANA_MS});if(!gate.allowed){const seconds=Math.max(1,Number(gate.retryAfter)||60);return response(429,{error:`Demasiados intentos incorrectos. Prueba otra vez dentro de ${Math.max(1,Math.ceil(seconds/60))} minutos.`},{...CORS,'Retry-After':String(seconds)})}return response(401,{error:'Email o contraseña incorrectos.'});
+  const gate=await consume(limite);if(!gate.allowed)return demasiadosIntentos(gate.retryAfter);return response(401,{error:'Email o contraseña incorrectos.'});
  }
  if(body.action==='logout')return response(200,{ok:true},{...CORS,'Set-Cookie':session.clearCustomerSessionCookie(),'Cache-Control':'no-store'});
  if(body.action==='profile'){let verified;try{verified=await session.verifyCustomerEventSession(event,{legacyToken:body.token,requireUser:false})}catch{return response(401,{error:'Sesión inválida, revocada o expirada.'})}if(!verified.user)return response(404,{error:'Usuario no encontrado.'});return profileResponse(verified.user,verified)}

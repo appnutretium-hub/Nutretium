@@ -6,6 +6,11 @@ function memoryStore(name){const root=globalThis.__NUTRETIUM_TEST_BLOBS__||(glob
 function netlifyStore(name){try{const{getStore}=require('@netlify/blobs'),siteID=process.env.SITE_ID,token=process.env.NETLIFY_API_TOKEN;if(siteID&&token)return getStore({name,siteID,token});return getStore(name)}catch{return null}}
 function selectedProvider(env=process.env){return String(env.NUTRETIUM_STORAGE_PROVIDER||'netlify-blobs').trim().toLowerCase()||'netlify-blobs'}
 function status(env=process.env){const provider=selectedProvider(env),supported=provider==='netlify-blobs';return{contractVersion:CONTRACT_VERSION,provider,supported,primary:supported?provider:null,testMemory:env.NUTRETIUM_TEST_MEMORY_BLOBS==='true',migrationReady:supported,sqlAdapterReady:false}}
-function getBlobStore(name){if(process.env.NUTRETIUM_TEST_MEMORY_BLOBS==='true')return memoryStore(name);if(selectedProvider()!=='netlify-blobs')return null;const store=netlifyStore(name);return validateStore(store).ok?store:null}
+// El almacén en memoria es solo para pruebas. Dentro de una función desplegada
+// (AWS Lambda siempre define AWS_LAMBDA_FUNCTION_NAME) se ignora aunque alguien
+// ponga la variable en el sitio: si no, los pedidos vivirían en memoria y se
+// perderían al reciclarse la función.
+function memoriaDePruebas(env=process.env){return env.NUTRETIUM_TEST_MEMORY_BLOBS==='true'&&!env.AWS_LAMBDA_FUNCTION_NAME}
+function getBlobStore(name){if(memoriaDePruebas())return memoryStore(name);if(selectedProvider()!=='netlify-blobs')return null;const store=netlifyStore(name);return validateStore(store).ok?store:null}
 async function blobStoreReady(name='system-health-probe'){const store=getBlobStore(name);if(!store||typeof store.list!=='function')return false;try{const page=await store.list({paginate:false});return Boolean(page&&Array.isArray(page.blobs))}catch{return false}}
-module.exports={CONTRACT_VERSION,REQUIRED_METHODS,validateStore,memoryStore,getBlobStore,blobStoreReady,selectedProvider,status};
+module.exports={memoriaDePruebas,CONTRACT_VERSION,REQUIRED_METHODS,validateStore,memoryStore,getBlobStore,blobStoreReady,selectedProvider,status};

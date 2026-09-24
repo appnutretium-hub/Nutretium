@@ -6,6 +6,7 @@
 process.env.JWT_SECRET = 'secreto-de-pruebas-con-mas-de-32-caracteres-de-sobra';
 process.env.URL = 'https://nutretium.com';
 process.env.ADMIN_EMAILS = 'jefa@nutretium.com';
+process.env.OWNER_EMAILS = 'duena@nutretium.com';
 process.env.NUTRETIUM_TEST_MEMORY_BLOBS = 'true';
 
 const { signJWT } = require('../netlify/lib/jwt');
@@ -86,9 +87,16 @@ const DIRECCION = { calle:'Calle la Albericia 1', piso:'3º B', cp:'39012', loca
     comprueba('los cinco primeros intentos responden 401',ultima.estado===401,String(ultima.estado));
     const sexto=await llama({action:'login',email:victima,password:'me-la-invento'},ip);comprueba('el sexto se frena con 429',sexto.estado===429,String(sexto.estado));comprueba('y dice cuánto hay que esperar',/minutos/.test(sexto.datos.error||''),sexto.datos.error);
     comprueba('frena también un correo que no existe: no revela cuáles están registrados',sexto.estado===429);
-    const ipReal='127.0.0.40';for(let i=0;i<5;i++)await llama({action:'login',email:CLIENTE,password:'mal'},ipReal);
+    const ipReal='127.0.0.40';for(let i=0;i<4;i++)await llama({action:'login',email:CLIENTE,password:'mal'},ipReal);
     const conLaBuena=await llama({action:'login',email:CLIENTE,password:CLAVE},ipReal);comprueba('una contraseña correcta entra aunque haya intentos fallidos previos',conLaBuena.estado===200,String(conLaBuena.estado));
     const malaTrasReset=await llama({action:'login',email:CLIENTE,password:'mal'},ipReal);comprueba('el acceso correcto limpia el castigo anterior',malaTrasReset.estado===401,String(malaTrasReset.estado));
+    const ipCastigo='127.0.0.60';for(let i=0;i<5;i++)await llama({action:'login',email:CLIENTE,password:'mal'},ipCastigo);
+    const buenaCastigada=await llama({action:'login',email:CLIENTE,password:CLAVE},ipCastigo);comprueba('con cinco fallos, ni la contraseña correcta entra hasta que pase la espera',buenaCastigada.estado===429,String(buenaCastigada.estado));
+    const otraIp=await llama({action:'login',email:CLIENTE,password:CLAVE},'127.0.0.61');comprueba('el castigo de una IP no deja fuera al cliente desde la suya',otraIp.estado===200,String(otraIp.estado));
+    const duena='duena@nutretium.com';await llama({action:'register',name:'Dueña',email:duena,password:CLAVE,direccion:DIRECCION});
+    const ipAtaque='127.0.0.70';for(let i=0;i<5;i++)await llama({action:'login',email:duena,password:'mal'},ipAtaque);
+    const ataqueDuena=await llama({action:'login',email:duena,password:'mal'},ipAtaque);comprueba('la cuenta del propietario también tiene freno',ataqueDuena.estado===429,String(ataqueDuena.estado));
+    const duenaReal=await llama({action:'login',email:duena,password:CLAVE},'127.0.0.71');comprueba('y el propietario entra desde su IP aunque le ataquen desde otra',duenaReal.estado===200,String(duenaReal.estado));
     const ipReset='127.0.0.50';const buena=await llama({action:'login',email:CLIENTE,password:CLAVE},ipReset);comprueba('un login correcto funciona',buena.estado===200,String(buena.estado));
     for(let i=0;i<5;i++)ultima=await llama({action:'login',email:CLIENTE,password:'mal'},ipReset);comprueba('un login correcto anterior resetea su contador',ultima.estado===401,String(ultima.estado));
   }

@@ -1,6 +1,7 @@
 'use strict';
 
 const { connectLambda } = require('@netlify/blobs');
+const { memoriaDePruebas } = require('./storage');
 
 /**
  * Netlify Blobs no inyecta automáticamente el contexto en Functions v1
@@ -11,7 +12,7 @@ const { connectLambda } = require('@netlify/blobs');
  * `event.blobs`, por lo que en esos entornos este helper es deliberadamente no-op.
  */
 function connectBlobs(event) {
-  if (process.env.NUTRETIUM_TEST_MEMORY_BLOBS === 'true') return false;
+  if (memoriaDePruebas()) return false;
   if (!event || typeof event.blobs !== 'string' || !event.blobs) return false;
   connectLambda(event);
   return true;

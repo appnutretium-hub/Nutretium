@@ -286,3 +286,12 @@ body { --nt-gold:#d9b968; --nt-gold-soft:#f2d690; }
 .nt-seo-collection .nt-seo-price { color:var(--nt-gold-soft);font-family:Georgia,serif;font-size:1.15rem }
 @media(max-width:900px){.nt-seo-layout {grid-template-columns:1fr}.nt-seo-sidebar {display:none}.nt-seo-collection .nt-seo-grid {grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:540px){.nt-seo-collection .nt-seo-hero{padding:45px 18px;background-position:65% center}.nt-seo-collection .nt-seo-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.nt-seo-collection .nt-seo-img{height:145px;padding:8px}.nt-seo-collection .nt-seo-copy{padding:10px}.nt-seo-collection .nt-seo-copy strong{font-size:.75rem}}
+/* Keep touch controls usable after the editorial card restyling. */
+@media(max-width:767px) {
+  #productGrid .product-card .nt-mobile-actions .add-to-cart-btn {
+    display:flex!important;width:100%!important;height:auto!important;min-height:50px!important;
+    padding:11px 10px!important;font-size:.82rem!important;position:relative;z-index:2;
+  }
+  #productGrid .product-card .nt-mobile-actions .nt-product-detail-link { position:relative;z-index:2 }
+  #productGrid .product-card .nt-mobile-purchase { position:relative;z-index:2 }
+}

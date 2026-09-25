@@ -194,7 +194,7 @@ body > main.wrap, body > .wrap { position: relative; }
 #products .product-card:hover img { transform:scale(1.055) }
 /* Ficha visual: imagen dominante, miniaturas y datos en pestañas accesibles. */
 .media-column { min-width:0 }
-.media-column .visual { position:relative;top:auto;min-height:560px;padding:35px;background:radial-gradient(circle at 50% 42%,#29241b,#111 65%)!important }
+.media-column .visual { position:relative;top:auto;min-height:560px;padding:35px;flex-direction:column;gap:12px;background:radial-gradient(circle at 50% 42%,#29241b,#111 65%)!important }
 .media-column .visual > img { max-height:480px;filter:drop-shadow(0 25px 20px rgba(0,0,0,.35)) }
 .product-thumbs { display:flex;gap:9px;margin-top:12px }
 .product-thumb { height:72px;width:72px;padding:6px;border:1px solid var(--nt-gold);background:#151515;cursor:pointer }

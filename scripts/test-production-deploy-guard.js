@@ -74,6 +74,9 @@ assert.strictEqual(guard.shouldEnforce({ NETLIFY: 'false', CONTEXT: 'production'
 assert.strictEqual(guard.shouldEnforce({ NETLIFY: 'true', CONTEXT: 'deploy-preview' }), false);
 assert.strictEqual(meta.resolveCommitRef({ COMMIT_REF: CANDIDATE }), CANDIDATE);
 assert.strictEqual(meta.resolveCommitRef({ COMMIT_REF: 'bad', GITHUB_SHA: TRUSTED }), TRUSTED);
+assert.throws(() => meta.resolveCommitRef({ COMMIT_REF: CANDIDATE, GITHUB_SHA: TRUSTED }), /revisiones distintas/);
+assert.throws(() => meta.writeBuildMeta({ env: { NETLIFY: 'true', CONTEXT: 'production', BRANCH: 'main' } }), /COMMIT_REF válido/);
+assert.throws(() => meta.writeBuildMeta({ env: { NETLIFY: 'true', CONTEXT: 'production', BRANCH: 'preview', COMMIT_REF: CANDIDATE } }), /fuera de main/);
 
 (async () => {
   const allowed = await guard.guardProductionDeploy({ env: env(), config: config(), fetchImpl: mockFetch() });

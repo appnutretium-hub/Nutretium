@@ -26,13 +26,16 @@ jobs:
       - run: npm ci --omit=optional
       - name: Build production-equivalent storefront
         run: |
-          npm run build:css
-          node scripts/staff-login-inject.js
-          node scripts/compose-app.js
-          node scripts/performance-html.js
-          NUTRETIUM_HTML_REPAIR_MODE=write node scripts/repair-index-html.js
+          npm run build
           node --check app.js
           node --check progressive-catalog.js
+          node - <<'NODE'
+          const fs = require('fs');
+          const meta = JSON.parse(fs.readFileSync('dist/build-meta.json', 'utf8'));
+          if (meta.commitRef !== process.env.GITHUB_SHA) {
+            throw new Error(`Artefacto con SHA incorrecto: ${meta.commitRef || 'null'}`);
+          }
+          NODE
       - name: Core and enterprise tests
         run: |
           npm test
@@ -49,6 +52,7 @@ jobs:
           npm run test:passwords
           npm run test:contracts
           npm run test:external-readiness
+          node scripts/test-production-deploy-guard.js
           npm run test:production-quality
           npm run test:enterprise
       - name: AI, Nexus, workforce, federation and zero-cost regressions

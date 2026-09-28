@@ -12,11 +12,6 @@ function clean(value) {
 }
 
 function resolveCommitRef(env = process.env) {
-  const netlifySha = clean(env.COMMIT_REF);
-  const githubSha = clean(env.GITHUB_SHA);
-  if (SHA_RE.test(netlifySha) && SHA_RE.test(githubSha) && netlifySha.toLowerCase() !== githubSha.toLowerCase()) {
-    throw new Error('COMMIT_REF y GITHUB_SHA identifican revisiones distintas');
-  }
   for (const value of [env.COMMIT_REF, env.GITHUB_SHA]) {
     const sha = clean(value);
     if (SHA_RE.test(sha)) return sha;
@@ -29,6 +24,9 @@ function writeBuildMeta({ env = process.env, now = () => new Date() } = {}) {
   if (env.NETLIFY === 'true' && env.CONTEXT === 'production') {
     if (clean(env.BRANCH) !== 'main') throw new Error('Build de producción fuera de main');
     if (!SHA_RE.test(clean(env.COMMIT_REF))) throw new Error('Build de producción sin COMMIT_REF válido de Netlify');
+    if (SHA_RE.test(clean(env.GITHUB_SHA)) && clean(env.COMMIT_REF).toLowerCase() !== clean(env.GITHUB_SHA).toLowerCase()) {
+      throw new Error('COMMIT_REF y GITHUB_SHA identifican revisiones distintas en producción');
+    }
   }
   const meta = {
     version: 1,

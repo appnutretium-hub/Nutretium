@@ -10,7 +10,7 @@ Estado al 29-09-2026. Esta guía separa cambios de código de acciones que requi
 4. Ejecutar Production Smoke contra esa revisión y guardar la URL del run. Si falla, revisar los logs del deploy y la configuración de rama/sitio/dominio antes de reintentar. No alterar el SHA esperado ni marcar verde un deploy anterior.
 5. Si el candidato publicado falla en funciones críticas, detener nuevas publicaciones, investigar el incidente y restaurar el último deploy sano según el procedimiento de Netlify; registrar el SHA servido tras la recuperación.
 
-El build de producción ahora falla si Netlify no proporciona un SHA válido en `COMMIT_REF`, si su rama no es `main`, o si `COMMIT_REF` y `GITHUB_SHA` válidos se contradicen. Esto impide metadatos de procedencia ambiguos; no realiza el deploy.
+El build de producción ahora falla si Netlify no proporciona un SHA válido en `COMMIT_REF`, si su rama no es `main`, o si `COMMIT_REF` y `GITHUB_SHA` válidos se contradicen en producción. En un PR pueden ser distintos porque GitHub comprueba un commit de merge temporal. Este control no realiza el deploy.
 
 ## 2. Gobierno de la rama (P0)
 

@@ -20,14 +20,22 @@ function resolveCommitRef(env = process.env) {
 }
 
 function writeBuildMeta({ env = process.env, now = () => new Date() } = {}) {
-  fs.mkdirSync(DIST, { recursive: true });
+  const commitRef = resolveCommitRef(env);
+  if (env.NETLIFY === 'true' && env.CONTEXT === 'production') {
+    if (clean(env.BRANCH) !== 'main') throw new Error('Build de producción fuera de main');
+    if (!SHA_RE.test(clean(env.COMMIT_REF))) throw new Error('Build de producción sin COMMIT_REF válido de Netlify');
+    if (SHA_RE.test(clean(env.GITHUB_SHA)) && clean(env.COMMIT_REF).toLowerCase() !== clean(env.GITHUB_SHA).toLowerCase()) {
+      throw new Error('COMMIT_REF y GITHUB_SHA identifican revisiones distintas en producción');
+    }
+  }
   const meta = {
     version: 1,
-    commitRef: resolveCommitRef(env),
+    commitRef,
     branch: clean(env.BRANCH || env.GITHUB_REF_NAME) || null,
     context: clean(env.CONTEXT) || (env.GITHUB_ACTIONS === 'true' ? 'github-actions' : 'local'),
     generatedAt: now().toISOString()
   };
+  fs.mkdirSync(DIST, { recursive: true });
   fs.writeFileSync(path.join(DIST, 'build-meta.json'), `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
   return meta;
 }

@@ -53,6 +53,7 @@ jobs:
           npm run test:contracts
           npm run test:external-readiness
           node scripts/test-production-deploy-guard.js
+          node scripts/test-diagnose-netlify-deploy.js
           npm run test:production-quality
           npm run test:enterprise
       - name: AI, Nexus, workforce, federation and zero-cost regressions

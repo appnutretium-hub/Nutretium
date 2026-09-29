@@ -29,6 +29,9 @@ jobs:
       AUTO_ROLLBACK_ENABLED: ${{ secrets.AUTO_ROLLBACK_ENABLED }}
       REQUIRE_COMMERCE_LIVE_SMOKE: ${{ secrets.REQUIRE_COMMERCE_LIVE_SMOKE }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - name: Verify public storefront
         shell: bash
         run: |
@@ -66,6 +69,8 @@ jobs:
                 exit 0
               fi
             fi
+            # Fallar pronto si Netlify ya descartó este SHA: más espera no publica un deploy omitido.
+            EXPECTED_SHA="$EXPECTED_SHA" node scripts/diagnose-netlify-deploy.js
             sleep 10
           done
           echo "La revisión esperada $EXPECTED_SHA no está publicada; no se hará rollback de una versión sana." >&2

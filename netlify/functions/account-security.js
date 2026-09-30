@@ -3,11 +3,9 @@
 const crypto = require('crypto');
 const { cabecerasCORS } = require('../lib/cors');
 const { getBlobStore } = require('../lib/blob-store');
+const { connectBlobs } = require('../lib/netlify-blobs-runtime');
 const { verifyEventSession } = require('../lib/session');
-const {
-  hashPassword,
-  verifyPassword: verifyPasswordRecord,
-} = require('../lib/passwords');
+const { hashPassword, verifyPassword: verifyPasswordRecord } = require('../lib/passwords');
 const usuarios = require('../lib/usuarios');
 const { sendEmail } = require('../lib/email');
 const { consume } = require('../lib/rate-limit');
@@ -18,12 +16,8 @@ const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 const RESET_TTL = 30 * 60 * 1000;
 const VERIFY_TTL = 24 * 60 * 60 * 1000;
 const MAX_BODY_BYTES = 16 * 1024;
-
-const RESET_MESSAGE =
-  'Si existe una cuenta con ese email, recibirás instrucciones.';
-
-const INVALID_LINK =
-  'Este enlace no es válido, ya se ha utilizado o ha caducado. Solicita uno nuevo.';
+const RESET_MESSAGE = 'Si existe una cuenta con ese email, recibirás instrucciones.';
+const INVALID_LINK = 'Este enlace no es válido, ya se ha utilizado o ha caducado. Solicita uno nuevo.';
 
 class InvalidTokenError extends Error {}
 
@@ -41,40 +35,24 @@ function json(statusCode, payload, headers = {}) {
 }
 
 function resetResponse() {
-  return json(200, {
-    ok: true,
-    message: RESET_MESSAGE,
-  });
+  return json(200, { ok: true, message: RESET_MESSAGE });
 }
 
 function validPassword(value) {
-  return (
-    typeof value === 'string' &&
-    value.length >= 8 &&
-    value.length <= 128
-  );
+  return typeof value === 'string' && value.length >= 8 && value.length <= 128;
 }
 
 function validEmail(value) {
-  return (
-    typeof value === 'string' &&
-    value.length <= 254 &&
-    EMAIL.test(value)
-  );
+  return typeof value === 'string' && value.length <= 254 && EMAIL.test(value);
 }
 
 function tokenHash(value) {
-  return crypto
-    .createHash('sha256')
-    .update(value)
-    .digest('hex');
+  return crypto.createHash('sha256').update(value).digest('hex');
 }
 
 // Solo configuración del servidor: nunca Host ni X-Forwarded-Host.
 function publicOrigin() {
-  const origin = new URL(
-    process.env.NUTRETIUM_PUBLIC_ORIGIN || 'https://nutretium.com'
-  );
+  const origin = new URL(process.env.NUTRETIUM_PUBLIC_ORIGIN || 'https://nutretium.com');
 
   if (
     origin.protocol !== 'https:' ||
@@ -84,9 +62,7 @@ function publicOrigin() {
     origin.search ||
     origin.hash
   ) {
-    throw new Error(
-      'NUTRETIUM_PUBLIC_ORIGIN debe ser un origen HTTPS sin ruta.'
-    );
+    throw new Error('NUTRETIUM_PUBLIC_ORIGIN debe ser un origen HTTPS sin ruta.');
   }
 
   return origin.origin;
@@ -127,24 +103,18 @@ function sessionVersion(user) {
 }
 
 // Vincula el enlace al estado de credenciales con el que se emitió.
-// Incluye el hash para detectar cambios hechos desde otros endpoints.
+// Incluye el hash para detectar también cambios hechos desde otros endpoints.
 function credentialVersion(user) {
-  if (
-    !user ||
-    typeof user.passwordHash !== 'string' ||
-    !user.passwordHash
-  ) {
+  if (!user || typeof user.passwordHash !== 'string' || !user.passwordHash) {
     throw new Error('Credenciales no disponibles.');
   }
 
-  return tokenHash(
-    JSON.stringify([
-      user.passwordHash,
-      sessionVersion(user),
-      user.passwordChangedAt || null,
-      user.createdAt || null,
-    ])
-  );
+  return tokenHash(JSON.stringify([
+    user.passwordHash,
+    sessionVersion(user),
+    user.passwordChangedAt || null,
+    user.createdAt || null,
+  ]));
 }
 
 function revokedPatch(user, passwordHash) {
@@ -171,12 +141,8 @@ async function authEmail(event) {
 function rateResponse(rate) {
   return json(
     429,
-    {
-      error: 'Demasiados intentos. Espera unos minutos.',
-    },
-    {
-      'Retry-After': String(rate.retryAfter || 60),
-    }
+    { error: 'Demasiados intentos. Espera unos minutos.' },
+    { 'Retry-After': String(rate.retryAfter || 60) }
   );
 }
 
@@ -195,9 +161,7 @@ async function issueToken(store, email, user, purpose, ttl) {
     createdAt: new Date().toISOString(),
   };
 
-  const write = await store.setJSON(hash, record, {
-    onlyIfNew: true,
-  });
+  const write = await store.setJSON(hash, record, { onlyIfNew: true });
 
   if (write?.modified !== true) {
     throw new Error('No se pudo guardar el enlace.');
@@ -206,9 +170,8 @@ async function issueToken(store, email, user, purpose, ttl) {
   return { raw, hash };
 }
 
-// Consumo definitivo ANTES del efecto sobre la cuenta.
-// No se libera el token por tiempo ni se revierte su consumo.
-// Ante un fallo posterior se solicita un enlace nuevo.
+// Consumo definitivo ANTES del efecto sobre la cuenta. No existe desbloqueo
+// por tiempo ni rollback: ante un fallo posterior se solicita un enlace nuevo.
 async function consumeToken(store, raw, purpose) {
   const key = tokenHash(raw);
 
@@ -249,9 +212,7 @@ async function consumeToken(store, raw, purpose) {
         usedAt: new Date().toISOString(),
         consumptionId,
       },
-      {
-        onlyIfMatch: entry.etag,
-      }
+      { onlyIfMatch: entry.etag }
     );
 
     if (write?.modified === true) {
@@ -265,9 +226,7 @@ async function consumeToken(store, raw, purpose) {
         confirmed?.data?.used !== true ||
         confirmed.data.consumptionId !== consumptionId
       ) {
-        throw new Error(
-          'No se pudo confirmar el consumo del enlace.'
-        );
+        throw new Error('No se pudo confirmar el consumo del enlace.');
       }
 
       return record;
@@ -295,9 +254,7 @@ async function handle(event, body) {
     const email = await authEmail(event);
 
     if (!email) {
-      return json(401, {
-        error: 'Debes iniciar sesión.',
-      });
+      return json(401, { error: 'Debes iniciar sesión.' });
     }
 
     if (
@@ -306,8 +263,7 @@ async function handle(event, body) {
       body.currentPassword.length > 128
     ) {
       return json(400, {
-        error:
-          'Introduce la contraseña actual y una nueva de entre 8 y 128 caracteres.',
+        error: 'Introduce la contraseña actual y una nueva de entre 8 y 128 caracteres.',
       });
     }
 
@@ -319,9 +275,7 @@ async function handle(event, body) {
       windowMs: 15 * 60 * 1000,
     });
 
-    if (!rate.allowed) {
-      return rateResponse(rate);
-    }
+    if (!rate.allowed) return rateResponse(rate);
 
     requireStore('users');
 
@@ -329,54 +283,39 @@ async function handle(event, body) {
 
     if (
       !snapshot ||
-      !(
-        await verifyPasswordRecord(
-          body.currentPassword,
-          snapshot.passwordHash
-        )
-      ).ok
+      !(await verifyPasswordRecord(body.currentPassword, snapshot.passwordHash)).ok
     ) {
-      return json(401, {
-        error: 'La contraseña actual no es correcta.',
-      });
+      return json(401, { error: 'La contraseña actual no es correcta.' });
     }
 
     const expectedVersion = credentialVersion(snapshot);
     const newHash = await hashPassword(body.newPassword);
 
     const updated = await usuarios.muta(email, user => {
-      if (credentialVersion(user) !== expectedVersion) {
-        return null;
-      }
-
+      if (credentialVersion(user) !== expectedVersion) return null;
       return revokedPatch(user, newHash);
     });
 
     // muta devuelve el usuario actual si el updater devuelve null.
     if (!updated || updated.passwordHash !== newHash) {
       return json(409, {
-        error:
-          'La cuenta cambió durante la operación. Vuelve a intentarlo.',
+        error: 'La cuenta cambió durante la operación. Vuelve a intentarlo.',
       });
     }
 
     return json(200, {
       ok: true,
       reauthRequired: true,
-      message:
-        'Contraseña actualizada. Por seguridad, vuelve a iniciar sesión.',
+      message: 'Contraseña actualizada. Por seguridad, vuelve a iniciar sesión.',
     });
   }
 
   if (body.action === 'request-reset') {
-    const email =
-      typeof body.email === 'string'
-        ? body.email.trim().toLowerCase()
-        : '';
+    const email = typeof body.email === 'string'
+      ? body.email.trim().toLowerCase()
+      : '';
 
-    if (!validEmail(email)) {
-      return resetResponse();
-    }
+    if (!validEmail(email)) return resetResponse();
 
     const rate = await consume({
       scope: 'password-reset-request',
@@ -386,17 +325,12 @@ async function handle(event, body) {
       windowMs: 30 * 60 * 1000,
     });
 
-    if (!rate.allowed) {
-      return resetResponse();
-    }
+    if (!rate.allowed) return resetResponse();
 
     requireStore('users');
 
     const user = await usuarios.lee(email);
-
-    if (!user) {
-      return resetResponse();
-    }
+    if (!user) return resetResponse();
 
     const store = requireStore('password-resets');
 
@@ -418,9 +352,7 @@ async function handle(event, body) {
     });
 
     if (!sent?.ok) {
-      console.error(
-        '[account-security] No se pudo enviar el correo de recuperación.'
-      );
+      console.error('[account-security] No se pudo enviar el correo de recuperación.');
     }
 
     return resetResponse();
@@ -432,9 +364,7 @@ async function handle(event, body) {
       !TOKEN.test(body.resetToken) ||
       !validPassword(body.newPassword)
     ) {
-      return json(400, {
-        error: 'Enlace o contraseña no válidos.',
-      });
+      return json(400, { error: 'Enlace o contraseña no válidos.' });
     }
 
     const rate = await consume({
@@ -444,9 +374,7 @@ async function handle(event, body) {
       windowMs: 30 * 60 * 1000,
     });
 
-    if (!rate.allowed) {
-      return rateResponse(rate);
-    }
+    if (!rate.allowed) return rateResponse(rate);
 
     requireStore('users');
 
@@ -456,11 +384,7 @@ async function handle(event, body) {
       'reset-password'
     );
 
-    if (!record) {
-      return json(400, {
-        error: INVALID_LINK,
-      });
-    }
+    if (!record) return json(400, { error: INVALID_LINK });
 
     const newHash = await hashPassword(body.newPassword);
 
@@ -470,9 +394,7 @@ async function handle(event, body) {
     });
 
     if (!updated || updated.passwordHash !== newHash) {
-      return json(400, {
-        error: INVALID_LINK,
-      });
+      return json(400, { error: INVALID_LINK });
     }
 
     return json(200, {
@@ -484,19 +406,11 @@ async function handle(event, body) {
   if (body.action === 'verification-status') {
     const email = await authEmail(event);
 
-    if (!email) {
-      return json(401, {
-        error: 'Debes iniciar sesión.',
-      });
-    }
+    if (!email) return json(401, { error: 'Debes iniciar sesión.' });
 
     const user = await usuarios.lee(email);
 
-    if (!user) {
-      return json(404, {
-        error: 'Cuenta no encontrada.',
-      });
-    }
+    if (!user) return json(404, { error: 'Cuenta no encontrada.' });
 
     return json(200, {
       verified: Boolean(user.emailVerifiedAt),
@@ -507,21 +421,13 @@ async function handle(event, body) {
   if (body.action === 'request-verification') {
     const email = await authEmail(event);
 
-    if (!email) {
-      return json(401, {
-        error: 'Debes iniciar sesión.',
-      });
-    }
+    if (!email) return json(401, { error: 'Debes iniciar sesión.' });
 
     requireStore('users');
 
     const user = await usuarios.lee(email);
 
-    if (!user) {
-      return json(404, {
-        error: 'Cuenta no encontrada.',
-      });
-    }
+    if (!user) return json(404, { error: 'Cuenta no encontrada.' });
 
     if (user.emailVerifiedAt) {
       return json(200, {
@@ -539,9 +445,7 @@ async function handle(event, body) {
       windowMs: 60 * 60 * 1000,
     });
 
-    if (!rate.allowed) {
-      return rateResponse(rate);
-    }
+    if (!rate.allowed) return rateResponse(rate);
 
     const { raw, hash } = await issueToken(
       requireStore('email-verifications'),
@@ -562,8 +466,7 @@ async function handle(event, body) {
 
     if (!sent?.ok) {
       return json(503, {
-        error:
-          'No se pudo enviar el correo. Vuelve a solicitarlo más tarde.',
+        error: 'No se pudo enviar el correo. Vuelve a solicitarlo más tarde.',
       });
     }
 
@@ -578,9 +481,7 @@ async function handle(event, body) {
       typeof body.verifyToken !== 'string' ||
       !TOKEN.test(body.verifyToken)
     ) {
-      return json(400, {
-        error: 'Enlace de verificación no válido.',
-      });
+      return json(400, { error: 'Enlace de verificación no válido.' });
     }
 
     const rate = await consume({
@@ -590,9 +491,7 @@ async function handle(event, body) {
       windowMs: 30 * 60 * 1000,
     });
 
-    if (!rate.allowed) {
-      return rateResponse(rate);
-    }
+    if (!rate.allowed) return rateResponse(rate);
 
     requireStore('users');
 
@@ -602,27 +501,20 @@ async function handle(event, body) {
       'verify-email'
     );
 
-    if (!record) {
-      return json(400, {
-        error: INVALID_LINK,
-      });
-    }
+    if (!record) return json(400, { error: INVALID_LINK });
 
     const updated = await usuarios.muta(record.email, user => {
       assertTokenMatchesUser(record, user);
 
       return {
         ...user,
-        emailVerifiedAt:
-          user.emailVerifiedAt || new Date().toISOString(),
+        emailVerifiedAt: user.emailVerifiedAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
     });
 
     if (!updated?.emailVerifiedAt) {
-      return json(400, {
-        error: INVALID_LINK,
-      });
+      return json(400, { error: INVALID_LINK });
     }
 
     return json(200, {
@@ -631,29 +523,19 @@ async function handle(event, body) {
     });
   }
 
-  return json(400, {
-    error: 'Acción no reconocida.',
-  });
+  return json(400, { error: 'Acción no reconocida.' });
 }
 
 exports.handler = async function handler(event) {
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 204,
-      headers: CORS,
-      body: '',
-    };
+    return { statusCode: 204, headers: CORS, body: '' };
   }
 
   if (event.httpMethod !== 'POST') {
     return json(
       405,
-      {
-        error: 'Método no permitido.',
-      },
-      {
-        Allow: 'POST, OPTIONS',
-      }
+      { error: 'Método no permitido.' },
+      { Allow: 'POST, OPTIONS' }
     );
   }
 
@@ -663,18 +545,14 @@ exports.handler = async function handler(event) {
     const encoded = event.body ?? '{}';
 
     if (typeof encoded !== 'string') {
-      return json(400, {
-        error: 'JSON no válido.',
-      });
+      return json(400, { error: 'JSON no válido.' });
     }
 
     if (
       Buffer.byteLength(encoded, 'utf8') >
       MAX_BODY_BYTES * (event.isBase64Encoded ? 2 : 1)
     ) {
-      return json(413, {
-        error: 'Petición demasiado grande.',
-      });
+      return json(413, { error: 'Petición demasiado grande.' });
     }
 
     const raw = event.isBase64Encoded
@@ -682,16 +560,12 @@ exports.handler = async function handler(event) {
       : encoded;
 
     if (Buffer.byteLength(raw, 'utf8') > MAX_BODY_BYTES) {
-      return json(413, {
-        error: 'Petición demasiado grande.',
-      });
+      return json(413, { error: 'Petición demasiado grande.' });
     }
 
     body = JSON.parse(raw);
   } catch {
-    return json(400, {
-      error: 'JSON no válido.',
-    });
+    return json(400, { error: 'JSON no válido.' });
   }
 
   if (
@@ -706,23 +580,17 @@ exports.handler = async function handler(event) {
   }
 
   try {
+    connectBlobs(event);
     return await handle(event, body);
   } catch (error) {
     if (error instanceof InvalidTokenError) {
-      return json(400, {
-        error: INVALID_LINK,
-      });
+      return json(400, { error: INVALID_LINK });
     }
 
-    // No registrar cuerpos, contraseñas, tokens ni excepciones
-    // del proveedor que puedan contener datos sensibles.
-    console.error(
-      '[account-security] No se pudo completar la operación.'
-    );
+    // No registrar cuerpos, contraseñas, tokens ni excepciones del proveedor.
+    console.error('[account-security] No se pudo completar la operación.');
 
-    if (body.action === 'request-reset') {
-      return resetResponse();
-    }
+    if (body.action === 'request-reset') return resetResponse();
 
     const tokenOperation =
       body.action === 'reset-password' ||

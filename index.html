@@ -16,6 +16,7 @@
        desde cdn.tailwindcss.com, que compila el CSS en el navegador y el
        propio Tailwind desaconseja en producción. Config: tailwind.config.js -->
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="reference-premium.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet" />
   <style>
@@ -816,19 +817,17 @@
       <div class="max-w-3xl">
         <span class="inline-block bg-brand-gold/10 border border-brand-gold/30 text-brand-gold text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-5 sm:mb-6">Santander · Tienda física + online</span>
         <h1 class="hero-title text-4xl sm:text-5xl md:text-7xl font-black leading-none tracking-tighter mb-5 sm:mb-6">
-          LLEVA TU<br/>
-          <span class="text-brand-gold gold-text">RENDIMIENTO</span><br/>
-          AL LÍMITE
+          Tu mejor<br/>versión empieza<br/><span class="text-brand-gold gold-text">aquí</span>
         </h1>
         <p class="text-brand-muted text-base sm:text-lg md:text-xl max-w-xl mb-8 sm:mb-10 leading-relaxed">
-          Suplementación deportiva de élite. Suplementación deportiva, açaí, smoothies y alimentación saludable desde Santander.
+          Suplementos, alimentación saludable, bowls y smoothies. Ingredientes reales y rendimiento para tu día a día desde Santander.
         </p>
         <div class="flex flex-col xs:flex-row flex-wrap gap-3 sm:gap-4">
           <a href="#products" class="bg-brand-gold text-black font-black px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl text-sm sm:text-base hover:bg-brand-goldlight transition-all text-center">
-            Ver Productos
+            Explorar la tienda
           </a>
-          <a href="#categories" class="border border-brand-border text-white font-semibold px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl text-sm sm:text-base hover:border-brand-gold transition-colors text-center">
-            Explorar Categorías
+          <a href="/recomendador" class="border border-brand-border text-white font-semibold px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl text-sm sm:text-base hover:border-brand-gold transition-colors text-center">
+            Encuentra tu plan
           </a>
         </div>
       </div>
@@ -867,31 +866,31 @@
     <div class="mb-8 sm:mb-12">
       <span class="text-brand-gold text-xs font-bold uppercase tracking-widest">Compra por categoría</span>
       <h2 class="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mt-2">Categorías principales</h2>
-      <p class="text-brand-muted mt-2 text-sm sm:text-base">Encuentra exactamente lo que necesitas para tu entrenamiento y bienestar.</p>
+      <p class="text-brand-muted mt-2 text-sm sm:text-base">Alimentación y rendimiento para cada momento de tu día.</p>
     </div>
     <div class="category-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
       <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Bowls')" role="button" tabindex="0" aria-label="Bowls">
-        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🍧</span>
+        <img class="category-photo" src="/sources/productos/BOWLS/ABB-500__ACAI_BERRY_BRUTAL_500_ML.webp" alt="" loading="lazy">
         <span class="text-sm font-bold text-center">Bowls</span>
       </div>
       <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Bebidas')" role="button" tabindex="0" aria-label="Bebidas">
-        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🥤</span>
+        <img class="category-photo" src="/sources/productos/SMOOTHIES_Y_BATIDOS/00534__BERRY_SMOOTHIE.webp" alt="" loading="lazy">
         <span class="text-sm font-bold text-center">Bebidas</span>
       </div>
       <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Helados')" role="button" tabindex="0" aria-label="Helados">
-        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🍦</span>
+        <img class="category-photo" src="/sources/productos/HELADOS/00494__HELADO_CACAO_AVELLANA_100ML_PROTZEN.webp" alt="" loading="lazy">
         <span class="text-sm font-bold text-center">Helados</span>
       </div>
       <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Alimentación proteica')" role="button" tabindex="0" aria-label="Alimentación proteica">
-        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🥣</span>
+        <img class="category-photo" src="/sources/productos/ALIMENTACION_PROTEICA/00303__CREMA_DE_PROTEINA_COOKIE_DOUGH_PROTELLA_200G.webp" alt="" loading="lazy">
         <span class="text-sm font-bold text-center">Alimentación proteica</span>
       </div>
       <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Proteínas')" role="button" tabindex="0" aria-label="Proteínas">
-        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🥛</span>
+        <img class="category-photo" src="/sources/productos/PROTEINAS/00317__PROTEINA_WHEY_100_VAINILLA_2000G_AMRO.jpg" alt="" loading="lazy">
         <span class="text-sm font-bold text-center">Proteínas</span>
       </div>
       <div class="category-card group bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer min-h-[140px]" onclick="filterByCategory('Barritas y snacks')" role="button" tabindex="0" aria-label="Barritas y snacks">
-        <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform" role="img" aria-hidden="true">🍫</span>
+        <img class="category-photo" src="/sources/productos/BARRITAS_Y_SNACKS/00308__BARRITA_PROTEINA_WHITE_CHOCOLATE_16G_BAREBELLS.webp" alt="" loading="lazy">
         <span class="text-sm font-bold text-center">Barritas y snacks</span>
       </div>
     </div>
